@@ -8,16 +8,17 @@ import IntegrationsPage from './components/integrations/IntegrationsPage';
 import WorkflowsPage from './components/workflows/WorkflowsPage';
 import Navbar from './components/Navbar';
 import Sidebar from './components/Sidebar';
-
-// Mock authentication state (replace with actual auth logic)
-const isAuthenticated = true;
-const userRole = 'CLIENT';
+import useAuthStore from './store/authStore';
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   return isAuthenticated ? <>{children}</> : <Navigate to="/login" />;
 }
 
 function App() {
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const user = useAuthStore((state) => state.user);
+
   if (!isAuthenticated) {
     return (
       <Router>
@@ -41,7 +42,7 @@ function App() {
               path="/admin"
               element={
                 <PrivateRoute>
-                  {userRole === 'ROOT' ? <AdminDashboard /> : <Navigate to="/" />}
+                  {user?.role === 'ROOT' ? <AdminDashboard /> : <Navigate to="/" />}
                 </PrivateRoute>
               }
             />
