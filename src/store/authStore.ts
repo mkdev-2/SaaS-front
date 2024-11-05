@@ -15,9 +15,8 @@ interface AuthState {
   isAuthenticated: boolean;
   login: (email: string, password: string) => Promise<void>;
   register: (data: RegisterData) => Promise<void>;
-  logout: () => Promise<void>;
+  logout: () => void;
   checkAuth: () => Promise<void>;
-  refreshToken: () => Promise<string>;
 }
 
 interface RegisterData {
@@ -48,21 +47,6 @@ const useAuthStore = create<AuthState>()(
         }
       },
 
-      refreshToken: async () => {
-        try {
-          const { data } = await api.post<{ access_token: string }>('/auth/refresh');
-          if (!data.access_token) {
-            throw new Error('No token received');
-          }
-          localStorage.setItem('auth_token', data.access_token);
-          return data.access_token;
-        } catch (error) {
-          localStorage.removeItem('auth_token');
-          set({ user: null, isAuthenticated: false });
-          throw error;
-        }
-      },
-
       login: async (email: string, password: string) => {
         const { data } = await api.post<AuthResponse>('/auth/login', {
           email,
@@ -78,29 +62,20 @@ const useAuthStore = create<AuthState>()(
       },
 
       register: async (data: RegisterData) => {
-        try {
-          const response = await api.post<AuthResponse>('/auth/register', data);
-          
-          if (!response.data.access_token) {
-            throw new Error('Invalid response from server');
-          }
-
-          localStorage.setItem('auth_token', response.data.access_token);
-          set({ user: response.data.user, isAuthenticated: true });
-        } catch (error: any) {
-          throw error;
+        const response = await api.post<AuthResponse>('/auth/register', data);
+        
+        if (!response.data.access_token) {
+          throw new Error('Invalid response from server');
         }
+
+        localStorage.setItem('auth_token', response.data.access_token);
+        set({ user: response.data.user, isAuthenticated: true });
       },
 
-      logout: async () => {
-        try {
-          await api.post('/auth/logout');
-        } catch (error) {
-          console.error('Logout error:', error);
-        } finally {
-          localStorage.removeItem('auth_token');
-          set({ user: null, isAuthenticated: false });
-        }
+      logout: () => {
+        // Simply clear the local state and token
+        localStorage.removeItem('auth_token');
+        set({ user: null, isAuthenticated: false });
       },
     }),
     {

@@ -1,7 +1,17 @@
 import React from 'react';
-import { Menu, Bell, Settings, User } from 'lucide-react';
+import { Menu, Bell, Settings, User, LogOut } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import useAuthStore from '../store/authStore';
 
 export default function Navbar() {
+  const navigate = useNavigate();
+  const { user, logout } = useAuthStore();
+
+  const handleLogout = () => {
+    logout();
+    navigate('/login');
+  };
+
   return (
     <nav className="bg-white border-b border-gray-200 fixed w-full z-50">
       <div className="max-w-full mx-auto px-4">
@@ -22,10 +32,21 @@ export default function Navbar() {
             <button className="p-2 rounded-full text-gray-600 hover:text-gray-900 hover:bg-gray-100">
               <Settings className="h-5 w-5" />
             </button>
-            <button className="flex items-center space-x-2 p-2 rounded-full text-gray-600 hover:text-gray-900 hover:bg-gray-100">
-              <User className="h-5 w-5" />
-              <span className="hidden md:block text-sm font-medium">John Doe</span>
-            </button>
+            <div className="flex items-center space-x-2">
+              <button className="flex items-center space-x-2 p-2 rounded-full text-gray-600 hover:text-gray-900 hover:bg-gray-100">
+                <User className="h-5 w-5" />
+                <span className="hidden md:block text-sm font-medium">
+                  {user?.name || 'User'}
+                </span>
+              </button>
+              <button 
+                onClick={handleLogout}
+                className="p-2 rounded-full text-gray-600 hover:text-gray-900 hover:bg-gray-100"
+                title="Logout"
+              >
+                <LogOut className="h-5 w-5" />
+              </button>
+            </div>
           </div>
         </div>
       </div>
