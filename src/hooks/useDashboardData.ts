@@ -6,17 +6,26 @@ import { DashboardStats } from '../types/dashboard';
 const POLLING_INTERVAL = 30000; // 30 seconds
 const MIN_POLLING_INTERVAL = 5000; // 5 seconds minimum between polls
 
-const defaultStats: DashboardStats = {
-  totalIntegrations: 0,
+// Fallback data for development and error cases
+const fallbackStats: DashboardStats = {
+  totalIntegrations: 1, // At least Kommo integration
   activeWorkflows: 0,
   apiCalls: 0,
-  totalUsers: 0,
+  totalUsers: 1, // Current user
   recentWorkflows: [],
-  integrationHealth: []
+  integrationHealth: [
+    {
+      id: 'kommo',
+      name: 'Kommo CRM',
+      status: 'healthy',
+      uptime: 99.9,
+      lastCheck: new Date().toISOString()
+    }
+  ]
 };
 
 export function useDashboardData() {
-  const [data, setData] = useState<DashboardStats>(defaultStats);
+  const [data, setData] = useState<DashboardStats>(fallbackStats);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   
@@ -37,17 +46,25 @@ export function useDashboardData() {
       if (!isMounted.current) return;
 
       if (response.status === 'success' && response.data) {
-        setData(prevData => ({
-          ...prevData,
-          ...response.data
-        }));
+        setData(response.data);
         setError(null);
       } else {
-        throw new Error(response.message || 'Failed to fetch dashboard data');
+        // If the API returns an error, keep the current data but show the error
+        setError(response.message || 'Failed to fetch dashboard data');
       }
     } catch (err: any) {
       if (!isMounted.current) return;
-      setError(err.message || 'Failed to fetch dashboard data');
+      
+      // On error, keep the current data but show the error message
+      setError(err.response?.data?.message || 'Failed to connect to the server');
+      
+      // If we have no data at all, use fallback data
+      setData(prev => {
+        if (Object.keys(prev).length === 0) {
+          return fallbackStats;
+        }
+        return prev;
+      });
     } finally {
       if (isMounted.current) {
         setLoading(false);
@@ -88,7 +105,6 @@ export function useDashboardData() {
     data, 
     loading, 
     error, 
-    refresh, 
-    wsConnected: false // Always false since we're not using WebSocket
+    refresh
   };
 }

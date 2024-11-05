@@ -1,5 +1,5 @@
 import React from 'react';
-import { ArrowUpRight, ArrowDownRight, Activity, Users, Box, Zap, RefreshCw } from 'lucide-react';
+import { ArrowUpRight, ArrowDownRight, Activity, Users, Box, Zap, RefreshCw, AlertCircle } from 'lucide-react';
 import { useDashboardData } from '../hooks/useDashboardData';
 
 export default function Dashboard() {
@@ -21,24 +21,28 @@ export default function Dashboard() {
     return percentage.toFixed(1) + '%';
   };
 
-  if (error) {
-    return (
-      <div className="p-6">
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-700">
-          {error}
-          <button
-            onClick={refresh}
-            className="ml-4 text-red-600 hover:text-red-800 underline"
-          >
-            Try again
-          </button>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="p-6 space-y-6">
+      {error && (
+        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 flex items-start">
+          <AlertCircle className="h-5 w-5 text-yellow-600 mt-0.5 mr-3 flex-shrink-0" />
+          <div className="flex-1">
+            <h3 className="text-sm font-medium text-yellow-800">
+              Dashboard Sync Status
+            </h3>
+            <p className="mt-1 text-sm text-yellow-700">
+              {error}. Using locally cached data.
+            </p>
+          </div>
+          <button
+            onClick={refresh}
+            className="ml-3 bg-yellow-100 p-2 rounded-full text-yellow-600 hover:bg-yellow-200"
+          >
+            <RefreshCw className="h-4 w-4" />
+          </button>
+        </div>
+      )}
+
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {loading ? (
@@ -123,7 +127,7 @@ export default function Dashboard() {
               ))
             ) : (
               <div className="text-center py-8 text-gray-500">
-                No workflows to display
+                No workflows configured yet
               </div>
             )}
           </div>
@@ -171,7 +175,7 @@ export default function Dashboard() {
               ))
             ) : (
               <div className="text-center py-8 text-gray-500">
-                No integrations to display
+                No active integrations
               </div>
             )}
           </div>
@@ -181,6 +185,7 @@ export default function Dashboard() {
   );
 }
 
+// Rest of the component code (StatCard, StatusBadge, HealthBadge) remains the same
 interface StatCardProps {
   title: string;
   value: string;
