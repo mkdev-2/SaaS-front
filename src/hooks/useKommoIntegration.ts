@@ -12,11 +12,10 @@ interface KommoState {
   config: KommoConfig | null;
 }
 
-interface SaveConfigData {
+interface InitiateOAuthData {
   accountDomain: string;
   clientId: string;
   clientSecret: string;
-  accessToken: string;
 }
 
 const initialState: KommoState = {
@@ -89,36 +88,32 @@ export function useKommoIntegration() {
     }
   };
 
-  const saveConfig = async (data: SaveConfigData) => {
+  const initiateOAuth = async (data: InitiateOAuthData): Promise<string> => {
     if (!user) {
-      throw new Error('You must be logged in to save configuration');
+      throw new Error('You must be logged in to connect');
     }
 
     try {
-      const { data: response } = await api.post<ApiResponse<KommoConfig>>('/integrations/kommo/config', {
+      const { data: response } = await api.post<ApiResponse<{ authUrl: string }>>('/integrations/kommo/oauth/init', {
         accountDomain: data.accountDomain,
         clientId: data.clientId,
-        clientSecret: data.clientSecret,
-        accessToken: data.accessToken
+        clientSecret: data.clientSecret
       });
       
-      if (response.status === 'success' && response.data) {
-        updateState({
-          config: response.data,
-          isConnected: true,
-          error: null,
-        });
-        await loadLeads();
+      if (response.status === 'success' && response.data?.authUrl) {
+        return response.data.authUrl;
       }
+      
+      throw new Error(response.message || 'Failed to initiate OAuth');
     } catch (err: any) {
-      console.error('Save config error:', err.response?.data);
+      console.error('OAuth initiation error:', err.response?.data);
       if (err.response?.data?.errors) {
         const errorMessages = err.response.data.errors
           .map((error: any) => `${error.field}: ${error.message}`)
           .join(', ');
         throw new Error(`Validation error: ${errorMessages}`);
       }
-      throw new Error(err.response?.data?.message || 'Failed to save configuration');
+      throw new Error(err.response?.data?.message || 'Failed to initiate OAuth');
     }
   };
 
@@ -154,7 +149,7 @@ export function useKommoIntegration() {
 
   return {
     ...state,
-    saveConfig,
+    initiateOAuth,
     disconnect,
     refresh: loadLeads,
   };
