@@ -62,14 +62,19 @@ const useAuthStore = create<AuthState>()(
       },
 
       register: async (data: RegisterData) => {
-        const response = await api.post<AuthResponse>('/auth/register', data);
-        
-        if (!response.data.access_token) {
-          throw new Error('Invalid response from server');
-        }
+        try {
+          const response = await api.post<AuthResponse>('/auth/register', data);
+          
+          if (!response.data.access_token) {
+            throw new Error('Invalid response from server');
+          }
 
-        localStorage.setItem('auth_token', response.data.access_token);
-        set({ user: response.data.user, isAuthenticated: true });
+          localStorage.setItem('auth_token', response.data.access_token);
+          set({ user: response.data.user, isAuthenticated: true });
+        } catch (error: any) {
+          // Don't clear auth state on registration error
+          throw error;
+        }
       },
 
       logout: async () => {
@@ -89,19 +94,5 @@ const useAuthStore = create<AuthState>()(
     }
   )
 );
-
-// Initialize auth state
-const initializeAuth = async () => {
-  const token = localStorage.getItem('auth_token');
-  if (token) {
-    try {
-      await useAuthStore.getState().checkAuth();
-    } catch (error) {
-      console.error('Auth initialization error:', error);
-    }
-  }
-};
-
-initializeAuth();
 
 export default useAuthStore;

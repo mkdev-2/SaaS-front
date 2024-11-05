@@ -26,12 +26,12 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401) {
-      // Clear auth state and redirect to login
+    // Only redirect on 401 if not on auth pages
+    if (error.response?.status === 401 && 
+        !window.location.pathname.includes('/login') && 
+        !window.location.pathname.includes('/register')) {
       localStorage.removeItem('auth_token');
-      if (!window.location.pathname.includes('/login')) {
-        window.location.href = '/login';
-      }
+      window.location.href = '/login';
     }
     return Promise.reject(error);
   }
