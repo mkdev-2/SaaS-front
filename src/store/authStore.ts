@@ -17,6 +17,7 @@ interface AuthState {
   register: (data: RegisterData) => Promise<void>;
   logout: () => Promise<void>;
   checkAuth: () => Promise<void>;
+  refreshToken: () => Promise<string>;
 }
 
 interface RegisterData {
@@ -47,6 +48,21 @@ const useAuthStore = create<AuthState>()(
         }
       },
 
+      refreshToken: async () => {
+        try {
+          const { data } = await api.post<{ access_token: string }>('/auth/refresh');
+          if (!data.access_token) {
+            throw new Error('No token received');
+          }
+          localStorage.setItem('auth_token', data.access_token);
+          return data.access_token;
+        } catch (error) {
+          localStorage.removeItem('auth_token');
+          set({ user: null, isAuthenticated: false });
+          throw error;
+        }
+      },
+
       login: async (email: string, password: string) => {
         const { data } = await api.post<AuthResponse>('/auth/login', {
           email,
@@ -72,7 +88,6 @@ const useAuthStore = create<AuthState>()(
           localStorage.setItem('auth_token', response.data.access_token);
           set({ user: response.data.user, isAuthenticated: true });
         } catch (error: any) {
-          // Don't clear auth state on registration error
           throw error;
         }
       },
