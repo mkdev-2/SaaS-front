@@ -1,4 +1,5 @@
 import api from './api';
+import { ApiResponse } from '../types/api';
 
 export interface KommoConfig {
   client_id: string;
@@ -32,54 +33,47 @@ class KommoAPI {
     return KommoAPI.instance;
   }
 
-  setConfig(config: KommoConfig) {
-    this.config = config;
-  }
-
-  getAuthUrl(): string {
-    if (!this.config) throw new Error('Kommo not configured');
-    
-    const params = new URLSearchParams({
-      client_id: this.config.client_id,
-      redirect_uri: this.config.redirect_uri,
-      response_type: 'code',
-      mode: 'popup'
-    });
-
-    return `https://www.kommo.com/oauth?${params.toString()}`;
-  }
-
-  async exchangeCode(code: string): Promise<void> {
-    if (!this.config) throw new Error('Kommo not configured');
-
+  async initialize(): Promise<void> {
     try {
-      const response = await api.post('/integrations/kommo/oauth', {
-        code,
-        client_id: this.config.client_id,
-        client_secret: this.config.client_secret,
-        redirect_uri: this.config.redirect_uri
-      });
-
-      this.config = {
-        ...this.config,
-        ...response.data
-      };
-
-      // Save updated config to backend
-      await api.put('/integrations/kommo/config', this.config);
+      const { data: response } = await api.get<ApiResponse<KommoConfig>>('/integrations/kommo/config');
+      if (response.status === 'success' && response.data) {
+        this.config = response.data;
+      } else {
+        throw new Error('Failed to load Kommo configuration');
+      }
     } catch (error) {
-      console.error('Error exchanging code:', error);
-      throw new Error('Failed to authenticate with Kommo');
+      console.error('Failed to initialize Kommo API:', error);
+      throw error;
     }
   }
 
   async getLeads(query?: { status_id?: number; page?: number }): Promise<KommoLead[]> {
     try {
-      const response = await api.get('/integrations/kommo/leads', { params: query });
-      return response.data;
+      const { data: response } = await api.get<ApiResponse<KommoLead[]>>('/integrations/kommo/leads', {
+        params: query
+      });
+      
+      if (response.status === 'success' && response.data) {
+        return response.data;
+      }
+      throw new Error(response.message || 'Failed to fetch leads');
     } catch (error) {
       console.error('Error fetching leads:', error);
-      throw new Error('Failed to fetch leads from Kommo');
+      throw error;
+    }
+  }
+
+  async disconnect(): Promise<void> {
+    try {
+      const { data: response } = await api.post<ApiResponse<void>>('/integrations/kommo/disconnect');
+      if (response.status === 'success') {
+        this.config = null;
+      } else {
+        throw new Error(response.message || 'Failed to disconnect');
+      }
+    } catch (error) {
+      console.error('Error disconnecting from Kommo:', error);
+      throw error;
     }
   }
 }
