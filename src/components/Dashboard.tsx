@@ -5,7 +5,9 @@ import { useDashboardData } from '../hooks/useDashboardData';
 export default function Dashboard() {
   const { data, loading, error, refresh } = useDashboardData();
 
-  const formatNumber = (num: number): string => {
+  const formatNumber = (num: number | undefined): string => {
+    if (num === undefined || num === null) return '0';
+    
     if (num >= 1000000) {
       return (num / 1000000).toFixed(1) + 'M';
     }
@@ -15,11 +17,38 @@ export default function Dashboard() {
     return num.toString();
   };
 
-  const calculateChange = (current: number, previous: number): string => {
-    if (previous === 0) return '0%';
+  const calculateChange = (current: number | undefined, previous: number | undefined): string => {
+    if (current === undefined || previous === undefined || previous === 0) return '0%';
     const percentage = ((current - previous) / previous) * 100;
     return percentage.toFixed(1) + '%';
   };
+
+  const stats = [
+    {
+      title: "Total Integrations",
+      value: data?.totalIntegrations ?? 0,
+      previousValue: (data?.totalIntegrations ?? 0) - 2,
+      icon: Zap
+    },
+    {
+      title: "Active Workflows",
+      value: data?.activeWorkflows ?? 0,
+      previousValue: (data?.activeWorkflows ?? 0) - 5,
+      icon: Box
+    },
+    {
+      title: "API Calls",
+      value: data?.apiCalls ?? 0,
+      previousValue: (data?.apiCalls ?? 0) - 1000,
+      icon: Activity
+    },
+    {
+      title: "Total Users",
+      value: data?.totalUsers ?? 0,
+      previousValue: (data?.totalUsers ?? 0) - 1,
+      icon: Users
+    }
+  ];
 
   return (
     <div className="p-6 space-y-6">
@@ -54,32 +83,15 @@ export default function Dashboard() {
             </div>
           ))
         ) : (
-          <>
+          stats.map((stat, index) => (
             <StatCard
-              title="Total Integrations"
-              value={formatNumber(data.totalIntegrations)}
-              change={calculateChange(data.totalIntegrations, data.totalIntegrations - 2)}
-              icon={Zap}
+              key={index}
+              title={stat.title}
+              value={formatNumber(stat.value)}
+              change={calculateChange(stat.value, stat.previousValue)}
+              icon={stat.icon}
             />
-            <StatCard
-              title="Active Workflows"
-              value={formatNumber(data.activeWorkflows)}
-              change={calculateChange(data.activeWorkflows, data.activeWorkflows - 5)}
-              icon={Box}
-            />
-            <StatCard
-              title="API Calls"
-              value={formatNumber(data.apiCalls)}
-              change={calculateChange(data.apiCalls, data.apiCalls - 1000)}
-              icon={Activity}
-            />
-            <StatCard
-              title="Total Users"
-              value={formatNumber(data.totalUsers)}
-              change={calculateChange(data.totalUsers, data.totalUsers - 1)}
-              icon={Users}
-            />
-          </>
+          ))
         )}
       </div>
 
@@ -110,7 +122,7 @@ export default function Dashboard() {
                   </div>
                 </div>
               ))
-            ) : data.recentWorkflows.length > 0 ? (
+            ) : data?.recentWorkflows?.length ? (
               data.recentWorkflows.map((workflow) => (
                 <div key={workflow.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
                   <div className="flex items-center space-x-3">
@@ -158,7 +170,7 @@ export default function Dashboard() {
                   </div>
                 </div>
               ))
-            ) : data.integrationHealth.length > 0 ? (
+            ) : data?.integrationHealth?.length ? (
               data.integrationHealth.map((integration) => (
                 <div key={integration.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
                   <div className="flex items-center space-x-3">
@@ -185,7 +197,6 @@ export default function Dashboard() {
   );
 }
 
-// Rest of the component code (StatCard, StatusBadge, HealthBadge) remains the same
 interface StatCardProps {
   title: string;
   value: string;
@@ -227,7 +238,7 @@ function StatusBadge({ status }: { status: string }) {
   };
 
   return (
-    <span className={`px-3 py-1 rounded-full text-sm ${colors[status as keyof typeof colors]}`}>
+    <span className={`px-3 py-1 rounded-full text-sm ${colors[status as keyof typeof colors] || colors.failed}`}>
       {status.charAt(0).toUpperCase() + status.slice(1)}
     </span>
   );
@@ -241,7 +252,7 @@ function HealthBadge({ status }: { status: string }) {
   };
 
   return (
-    <span className={`px-3 py-1 rounded-full text-sm ${colors[status as keyof typeof colors]}`}>
+    <span className={`px-3 py-1 rounded-full text-sm ${colors[status as keyof typeof colors] || colors.error}`}>
       {status.charAt(0).toUpperCase() + status.slice(1)}
     </span>
   );
