@@ -5,6 +5,7 @@ export interface KommoConfig {
   client_id: string;
   client_secret: string;
   redirect_uri: string;
+  account_domain: string;
   access_token?: string;
   refresh_token?: string;
   expires_at?: number;
@@ -38,8 +39,6 @@ class KommoAPI {
       const { data: response } = await api.get<ApiResponse<KommoConfig>>('/integrations/kommo/config');
       if (response.status === 'success' && response.data) {
         this.config = response.data;
-      } else {
-        throw new Error('Failed to load Kommo configuration');
       }
     } catch (error) {
       console.error('Failed to initialize Kommo API:', error);
@@ -59,20 +58,6 @@ class KommoAPI {
       throw new Error(response.message || 'Failed to fetch leads');
     } catch (error) {
       console.error('Error fetching leads:', error);
-      throw error;
-    }
-  }
-
-  async disconnect(): Promise<void> {
-    try {
-      const { data: response } = await api.post<ApiResponse<void>>('/integrations/kommo/disconnect');
-      if (response.status === 'success') {
-        this.config = null;
-      } else {
-        throw new Error(response.message || 'Failed to disconnect');
-      }
-    } catch (error) {
-      console.error('Error disconnecting from Kommo:', error);
       throw error;
     }
   }
