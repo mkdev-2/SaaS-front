@@ -6,6 +6,7 @@ import AdminDashboard from './components/admin/AdminDashboard';
 import Dashboard from './components/Dashboard';
 import IntegrationsPage from './components/integrations/IntegrationsPage';
 import WorkflowsPage from './components/workflows/WorkflowsPage';
+import KommoConnectionResult from './components/integrations/kommo/KommoConnectionResult';
 import Navbar from './components/Navbar';
 import Sidebar from './components/Sidebar';
 import useAuthStore from './store/authStore';
@@ -76,6 +77,13 @@ export default function App() {
             <ProtectedRoute>
               <AppLayout>
                 <IntegrationsPage />
+              </AppLayout>
+            </ProtectedRoute>
+          } />
+          <Route path="/integrations/kommo/result" element={
+            <ProtectedRoute>
+              <AppLayout>
+                <KommoConnectionResult />
               </AppLayout>
             </ProtectedRoute>
           } />

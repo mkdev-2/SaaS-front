@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Save, RefreshCw, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { useKommoIntegration } from '../../../hooks/useKommoIntegration';
 
 interface KommoFormData {
@@ -17,6 +18,7 @@ const DEFAULT_VALUES = {
 };
 
 export default function KommoIntegration() {
+  const navigate = useNavigate();
   const {
     isConnected,
     isLoading,
@@ -62,11 +64,24 @@ export default function KommoIntegration() {
 
     try {
       await saveConfig(formData);
+      navigate('/integrations/kommo/result?status=success&message=Successfully connected to Kommo CRM');
     } catch (err: any) {
       console.error('Submit error:', err);
-      setFormError(err.message || 'Failed to save configuration');
+      const errorMessage = err.message || 'Failed to connect to Kommo CRM';
+      navigate(`/integrations/kommo/result?status=error&message=${encodeURIComponent(errorMessage)}`);
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleDisconnect = async () => {
+    try {
+      await disconnect();
+      navigate('/integrations/kommo/result?status=success&message=Successfully disconnected from Kommo CRM');
+    } catch (err: any) {
+      console.error('Disconnect error:', err);
+      const errorMessage = err.message || 'Failed to disconnect from Kommo CRM';
+      navigate(`/integrations/kommo/result?status=error&message=${encodeURIComponent(errorMessage)}`);
     }
   };
 
@@ -201,7 +216,7 @@ export default function KommoIntegration() {
           {isConnected && (
             <button
               type="button"
-              onClick={disconnect}
+              onClick={handleDisconnect}
               className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-red-600 bg-red-50 hover:bg-red-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
             >
               Disconnect
