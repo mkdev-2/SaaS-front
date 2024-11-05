@@ -34,20 +34,17 @@ class SocketService {
 
     this.isConnecting = true;
 
-    // Use HTTP/HTTPS URL, socket.io will handle the WebSocket upgrade
-    const baseUrl = import.meta.env.VITE_API_URL || 'https://saas-backend-production-8b94.up.railway.app/api';
-    const wsUrl = baseUrl.replace('/api', '');
-
     try {
-      this.socket = io(wsUrl, {
-        auth: { token },
+      this.socket = io('https://saas-backend-production-8b94.up.railway.app', {
+        auth: {
+          token
+        },
         reconnection: true,
         reconnectionAttempts: this.maxReconnectAttempts,
         reconnectionDelay: 1000,
         timeout: 10000,
-        transports: ['polling'], // Start with polling only
-        forceNew: true, // Force a new connection
-        path: '/socket.io',
+        transports: ['websocket', 'polling'],
+        forceNew: true,
       });
 
       this.setupEventListeners();
@@ -67,13 +64,11 @@ class SocketService {
       this.reconnectAttempts = 0;
       this.notifyConnectionStatus(true);
       
-      // Clear any existing connection timeout
       if (this.connectionTimeout) {
         clearTimeout(this.connectionTimeout);
         this.connectionTimeout = null;
       }
 
-      // Subscribe to dashboard updates after successful connection
       this.socket?.emit('subscribe:dashboard');
     });
 
@@ -82,7 +77,7 @@ class SocketService {
     });
 
     this.socket.on('connect_error', (error) => {
-      console.error('WebSocket connection error:', error.message);
+      console.error('WebSocket connection error:', error);
       this.isConnecting = false;
       this.notifyConnectionStatus(false);
       this.handleReconnect();
@@ -94,7 +89,6 @@ class SocketService {
       this.notifyConnectionStatus(false);
     });
 
-    // Set a connection timeout
     this.connectionTimeout = setTimeout(() => {
       if (!this.socket?.connected) {
         console.log('Connection timeout, falling back to polling');
