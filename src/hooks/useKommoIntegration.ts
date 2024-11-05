@@ -35,7 +35,6 @@ export function useKommoIntegration() {
   };
 
   const loadConfig = async () => {
-    // Don't try to load config if user is not authenticated
     if (!user) {
       updateState({ isLoading: false });
       return;
@@ -61,7 +60,6 @@ export function useKommoIntegration() {
       }
     } catch (err: any) {
       console.error('Error loading Kommo config:', err);
-      // Don't set error if it's a 404 (config not found)
       if (err.response?.status !== 404) {
         updateState({
           error: err.response?.data?.message || 'Failed to load configuration'
@@ -100,9 +98,9 @@ export function useKommoIntegration() {
 
     try {
       const { data: response } = await api.post<ApiResponse<KommoConfig>>('/integrations/kommo/config', {
-        account_domain: data.accountDomain,
-        client_id: data.clientId,
-        client_secret: data.clientSecret
+        accountDomain: data.accountDomain,
+        clientId: data.clientId,
+        clientSecret: data.clientSecret
       });
       
       if (response.status === 'success' && response.data) {
@@ -147,7 +145,6 @@ export function useKommoIntegration() {
     }
   };
 
-  // Load config when user changes or component mounts
   useEffect(() => {
     if (user) {
       loadConfig();
