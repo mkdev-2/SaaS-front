@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import api from '../lib/api';
+import { ApiResponse, AuthData } from '../types/api';
 
 interface User {
   id: string;
@@ -26,11 +27,6 @@ interface RegisterData {
   company?: string;
 }
 
-interface AuthResponse {
-  token: string;
-  user: User;
-}
-
 const useAuthStore = create<AuthState>()(
   persist(
     (set) => ({
@@ -39,56 +35,66 @@ const useAuthStore = create<AuthState>()(
 
       checkAuth: async () => {
         try {
-          const { data } = await api.get<User>('/auth/me');
-          set({ user: data, isAuthenticated: true });
+          const { data: response } = await api.get<ApiResponse<User>>('/auth/me');
+          if (response.status === 'success' && response.data) {
+            set({ user: response.data, isAuthenticated: true });
+          } else {
+            throw new Error(response.message || 'Authentication failed');
+          }
         } catch (error) {
           set({ user: null, isAuthenticated: false });
           localStorage.removeItem('auth_token');
+          throw error;
         }
       },
 
       login: async (email: string, password: string) => {
         try {
-          const { data } = await api.post<AuthResponse>('/auth/login', {
+          const { data: response } = await api.post<ApiResponse<AuthData>>('/auth/login', {
             email,
             password,
           });
 
-          if (!data?.token || !data?.user) {
-            throw new Error('Invalid response from server');
+          if (response.status === 'success' && response.data) {
+            const { token, user } = response.data;
+            localStorage.setItem('auth_token', token);
+            set({ user, isAuthenticated: true });
+          } else {
+            throw new Error(response.message || 'Login failed');
           }
-
-          localStorage.setItem('auth_token', data.token);
-          set({ user: data.user, isAuthenticated: true });
         } catch (error: any) {
           if (error.response?.data?.message) {
             throw new Error(error.response.data.message);
           }
-          throw error;
+          throw new Error('Failed to connect to the server');
         }
       },
 
       register: async (data: RegisterData) => {
         try {
-          const response = await api.post<AuthResponse>('/auth/register', data);
+          const { data: response } = await api.post<ApiResponse<AuthData>>('/auth/register', data);
           
-          if (!response.data?.token || !response.data?.user) {
-            throw new Error('Invalid response from server');
+          if (response.status === 'success' && response.data) {
+            const { token, user } = response.data;
+            localStorage.setItem('auth_token', token);
+            set({ user, isAuthenticated: true });
+          } else {
+            throw new Error(response.message || 'Registration failed');
           }
-
-          localStorage.setItem('auth_token', response.data.token);
-          set({ user: response.data.user, isAuthenticated: true });
         } catch (error: any) {
           if (error.response?.data?.message) {
             throw new Error(error.response.data.message);
           }
-          throw error;
+          throw new Error('Failed to connect to the server');
         }
       },
 
       logout: async () => {
         try {
-          await api.post('/auth/logout');
+          const { data: response } = await api.post<ApiResponse<void>>('/auth/logout');
+          if (response.status !== 'success') {
+            console.error('Logout error:', response.message);
+          }
         } catch (error) {
           console.error('Logout error:', error);
         } finally {

@@ -41,19 +41,14 @@ export default function LoginForm() {
     try {
       await login(email.trim(), password);
       const from = location.state?.from?.pathname || '/dashboard';
+      
       // Ensure navigation happens after successful login
       setTimeout(() => {
         navigate(from, { replace: true });
       }, 0);
     } catch (err: any) {
       setIsLoading(false);
-      if (err.response?.status === 401) {
-        setError('Invalid email or password');
-      } else if (err.response?.status === 429) {
-        setError('Too many attempts. Please try again later.');
-      } else {
-        setError(err.message || 'An error occurred. Please try again.');
-      }
+      setError(err.message || 'An error occurred. Please try again.');
     }
   };
 
