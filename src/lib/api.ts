@@ -26,14 +26,11 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response) => response,
   async (error: AxiosError) => {
-    const originalRequest = error.config;
-    
-    // Handle specific error cases
     if (error.response?.status === 401) {
       // Clear auth state on unauthorized
       localStorage.removeItem('auth_token');
+      window.location.href = '/login';
     }
-
     return Promise.reject(error);
   }
 );

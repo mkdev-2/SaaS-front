@@ -27,7 +27,7 @@ interface RegisterData {
 }
 
 interface AuthResponse {
-  access_token: string;
+  token: string;  // Changed from access_token to token
   user: User;
 }
 
@@ -54,11 +54,11 @@ const useAuthStore = create<AuthState>()(
             password,
           });
 
-          if (!data.access_token) {
+          if (!data.token) {
             throw new Error('Invalid response from server');
           }
 
-          localStorage.setItem('auth_token', data.access_token);
+          localStorage.setItem('auth_token', data.token);
           set({ user: data.user, isAuthenticated: true });
         } catch (error) {
           localStorage.removeItem('auth_token');
@@ -71,11 +71,11 @@ const useAuthStore = create<AuthState>()(
         try {
           const response = await api.post<AuthResponse>('/auth/register', data);
           
-          if (!response.data.access_token) {
+          if (!response.data.token) {
             throw new Error('Invalid response from server');
           }
 
-          localStorage.setItem('auth_token', response.data.access_token);
+          localStorage.setItem('auth_token', response.data.token);
           set({ user: response.data.user, isAuthenticated: true });
         } catch (error) {
           localStorage.removeItem('auth_token');
