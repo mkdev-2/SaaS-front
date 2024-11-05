@@ -12,23 +12,23 @@ import useAuthStore from './store/authStore';
 
 function AuthWrapper({ children }: { children: React.ReactNode }) {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
-  const checkAuth = useAuthStore((state) => state.checkAuth);
   const location = useLocation();
+  const navigate = useNavigate();
 
   useEffect(() => {
-    if (isAuthenticated) {
-      checkAuth().catch(() => {
-        // Error handling is done in the store
-      });
+    // Only redirect from auth pages to dashboard if authenticated
+    if (isAuthenticated && ['/login', '/register'].includes(location.pathname)) {
+      navigate('/dashboard');
     }
-  }, [isAuthenticated, checkAuth]);
+  }, [isAuthenticated, location.pathname, navigate]);
 
-  // Don't protect auth routes
-  if (['/login', '/register'].includes(location.pathname)) {
-    return <>{children}</>;
-  }
+  return <>{children}</>;
+}
 
-  // Protect all other routes
+function ProtectedRoute({ children }: { children: React.ReactNode }) {
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const location = useLocation();
+
   if (!isAuthenticated) {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
@@ -59,24 +59,32 @@ export default function App() {
 
           {/* Protected routes */}
           <Route path="/dashboard" element={
-            <AppLayout>
-              <Dashboard />
-            </AppLayout>
+            <ProtectedRoute>
+              <AppLayout>
+                <Dashboard />
+              </AppLayout>
+            </ProtectedRoute>
           } />
           <Route path="/admin" element={
-            <AppLayout>
-              <AdminDashboard />
-            </AppLayout>
+            <ProtectedRoute>
+              <AppLayout>
+                <AdminDashboard />
+              </AppLayout>
+            </ProtectedRoute>
           } />
           <Route path="/integrations" element={
-            <AppLayout>
-              <IntegrationsPage />
-            </AppLayout>
+            <ProtectedRoute>
+              <AppLayout>
+                <IntegrationsPage />
+              </AppLayout>
+            </ProtectedRoute>
           } />
           <Route path="/workflows" element={
-            <AppLayout>
-              <WorkflowsPage />
-            </AppLayout>
+            <ProtectedRoute>
+              <AppLayout>
+                <WorkflowsPage />
+              </AppLayout>
+            </ProtectedRoute>
           } />
 
           {/* Redirect root to dashboard */}
