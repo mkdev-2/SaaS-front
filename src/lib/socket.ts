@@ -28,7 +28,7 @@ class SocketService {
 
     const token = localStorage.getItem('auth_token');
     if (!token) {
-      console.error('No auth token found');
+      console.warn('No auth token found, skipping socket connection');
       this.notifyConnectionStatus(false);
       return;
     }
@@ -41,13 +41,14 @@ class SocketService {
         this.socket = null;
       }
 
-      this.socket = io('https://saas-backend-production-8b94.up.railway.app', {
+      this.socket = io(import.meta.env.VITE_API_URL.replace('/api', ''), {
         auth: {
           token
         },
-        reconnection: false, // Disable auto-reconnect, we'll handle it manually
+        reconnection: false,
         timeout: 5000,
-        transports: ['polling', 'websocket'],
+        transports: ['websocket', 'polling'],
+        path: '/socket.io/',
       });
 
       this.setupEventListeners();
@@ -88,7 +89,6 @@ class SocketService {
       this.handleConnectionFailure();
     });
 
-    // Set connection timeout
     this.connectionTimeout = setTimeout(() => {
       if (!this.socket?.connected) {
         this.handleConnectionFailure();
@@ -105,11 +105,15 @@ class SocketService {
       this.connectionTimeout = null;
     }
 
-    this.reconnectAttempts++;
     if (this.reconnectAttempts < this.maxReconnectAttempts) {
+      this.reconnectAttempts++;
+      const delay = Math.min(1000 * Math.pow(2, this.reconnectAttempts), 10000);
+      
       setTimeout(() => {
-        this.connect();
-      }, 1000 * Math.min(this.reconnectAttempts, 5));
+        if (!this.socket?.connected) {
+          this.connect();
+        }
+      }, delay);
     } else {
       this.disconnect();
     }
