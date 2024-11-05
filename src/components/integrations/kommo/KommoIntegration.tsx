@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ExternalLink, RefreshCw, AlertCircle, CheckCircle2, XCircle } from 'lucide-react';
+import { ExternalLink, RefreshCw, AlertCircle, CheckCircle2, XCircle, Settings } from 'lucide-react';
 import api from '../../../lib/api';
 import { ApiResponse } from '../../../types/api';
 import { KommoConfig, KommoLead } from '../../../lib/kommo';
@@ -10,6 +10,7 @@ export default function KommoIntegration() {
   const [error, setError] = useState<string | null>(null);
   const [leads, setLeads] = useState<KommoLead[]>([]);
   const [config, setConfig] = useState<KommoConfig | null>(null);
+  const [needsConfiguration, setNeedsConfiguration] = useState(false);
 
   useEffect(() => {
     loadConfig();
@@ -19,6 +20,7 @@ export default function KommoIntegration() {
     try {
       setIsLoading(true);
       setError(null);
+      setNeedsConfiguration(false);
       
       const { data: response } = await api.get<ApiResponse<KommoConfig>>('/integrations/kommo/config');
       
@@ -34,7 +36,12 @@ export default function KommoIntegration() {
       }
     } catch (err: any) {
       console.error('Error loading Kommo config:', err);
-      setError('Failed to load integration configuration');
+      if (err.response?.status === 404) {
+        setNeedsConfiguration(true);
+        setError('Integration not configured. Please contact your administrator.');
+      } else {
+        setError('Failed to load integration configuration');
+      }
       setIsConnected(false);
       setConfig(null);
     } finally {
@@ -56,67 +63,11 @@ export default function KommoIntegration() {
       }
     } catch (err: any) {
       console.error('Error loading leads:', err);
-      setError('Failed to load leads');
-    }
-  };
-
-  const handleConnect = async () => {
-    try {
-      // First, ensure we have the latest config
-      const { data: response } = await api.get<ApiResponse<KommoConfig>>('/integrations/kommo/config');
-      
-      if (response.status !== 'success' || !response.data) {
-        throw new Error('Failed to load Kommo configuration');
-      }
-
-      const authUrl = `https://www.kommo.com/oauth?client_id=${response.data.client_id}&redirect_uri=${encodeURIComponent(response.data.redirect_uri)}&response_type=code&mode=popup`;
-      
-      const popup = window.open(authUrl, 'Kommo Auth', 'width=600,height=600');
-      
-      if (!popup) {
-        throw new Error('Popup blocked. Please allow popups for this site.');
-      }
-
-      window.addEventListener('message', async (event) => {
-        if (event.data.type === 'KOMMO_AUTH_CODE') {
-          try {
-            const { data: authResponse } = await api.post<ApiResponse<KommoConfig>>('/integrations/kommo/oauth', {
-              code: event.data.code
-            });
-
-            if (authResponse.status === 'success' && authResponse.data) {
-              setConfig(authResponse.data);
-              setIsConnected(true);
-              await loadLeads();
-              popup.close();
-            } else {
-              throw new Error(authResponse.message || 'Authentication failed');
-            }
-          } catch (err: any) {
-            setError(err.message || 'Failed to connect to Kommo');
-            popup.close();
-          }
-        }
-      });
-    } catch (err: any) {
-      setError(err.message || 'Failed to initialize Kommo connection');
-    }
-  };
-
-  const handleDisconnect = async () => {
-    try {
-      const { data: response } = await api.post<ApiResponse<void>>('/integrations/kommo/disconnect');
-      
-      if (response.status === 'success') {
-        setIsConnected(false);
-        setConfig(null);
-        setLeads([]);
-        setError(null);
+      if (err.response?.status === 404) {
+        setError('Leads endpoint not available. Please check your integration setup.');
       } else {
-        throw new Error(response.message || 'Failed to disconnect');
+        setError('Failed to load leads');
       }
-    } catch (err: any) {
-      setError(err.message || 'Failed to disconnect from Kommo');
     }
   };
 
@@ -126,6 +77,49 @@ export default function KommoIntegration() {
         <div className="flex items-center justify-center h-48">
           <RefreshCw className="w-6 h-6 animate-spin text-gray-400" />
         </div>
+      </div>
+    );
+  }
+
+  if (needsConfiguration) {
+    return (
+      <div className="bg-white rounded-xl shadow-sm p-6">
+        <div className="flex items-start justify-between mb-6">
+          <div className="flex items-center space-x-3">
+            <div className="h-10 w-10 bg-gray-100 rounded-lg flex items-center justify-center">
+              <Settings className="h-6 w-6 text-gray-400" />
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900">Kommo CRM</h3>
+              <p className="text-sm text-gray-500">Integration Setup Required</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
+          <div className="flex">
+            <AlertCircle className="h-5 w-5 text-yellow-400" />
+            <div className="ml-3">
+              <h3 className="text-sm font-medium text-yellow-800">Configuration Required</h3>
+              <div className="mt-2 text-sm text-yellow-700">
+                <p>This integration needs to be configured by an administrator. Please ensure:</p>
+                <ul className="list-disc list-inside mt-2">
+                  <li>Kommo API credentials are set up</li>
+                  <li>OAuth configuration is complete</li>
+                  <li>Required permissions are granted</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <button
+          onClick={() => window.open('https://www.kommo.com/developers', '_blank')}
+          className="w-full py-2 px-4 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 flex items-center justify-center text-sm transition-colors"
+        >
+          <ExternalLink className="w-4 h-4 mr-2" />
+          View Documentation
+        </button>
       </div>
     );
   }
@@ -218,7 +212,12 @@ export default function KommoIntegration() {
             </button>
 
             <button
-              onClick={handleDisconnect}
+              onClick={() => {
+                setIsConnected(false);
+                setConfig(null);
+                setLeads([]);
+                setError(null);
+              }}
               className="w-full py-2 px-4 bg-red-50 text-red-600 rounded-md hover:bg-red-100 text-sm transition-colors"
             >
               Disconnect
@@ -227,7 +226,7 @@ export default function KommoIntegration() {
         </div>
       ) : (
         <button
-          onClick={handleConnect}
+          onClick={() => window.open('https://www.kommo.com/oauth', '_blank')}
           className="w-full py-2 px-4 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 flex items-center justify-center text-sm transition-colors"
         >
           <ExternalLink className="w-4 h-4 mr-2" />
