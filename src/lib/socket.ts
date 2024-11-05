@@ -1,5 +1,6 @@
 import { io, Socket } from 'socket.io-client';
 import { DashboardStats } from '../types/dashboard';
+import useAuthStore from '../store/authStore';
 
 type DashboardCallback = (data: DashboardStats) => void;
 type ConnectionCallback = (status: boolean) => void;
@@ -12,6 +13,7 @@ class SocketService {
   private reconnectAttempts = 0;
   private maxReconnectAttempts = 5;
   private reconnectTimer: NodeJS.Timeout | null = null;
+  private isConnecting = false;
 
   private constructor() {}
 
@@ -23,35 +25,42 @@ class SocketService {
   }
 
   connect() {
+    if (this.isConnecting || this.socket?.connected) {
+      return;
+    }
+
     const token = localStorage.getItem('auth_token');
     if (!token) {
-      console.warn('No auth token found, skipping socket connection');
       this.notifyConnectionStatus(false);
       return;
     }
 
-    if (this.socket?.connected) {
-      return;
-    }
+    this.isConnecting = true;
 
     if (this.socket) {
       this.socket.close();
       this.socket = null;
     }
 
-    const baseUrl = import.meta.env.VITE_API_URL.replace('/api', '');
+    try {
+      const baseUrl = import.meta.env.VITE_API_URL.replace('/api', '');
 
-    this.socket = io(baseUrl, {
-      auth: { token },
-      transports: ['websocket'],
-      reconnection: true,
-      reconnectionAttempts: this.maxReconnectAttempts,
-      reconnectionDelay: 1000,
-      reconnectionDelayMax: 5000,
-      timeout: 10000,
-    });
+      this.socket = io(baseUrl, {
+        auth: { token },
+        transports: ['websocket', 'polling'],
+        reconnection: true,
+        reconnectionAttempts: this.maxReconnectAttempts,
+        reconnectionDelay: 1000,
+        reconnectionDelayMax: 5000,
+        timeout: 10000,
+      });
 
-    this.setupEventListeners();
+      this.setupEventListeners();
+    } catch (error) {
+      console.error('Socket initialization error:', error);
+      this.isConnecting = false;
+      this.notifyConnectionStatus(false);
+    }
   }
 
   private setupEventListeners() {
@@ -59,6 +68,7 @@ class SocketService {
 
     this.socket.on('connect', () => {
       console.log('Socket connected');
+      this.isConnecting = false;
       this.reconnectAttempts = 0;
       this.notifyConnectionStatus(true);
       this.socket?.emit('subscribe:dashboard');
@@ -66,17 +76,37 @@ class SocketService {
 
     this.socket.on('connect_error', (error) => {
       console.error('Socket connection error:', error);
-      this.handleReconnect();
+      this.isConnecting = false;
+      
+      if (error.message.includes('authentication')) {
+        useAuthStore.getState().logout();
+      } else {
+        this.handleReconnect();
+      }
     });
 
-    this.socket.on('disconnect', () => {
-      console.log('Socket disconnected');
+    this.socket.on('disconnect', (reason) => {
+      console.log('Socket disconnected:', reason);
+      this.isConnecting = false;
       this.notifyConnectionStatus(false);
-      this.handleReconnect();
+
+      if (reason === 'io server disconnect') {
+        useAuthStore.getState().logout();
+      } else {
+        this.handleReconnect();
+      }
     });
 
     this.socket.on('dashboard:update', (data: DashboardStats) => {
       this.dashboardCallbacks.forEach(callback => callback(data));
+    });
+
+    this.socket.on('error', (error: Error) => {
+      console.error('Socket error:', error);
+      this.isConnecting = false;
+      if (error.message.includes('authentication')) {
+        useAuthStore.getState().logout();
+      }
     });
   }
 
@@ -92,10 +122,13 @@ class SocketService {
       const delay = Math.min(1000 * Math.pow(2, this.reconnectAttempts), 5000);
 
       this.reconnectTimer = setTimeout(() => {
-        if (!this.socket?.connected) {
+        if (!this.socket?.connected && !this.isConnecting) {
           this.connect();
         }
       }, delay);
+    } else {
+      // Max reconnection attempts reached
+      this.disconnect();
     }
   }
 
@@ -106,6 +139,7 @@ class SocketService {
 
   onConnectionChange(callback: ConnectionCallback) {
     this.connectionCallbacks.add(callback);
+    callback(!!this.socket?.connected);
     return () => this.connectionCallbacks.delete(callback);
   }
 
@@ -114,6 +148,8 @@ class SocketService {
   }
 
   disconnect() {
+    this.isConnecting = false;
+    
     if (this.reconnectTimer) {
       clearTimeout(this.reconnectTimer);
       this.reconnectTimer = null;
