@@ -48,7 +48,7 @@ function AppLayout({ children }: { children: React.ReactNode }) {
   );
 }
 
-function App() {
+export default function App() {
   return (
     <Router>
       <AuthWrapper>

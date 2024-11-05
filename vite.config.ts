@@ -8,7 +8,6 @@ export default defineConfig({
       overlay: false
     }
   },
-  // Add this to handle client-side routing
   preview: {
     port: 4173
   },
