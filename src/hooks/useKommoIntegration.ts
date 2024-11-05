@@ -93,11 +93,14 @@ export function useKommoIntegration() {
       throw new Error('You must be logged in to connect');
     }
 
+    const redirectUri = `${window.location.origin}/integrations/kommo/callback`;
+
     try {
       const { data: response } = await api.post<ApiResponse<void>>('/integrations/kommo/config', {
         account_domain: data.accountDomain,
         client_id: data.clientId,
-        client_secret: data.clientSecret
+        client_secret: data.clientSecret,
+        redirect_uri: redirectUri
       });
       
       if (response.status === 'success') {
@@ -106,14 +109,14 @@ export function useKommoIntegration() {
             account_domain: data.accountDomain,
             client_id: data.clientId,
             client_secret: data.clientSecret,
-            redirect_uri: `${window.location.origin}/integrations/kommo/callback`
+            redirect_uri: redirectUri
           },
           isConnected: true,
           error: null
         });
         
-        // Return the OAuth URL
-        return `https://${data.accountDomain}/oauth2/authorize?client_id=${data.clientId}&state=${user.id}`;
+        // Return the OAuth URL with all required parameters
+        return `https://${data.accountDomain}/oauth2/authorize?client_id=${data.clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&state=${user.id}`;
       }
       
       throw new Error(response.message || 'Failed to save Kommo configuration');
