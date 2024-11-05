@@ -32,16 +32,18 @@ export function useKommoIntegration() {
       
       const { data: response } = await api.get<ApiResponse<KommoConfig>>('/integrations/kommo/config');
       
-      if (response.status === 'success' && response.data) {
-        const isConnected = !!response.data.access_token;
+      if (response.status === 'success') {
+        const isConnected = !!response.data?.access_token;
         updateState({
-          config: response.data,
+          config: response.data || null,
           isConnected,
         });
 
         if (isConnected) {
           await loadLeads();
         }
+      } else {
+        throw new Error(response.message || 'Failed to load configuration');
       }
     } catch (err: any) {
       console.error('Error loading Kommo config:', err);
@@ -59,6 +61,8 @@ export function useKommoIntegration() {
       
       if (response.status === 'success' && response.data) {
         updateState({ leads: response.data, error: null });
+      } else {
+        throw new Error(response.message || 'Failed to load leads');
       }
     } catch (err: any) {
       console.error('Error loading leads:', err);
@@ -68,7 +72,7 @@ export function useKommoIntegration() {
     }
   };
 
-  const saveConfig = async (config: Omit<KommoConfig, 'access_token' | 'refresh_token' | 'expires_at'>) => {
+  const saveConfig = async (config: Pick<KommoConfig, 'client_id' | 'client_secret' | 'account_domain'>) => {
     try {
       const { data: response } = await api.post<ApiResponse<KommoConfig>>('/integrations/kommo/config', config);
       
@@ -84,7 +88,7 @@ export function useKommoIntegration() {
       }
     } catch (err: any) {
       console.error('Error saving config:', err);
-      throw new Error(err.response?.data?.message || 'Failed to save configuration');
+      throw err;
     }
   };
 
@@ -99,6 +103,8 @@ export function useKommoIntegration() {
           leads: [],
           error: null,
         });
+      } else {
+        throw new Error(response.message || 'Failed to disconnect');
       }
     } catch (err: any) {
       console.error('Error disconnecting:', err);

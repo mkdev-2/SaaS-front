@@ -1,12 +1,11 @@
 import React, { useState } from 'react';
-import { Save, RefreshCw, AlertCircle, CheckCircle2, XCircle, Settings } from 'lucide-react';
+import { Save, RefreshCw, AlertCircle, CheckCircle2, Settings } from 'lucide-react';
 import { useKommoIntegration } from '../../../hooks/useKommoIntegration';
 
 interface KommoFormData {
-  clientId: string;
-  clientSecret: string;
-  redirectUri: string;
-  accountDomain: string;
+  client_id: string;
+  client_secret: string;
+  account_domain: string;
 }
 
 export default function KommoIntegration() {
@@ -22,10 +21,9 @@ export default function KommoIntegration() {
   } = useKommoIntegration();
 
   const [formData, setFormData] = useState<KommoFormData>({
-    clientId: config?.client_id || '',
-    clientSecret: config?.client_secret || '',
-    redirectUri: config?.redirect_uri || 'saas-backend-production-8b94.up.railway.app/api/kommo/callback',
-    accountDomain: config?.account_domain || ''
+    client_id: config?.client_id || '',
+    client_secret: config?.client_secret || '',
+    account_domain: config?.account_domain || ''
   });
 
   const [isSaving, setIsSaving] = useState(false);
@@ -46,14 +44,15 @@ export default function KommoIntegration() {
     setIsSaving(true);
 
     try {
-      await saveConfig({
-        client_id: formData.clientId,
-        client_secret: formData.clientSecret,
-        redirect_uri: formData.redirectUri,
-        account_domain: formData.accountDomain
-      });
+      await saveConfig(formData);
     } catch (err: any) {
-      setFormError(err.message || 'Failed to save configuration');
+      if (err.response?.data?.errors) {
+        // Handle validation errors
+        const errors = err.response.data.errors.map((e: any) => e.message).join(', ');
+        setFormError(`Validation error: ${errors}`);
+      } else {
+        setFormError(err.message || 'Failed to save configuration');
+      }
     } finally {
       setIsSaving(false);
     }
@@ -105,14 +104,14 @@ export default function KommoIntegration() {
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <label htmlFor="accountDomain" className="block text-sm font-medium text-gray-700 mb-1">
+          <label htmlFor="account_domain" className="block text-sm font-medium text-gray-700 mb-1">
             Account Domain
           </label>
           <input
             type="text"
-            id="accountDomain"
-            name="accountDomain"
-            value={formData.accountDomain}
+            id="account_domain"
+            name="account_domain"
+            value={formData.account_domain}
             onChange={handleChange}
             placeholder="vendaspersonalprime.kommo.com"
             className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
@@ -121,14 +120,14 @@ export default function KommoIntegration() {
         </div>
 
         <div>
-          <label htmlFor="clientId" className="block text-sm font-medium text-gray-700 mb-1">
+          <label htmlFor="client_id" className="block text-sm font-medium text-gray-700 mb-1">
             Client ID
           </label>
           <input
             type="text"
-            id="clientId"
-            name="clientId"
-            value={formData.clientId}
+            id="client_id"
+            name="client_id"
+            value={formData.client_id}
             onChange={handleChange}
             placeholder="6fc1e2d2-0e1d-4549-8efd-1b0b37d0bbb3"
             className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
@@ -137,33 +136,18 @@ export default function KommoIntegration() {
         </div>
 
         <div>
-          <label htmlFor="clientSecret" className="block text-sm font-medium text-gray-700 mb-1">
+          <label htmlFor="client_secret" className="block text-sm font-medium text-gray-700 mb-1">
             Client Secret
           </label>
           <input
             type="password"
-            id="clientSecret"
-            name="clientSecret"
-            value={formData.clientSecret}
+            id="client_secret"
+            name="client_secret"
+            value={formData.client_secret}
             onChange={handleChange}
             placeholder="Enter your client secret"
             className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
             required
-          />
-        </div>
-
-        <div>
-          <label htmlFor="redirectUri" className="block text-sm font-medium text-gray-700 mb-1">
-            Redirect URI
-          </label>
-          <input
-            type="text"
-            id="redirectUri"
-            name="redirectUri"
-            value={formData.redirectUri}
-            onChange={handleChange}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm bg-gray-50"
-            readOnly
           />
         </div>
 
