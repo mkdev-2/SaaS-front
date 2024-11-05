@@ -1,9 +1,9 @@
 import React from 'react';
-import { ArrowUpRight, ArrowDownRight, Activity, Users, Box, Zap, RefreshCw, Wifi, WifiOff } from 'lucide-react';
+import { ArrowUpRight, ArrowDownRight, Activity, Users, Box, Zap, RefreshCw } from 'lucide-react';
 import { useDashboardData } from '../hooks/useDashboardData';
 
 export default function Dashboard() {
-  const { data, loading, error, refresh, wsConnected } = useDashboardData();
+  const { data, loading, error, refresh } = useDashboardData();
 
   const formatNumber = (num: number): string => {
     if (num >= 1000000) {
@@ -39,21 +39,6 @@ export default function Dashboard() {
 
   return (
     <div className="p-6 space-y-6">
-      {/* Connection Status */}
-      <div className="flex items-center justify-end space-x-2 text-sm">
-        {wsConnected ? (
-          <div className="flex items-center text-green-600">
-            <Wifi className="h-4 w-4 mr-1" />
-            Real-time updates active
-          </div>
-        ) : (
-          <div className="flex items-center text-gray-500">
-            <WifiOff className="h-4 w-4 mr-1" />
-            Using polling updates
-          </div>
-        )}
-      </div>
-
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {loading ? (
