@@ -88,23 +88,35 @@ export function useKommoIntegration() {
     }
   };
 
-  const initiateOAuth = async (data: InitiateOAuthData): Promise<string> => {
+  const initiateOAuth = async (data: InitiateOAuthData) => {
     if (!user) {
       throw new Error('You must be logged in to connect');
     }
 
     try {
-      const { data: response } = await api.post<ApiResponse<{ authUrl: string }>>('/integrations/kommo/oauth/init', {
-        accountDomain: data.accountDomain,
-        clientId: data.clientId,
-        clientSecret: data.clientSecret
+      const { data: response } = await api.post<ApiResponse<void>>('/integrations/kommo/config', {
+        account_domain: data.accountDomain,
+        client_id: data.clientId,
+        client_secret: data.clientSecret
       });
       
-      if (response.status === 'success' && response.data?.authUrl) {
-        return response.data.authUrl;
+      if (response.status === 'success') {
+        updateState({
+          config: {
+            account_domain: data.accountDomain,
+            client_id: data.clientId,
+            client_secret: data.clientSecret,
+            redirect_uri: `${window.location.origin}/integrations/kommo/callback`
+          },
+          isConnected: true,
+          error: null
+        });
+        
+        // Return the OAuth URL
+        return `https://${data.accountDomain}/oauth2/authorize?client_id=${data.clientId}&state=${user.id}`;
       }
       
-      throw new Error(response.message || 'Failed to initiate OAuth');
+      throw new Error(response.message || 'Failed to save Kommo configuration');
     } catch (err: any) {
       console.error('OAuth initiation error:', err.response?.data);
       if (err.response?.data?.errors) {
