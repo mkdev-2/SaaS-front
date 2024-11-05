@@ -54,15 +54,16 @@ const useAuthStore = create<AuthState>()(
             password,
           });
 
-          if (!data.token) {
+          if (!data?.token || !data?.user) {
             throw new Error('Invalid response from server');
           }
 
           localStorage.setItem('auth_token', data.token);
           set({ user: data.user, isAuthenticated: true });
-        } catch (error) {
-          localStorage.removeItem('auth_token');
-          set({ user: null, isAuthenticated: false });
+        } catch (error: any) {
+          if (error.response?.data?.message) {
+            throw new Error(error.response.data.message);
+          }
           throw error;
         }
       },
@@ -71,15 +72,16 @@ const useAuthStore = create<AuthState>()(
         try {
           const response = await api.post<AuthResponse>('/auth/register', data);
           
-          if (!response.data.token) {
+          if (!response.data?.token || !response.data?.user) {
             throw new Error('Invalid response from server');
           }
 
           localStorage.setItem('auth_token', response.data.token);
           set({ user: response.data.user, isAuthenticated: true });
-        } catch (error) {
-          localStorage.removeItem('auth_token');
-          set({ user: null, isAuthenticated: false });
+        } catch (error: any) {
+          if (error.response?.data?.message) {
+            throw new Error(error.response.data.message);
+          }
           throw error;
         }
       },
