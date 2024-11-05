@@ -1,5 +1,6 @@
 import axios, { AxiosError } from 'axios';
 import { ApiResponse } from '../types/api';
+import useAuthStore from '../store/authStore';
 
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL || 'http://localhost:3000/api',
@@ -55,13 +56,11 @@ api.interceptors.response.use(
       });
     }
 
-    // Handle authentication errors
+    // Handle authentication errors - Don't redirect automatically
     if (status === 401) {
       localStorage.removeItem('auth_token');
-      // Only redirect if we're not already on the login page
-      if (!window.location.pathname.includes('/login')) {
-        window.location.href = '/login';
-      }
+      useAuthStore.getState().logout();
+      
       return Promise.reject({
         ...error,
         response: {
@@ -92,6 +91,10 @@ api.interceptors.response.use(
 
     // Handle validation errors
     if (status === 400 && errorResponse?.errors) {
+      const errors = Array.isArray(errorResponse.errors) 
+        ? errorResponse.errors 
+        : [{ message: 'Validation failed' }];
+
       return Promise.reject({
         ...error,
         response: {
@@ -100,7 +103,7 @@ api.interceptors.response.use(
             status: 'error',
             message: 'Validation error',
             code: 'VALIDATION_ERROR',
-            errors: errorResponse.errors,
+            errors: errors,
           },
         },
       });

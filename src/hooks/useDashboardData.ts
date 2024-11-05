@@ -27,11 +27,12 @@ export function useDashboardData() {
   const isMounted = useRef(true);
   const lastFetchTime = useRef<number>(0);
   const pollTimeoutRef = useRef<NodeJS.Timeout>();
+  const initialFetchDone = useRef(false);
 
   const fetchDashboardData = useCallback(async (force = false) => {
-    const token = localStorage.getItem('auth_token');
-    if (!token || !isAuthenticated || !user) {
+    if (!isAuthenticated || !user) {
       setLoading(false);
+      setError('Authentication required');
       return;
     }
 
@@ -56,29 +57,33 @@ export function useDashboardData() {
       if (!isMounted.current) return;
       console.error('Dashboard fetch error:', err);
       
-      if (err.response?.status === 401) {
-        setError('Session expired. Please login again.');
-        useAuthStore.getState().logout();
-        return;
-      }
-      
       setError(err.message || 'Failed to connect to the server');
+      
+      // Don't automatically logout, just use fallback data for 401
+      if (err.response?.status === 401) {
+        setData(fallbackStats);
+      }
     } finally {
       if (isMounted.current) {
         setLoading(false);
         lastFetchTime.current = Date.now();
+        initialFetchDone.current = true;
       }
     }
   }, [isAuthenticated, user]);
 
   useEffect(() => {
-    const token = localStorage.getItem('auth_token');
-    if (!token || !isAuthenticated || !user) {
+    if (!isAuthenticated || !user) {
       socketService.disconnect();
+      setData(fallbackStats);
+      setLoading(false);
       return;
     }
 
-    fetchDashboardData(true);
+    if (!initialFetchDone.current) {
+      fetchDashboardData(true);
+    }
+
     socketService.connect();
 
     const unsubscribeConnection = socketService.onConnectionChange((status) => {
@@ -102,16 +107,19 @@ export function useDashboardData() {
         clearTimeout(pollTimeoutRef.current);
       }
 
-      if (!isConnected) {
-        pollTimeoutRef.current = setInterval(() => {
+      if (!isConnected && initialFetchDone.current) {
+        pollTimeoutRef.current = setTimeout(() => {
           if (isMounted.current && !isConnected) {
             fetchDashboardData();
+            setupPolling();
           }
         }, POLLING_INTERVAL);
       }
     };
 
-    setupPolling();
+    if (!isConnected && initialFetchDone.current) {
+      setupPolling();
+    }
 
     return () => {
       if (pollTimeoutRef.current) {
@@ -124,7 +132,6 @@ export function useDashboardData() {
 
   // Cleanup on unmount
   useEffect(() => {
-    isMounted.current = true;
     return () => {
       isMounted.current = false;
       if (pollTimeoutRef.current) {
