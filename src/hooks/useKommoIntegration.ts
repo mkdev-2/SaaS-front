@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import api from '../lib/api';
 import { ApiResponse } from '../types/api';
 import { KommoConfig, KommoLead } from '../lib/kommo';
+import useAuthStore from '../store/authStore';
 
 interface KommoState {
   isConnected: boolean;
@@ -27,19 +28,28 @@ const initialState: KommoState = {
 
 export function useKommoIntegration() {
   const [state, setState] = useState<KommoState>(initialState);
+  const { user } = useAuthStore();
 
   const updateState = (newState: Partial<KommoState>) => {
     setState(prev => ({ ...prev, ...newState }));
   };
 
   const loadConfig = async () => {
+    // Don't try to load config if user is not authenticated
+    if (!user) {
+      updateState({ isLoading: false });
+      return;
+    }
+
     try {
       updateState({ isLoading: true, error: null });
       
       const { data: response } = await api.get<ApiResponse<KommoConfig>>('/integrations/kommo/config');
       
       if (response.status === 'success' && response.data) {
-        const isConnected = !!response.data?.access_token;
+        const isConnected = !!response.data.account_domain && 
+                          !!response.data.client_id && 
+                          !!response.data.client_secret;
         updateState({
           config: response.data,
           isConnected,
@@ -63,6 +73,8 @@ export function useKommoIntegration() {
   };
 
   const loadLeads = async () => {
+    if (!state.isConnected) return;
+
     try {
       const { data: response } = await api.get<ApiResponse<KommoLead[]>>('/integrations/kommo/leads');
       
@@ -78,15 +90,19 @@ export function useKommoIntegration() {
   };
 
   const saveConfig = async (data: SaveConfigData) => {
+    if (!user) {
+      throw new Error('You must be logged in to save configuration');
+    }
+
     if (!data.accountDomain || !data.clientId || !data.clientSecret) {
       throw new Error('All fields are required');
     }
 
     try {
       const { data: response } = await api.post<ApiResponse<KommoConfig>>('/integrations/kommo/config', {
-        accountDomain: data.accountDomain,
-        clientId: data.clientId,
-        clientSecret: data.clientSecret
+        account_domain: data.accountDomain,
+        client_id: data.clientId,
+        client_secret: data.clientSecret
       });
       
       if (response.status === 'success' && response.data) {
@@ -110,8 +126,10 @@ export function useKommoIntegration() {
   };
 
   const disconnect = async () => {
+    if (!user) return;
+
     try {
-      const { data: response } = await api.post<ApiResponse<void>>('/integrations/kommo/disconnect');
+      const { data: response } = await api.delete<ApiResponse<void>>('/integrations/kommo/config');
       
       if (response.status === 'success') {
         updateState({
@@ -129,9 +147,14 @@ export function useKommoIntegration() {
     }
   };
 
+  // Load config when user changes or component mounts
   useEffect(() => {
-    loadConfig();
-  }, []);
+    if (user) {
+      loadConfig();
+    } else {
+      updateState(initialState);
+    }
+  }, [user]);
 
   return {
     ...state,
