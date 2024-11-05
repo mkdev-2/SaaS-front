@@ -70,8 +70,12 @@ export default function RegisterForm() {
         password: formData.password,
         company: formData.company?.trim()
       });
-      const from = location.state?.from?.pathname || '/dashboard';
-      navigate(from);
+      
+      // Add a small delay to ensure the auth state is updated
+      setTimeout(() => {
+        const from = location.state?.from?.pathname || '/dashboard';
+        navigate(from, { replace: true });
+      }, 100);
     } catch (err: any) {
       setIsLoading(false);
       if (err.response?.status === 409) {

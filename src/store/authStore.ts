@@ -27,7 +27,7 @@ interface RegisterData {
 }
 
 interface AuthResponse {
-  token: string;  // Changed from access_token to token
+  token: string;
   user: User;
 }
 
