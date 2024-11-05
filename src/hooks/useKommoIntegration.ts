@@ -12,9 +12,9 @@ interface KommoState {
 }
 
 interface SaveConfigData {
+  accountDomain: string;
   clientId: string;
   clientSecret: string;
-  accountDomain: string;
 }
 
 const initialState: KommoState = {
@@ -79,15 +79,16 @@ export function useKommoIntegration() {
   };
 
   const saveConfig = async (data: SaveConfigData) => {
-    try {
-      // Convert camelCase to snake_case for the API
-      const apiData = {
-        client_id: data.clientId,
-        client_secret: data.clientSecret,
-        account_domain: data.accountDomain
-      };
+    if (!data.accountDomain || !data.clientId || !data.clientSecret) {
+      throw new Error('All fields are required');
+    }
 
-      const { data: response } = await api.post<ApiResponse<KommoConfig>>('/integrations/kommo/config', apiData);
+    try {
+      const { data: response } = await api.post<ApiResponse<KommoConfig>>('/integrations/kommo/config', {
+        account_domain: data.accountDomain,
+        client_id: data.clientId,
+        client_secret: data.clientSecret
+      });
       
       if (response.status === 'success' && response.data) {
         updateState({
@@ -100,7 +101,12 @@ export function useKommoIntegration() {
         throw new Error(response.message || 'Failed to save configuration');
       }
     } catch (err: any) {
-      console.error('Error saving config:', err);
+      if (err.response?.data?.errors) {
+        const errorMessages = err.response.data.errors
+          .map((error: any) => `${error.field}: ${error.message}`)
+          .join(', ');
+        throw new Error(`Validation error: ${errorMessages}`);
+      }
       throw err;
     }
   };

@@ -3,9 +3,9 @@ import { Save, RefreshCw, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { useKommoIntegration } from '../../../hooks/useKommoIntegration';
 
 interface KommoFormData {
+  accountDomain: string;
   clientId: string;
   clientSecret: string;
-  accountDomain: string;
 }
 
 export default function KommoIntegration() {
@@ -21,9 +21,9 @@ export default function KommoIntegration() {
   } = useKommoIntegration();
 
   const [formData, setFormData] = useState<KommoFormData>({
+    accountDomain: config?.account_domain || '',
     clientId: config?.client_id || '',
-    clientSecret: config?.client_secret || '',
-    accountDomain: config?.account_domain || ''
+    clientSecret: config?.client_secret || ''
   });
 
   const [isSaving, setIsSaving] = useState(false);
@@ -33,26 +33,41 @@ export default function KommoIntegration() {
     const { name, value } = e.target;
     setFormData(prev => ({
       ...prev,
-      [name]: value
+      [name]: value.trim()
     }));
     setFormError(null);
+  };
+
+  const validateForm = (): boolean => {
+    if (!formData.accountDomain) {
+      setFormError('Account Domain is required');
+      return false;
+    }
+    if (!formData.clientId) {
+      setFormError('Client ID is required');
+      return false;
+    }
+    if (!formData.clientSecret) {
+      setFormError('Client Secret is required');
+      return false;
+    }
+    return true;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormError(null);
+
+    if (!validateForm()) {
+      return;
+    }
+
     setIsSaving(true);
 
     try {
       await saveConfig(formData);
     } catch (err: any) {
-      if (err.response?.data?.errors) {
-        // Handle validation errors
-        const errors = err.response.data.errors.map((e: any) => e.message).join(', ');
-        setFormError(`Validation error: ${errors}`);
-      } else {
-        setFormError(err.message || 'Failed to save configuration');
-      }
+      setFormError(err.message || 'Failed to save configuration');
     } finally {
       setIsSaving(false);
     }
