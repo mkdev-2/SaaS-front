@@ -11,6 +11,12 @@ interface KommoState {
   config: KommoConfig | null;
 }
 
+interface SaveConfigData {
+  clientId: string;
+  clientSecret: string;
+  accountDomain: string;
+}
+
 const initialState: KommoState = {
   isConnected: false,
   isLoading: true,
@@ -72,9 +78,16 @@ export function useKommoIntegration() {
     }
   };
 
-  const saveConfig = async (config: Pick<KommoConfig, 'client_id' | 'client_secret' | 'account_domain'>) => {
+  const saveConfig = async (data: SaveConfigData) => {
     try {
-      const { data: response } = await api.post<ApiResponse<KommoConfig>>('/integrations/kommo/config', config);
+      // Convert camelCase to snake_case for the API
+      const apiData = {
+        client_id: data.clientId,
+        client_secret: data.clientSecret,
+        account_domain: data.accountDomain
+      };
+
+      const { data: response } = await api.post<ApiResponse<KommoConfig>>('/integrations/kommo/config', apiData);
       
       if (response.status === 'success' && response.data) {
         updateState({
