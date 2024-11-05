@@ -33,6 +33,7 @@ export function useDashboardData() {
   const isMounted = useRef(true);
   const lastFetchTime = useRef<number>(0);
   const pollTimeoutRef = useRef<NodeJS.Timeout>();
+  const initialFetchDone = useRef(false);
 
   const fetchDashboardData = useCallback(async (force = false) => {
     const now = Date.now();
@@ -51,6 +52,8 @@ export function useDashboardData() {
         setError(null);
       } else {
         setError(response.message || 'Failed to fetch dashboard data');
+        // Keep existing data if available
+        setData(prev => Object.keys(prev).length === 0 ? fallbackStats : prev);
       }
     } catch (err: any) {
       if (!isMounted.current) return;
@@ -62,23 +65,32 @@ export function useDashboardData() {
         setError(err.response?.data?.message || 'Failed to connect to the server');
       }
       
+      // Keep existing data if available
       setData(prev => Object.keys(prev).length === 0 ? fallbackStats : prev);
     } finally {
       if (isMounted.current) {
         setLoading(false);
         lastFetchTime.current = Date.now();
+        initialFetchDone.current = true;
       }
     }
   }, []);
 
   useEffect(() => {
     isMounted.current = true;
+    initialFetchDone.current = false;
     
-    // Initialize WebSocket connection
-    socketService.connect();
+    // Only initialize socket if we haven't done the initial fetch
+    if (!initialFetchDone.current) {
+      socketService.connect();
+      
+      // Initial fetch
+      fetchDashboardData(true);
+    }
     
     // Listen for WebSocket connection status
     const unsubscribeConnection = socketService.onConnectionChange((status) => {
+      if (!isMounted.current) return;
       setIsConnected(status);
       if (status) {
         setError(null);
@@ -87,25 +99,25 @@ export function useDashboardData() {
 
     // Listen for real-time updates
     const unsubscribeUpdates = socketService.onDashboardUpdate((newData) => {
-      if (isMounted.current) {
-        setData(newData);
-        setError(null);
-      }
+      if (!isMounted.current) return;
+      setData(newData);
+      setError(null);
     });
 
-    // Initial fetch
-    fetchDashboardData(true);
+    // Set up polling as fallback only if WebSocket is not connected
+    const setupPolling = () => {
+      if (!isConnected && initialFetchDone.current) {
+        pollTimeoutRef.current = setTimeout(() => {
+          if (isMounted.current && !isConnected) {
+            fetchDashboardData();
+            setupPolling();
+          }
+        }, POLLING_INTERVAL);
+      }
+    };
 
-    // Set up polling as fallback
-    if (!isConnected) {
-      const poll = () => {
-        if (!isMounted.current || isConnected) return;
-        
-        fetchDashboardData();
-        pollTimeoutRef.current = setTimeout(poll, POLLING_INTERVAL);
-      };
-
-      pollTimeoutRef.current = setTimeout(poll, POLLING_INTERVAL);
+    if (!isConnected && initialFetchDone.current) {
+      setupPolling();
     }
 
     return () => {
@@ -119,7 +131,9 @@ export function useDashboardData() {
   }, [fetchDashboardData, isConnected]);
 
   const refresh = useCallback(() => {
-    fetchDashboardData(true);
+    if (Date.now() - lastFetchTime.current >= MIN_POLLING_INTERVAL) {
+      fetchDashboardData(true);
+    }
   }, [fetchDashboardData]);
 
   return { 

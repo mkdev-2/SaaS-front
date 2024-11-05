@@ -29,29 +29,31 @@ class SocketService {
     const token = localStorage.getItem('auth_token');
     if (!token) {
       console.error('No auth token found');
+      this.notifyConnectionStatus(false);
       return;
     }
 
     this.isConnecting = true;
 
     try {
+      if (this.socket) {
+        this.socket.close();
+        this.socket = null;
+      }
+
       this.socket = io('https://saas-backend-production-8b94.up.railway.app', {
         auth: {
           token
         },
-        reconnection: true,
-        reconnectionAttempts: this.maxReconnectAttempts,
-        reconnectionDelay: 1000,
-        timeout: 10000,
-        transports: ['websocket', 'polling'],
-        forceNew: true,
+        reconnection: false, // Disable auto-reconnect, we'll handle it manually
+        timeout: 5000,
+        transports: ['polling', 'websocket'],
       });
 
       this.setupEventListeners();
     } catch (error) {
       console.error('Socket connection error:', error);
-      this.isConnecting = false;
-      this.notifyConnectionStatus(false);
+      this.handleConnectionFailure();
     }
   }
 
@@ -78,30 +80,37 @@ class SocketService {
 
     this.socket.on('connect_error', (error) => {
       console.error('WebSocket connection error:', error);
-      this.isConnecting = false;
-      this.notifyConnectionStatus(false);
-      this.handleReconnect();
+      this.handleConnectionFailure();
     });
 
     this.socket.on('disconnect', () => {
       console.log('Disconnected from WebSocket');
-      this.isConnecting = false;
-      this.notifyConnectionStatus(false);
+      this.handleConnectionFailure();
     });
 
+    // Set connection timeout
     this.connectionTimeout = setTimeout(() => {
       if (!this.socket?.connected) {
-        console.log('Connection timeout, falling back to polling');
-        this.isConnecting = false;
-        this.notifyConnectionStatus(false);
+        this.handleConnectionFailure();
       }
     }, 5000);
   }
 
-  private handleReconnect() {
+  private handleConnectionFailure() {
+    this.isConnecting = false;
+    this.notifyConnectionStatus(false);
+    
+    if (this.connectionTimeout) {
+      clearTimeout(this.connectionTimeout);
+      this.connectionTimeout = null;
+    }
+
     this.reconnectAttempts++;
-    if (this.reconnectAttempts >= this.maxReconnectAttempts) {
-      console.log('Max reconnection attempts reached');
+    if (this.reconnectAttempts < this.maxReconnectAttempts) {
+      setTimeout(() => {
+        this.connect();
+      }, 1000 * Math.min(this.reconnectAttempts, 5));
+    } else {
       this.disconnect();
     }
   }
@@ -130,7 +139,7 @@ class SocketService {
     
     if (this.socket) {
       this.socket.removeAllListeners();
-      this.socket.disconnect();
+      this.socket.close();
       this.socket = null;
     }
     
