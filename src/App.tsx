@@ -10,19 +10,13 @@ import Navbar from './components/Navbar';
 import Sidebar from './components/Sidebar';
 import useAuthStore from './store/authStore';
 
-// AuthWrapper component to handle auth state and redirects
 function AuthWrapper({ children }: { children: React.ReactNode }) {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const location = useLocation();
   const navigate = useNavigate();
 
   useEffect(() => {
-    // If not authenticated and not on auth pages, redirect to login
-    if (!isAuthenticated && !['/login', '/register'].includes(location.pathname)) {
-      navigate('/login');
-    }
-    
-    // If authenticated and on auth pages, redirect to dashboard
+    // Only redirect from auth pages to dashboard if authenticated
     if (isAuthenticated && ['/login', '/register'].includes(location.pathname)) {
       navigate('/dashboard');
     }
@@ -31,7 +25,6 @@ function AuthWrapper({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
-// Protected Route component
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const location = useLocation();
@@ -94,15 +87,13 @@ function App() {
             </ProtectedRoute>
           } />
 
-          {/* Redirect root to dashboard or login */}
+          {/* Redirect root to dashboard */}
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
           
-          {/* Catch all route - redirect to dashboard or login */}
+          {/* Catch all route */}
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>
       </AuthWrapper>
     </Router>
   );
 }
-
-export default App;

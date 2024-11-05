@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Mail, Lock } from 'lucide-react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useLocation } from 'react-router-dom';
 import useAuthStore from '../../store/authStore';
 
 export default function LoginForm() {
@@ -9,6 +9,7 @@ export default function LoginForm() {
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
   const login = useAuthStore((state) => state.login);
 
   const validateForm = () => {
@@ -39,8 +40,11 @@ export default function LoginForm() {
 
     try {
       await login(email.trim(), password);
-      navigate('/dashboard');
+      // After successful login, navigate to the intended page or dashboard
+      const from = location.state?.from?.pathname || '/dashboard';
+      navigate(from);
     } catch (err: any) {
+      setIsLoading(false);
       if (err.response?.status === 401) {
         setError('Invalid email or password');
       } else if (err.response?.status === 429) {
@@ -48,8 +52,6 @@ export default function LoginForm() {
       } else {
         setError(err.message || 'An error occurred. Please try again.');
       }
-    } finally {
-      setIsLoading(false);
     }
   };
 

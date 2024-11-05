@@ -50,48 +50,30 @@ const useAuthStore = create<AuthState>()(
       },
 
       login: async (email: string, password: string) => {
-        try {
-          const { data } = await api.post<AuthResponse>('/auth/login', {
-            email,
-            password,
-          });
+        const { data } = await api.post<AuthResponse>('/auth/login', {
+          email,
+          password,
+        });
 
-          if (!data.access_token || !data.refresh_token) {
-            throw new Error('Invalid response from server');
-          }
-
-          localStorage.setItem('auth_token', data.access_token);
-          localStorage.setItem('refresh_token', data.refresh_token);
-          set({ user: data.user, isAuthenticated: true });
-        } catch (error: any) {
-          localStorage.removeItem('auth_token');
-          localStorage.removeItem('refresh_token');
-          set({ user: null, isAuthenticated: false });
-
-          if (error.response?.status === 401) {
-            throw new Error('Invalid email or password');
-          }
-          throw new Error('Login failed. Please try again later.');
+        if (!data.access_token || !data.refresh_token) {
+          throw new Error('Invalid response from server');
         }
+
+        localStorage.setItem('auth_token', data.access_token);
+        localStorage.setItem('refresh_token', data.refresh_token);
+        set({ user: data.user, isAuthenticated: true });
       },
 
       register: async (data: RegisterData) => {
-        try {
-          const response = await api.post<AuthResponse>('/auth/register', data);
-          
-          if (!response.data.access_token || !response.data.refresh_token) {
-            throw new Error('Invalid response from server');
-          }
-
-          localStorage.setItem('auth_token', response.data.access_token);
-          localStorage.setItem('refresh_token', response.data.refresh_token);
-          set({ user: response.data.user, isAuthenticated: true });
-        } catch (error: any) {
-          if (error.response?.status === 409) {
-            throw new Error('Email already registered');
-          }
-          throw new Error('Registration failed. Please try again later.');
+        const response = await api.post<AuthResponse>('/auth/register', data);
+        
+        if (!response.data.access_token || !response.data.refresh_token) {
+          throw new Error('Invalid response from server');
         }
+
+        localStorage.setItem('auth_token', response.data.access_token);
+        localStorage.setItem('refresh_token', response.data.refresh_token);
+        set({ user: response.data.user, isAuthenticated: true });
       },
 
       logout: async () => {
