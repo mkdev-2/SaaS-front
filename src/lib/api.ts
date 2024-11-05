@@ -6,7 +6,8 @@ const api = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
-  withCredentials: true
+  withCredentials: true,
+  timeout: 30000, // 30 second timeout
 });
 
 // Request interceptor
@@ -19,20 +20,90 @@ api.interceptors.request.use(
     return config;
   },
   (error) => {
+    console.error('Request interceptor error:', error);
     return Promise.reject(error);
   }
 );
 
 // Response interceptor
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    // Ensure response data follows ApiResponse format
+    if (!response.data.status) {
+      response.data = {
+        status: 'success',
+        data: response.data,
+      };
+    }
+    return response;
+  },
   async (error: AxiosError<ApiResponse<any>>) => {
     const status = error.response?.status;
     const errorResponse = error.response?.data;
     
+    // Handle network errors
+    if (!error.response) {
+      return Promise.reject({
+        ...error,
+        response: {
+          data: {
+            status: 'error',
+            message: 'Network error. Please check your connection.',
+            code: 'NETWORK_ERROR',
+          },
+        },
+      });
+    }
+
+    // Handle authentication errors
     if (status === 401) {
       localStorage.removeItem('auth_token');
-      window.location.href = '/login';
+      // Only redirect if we're not already on the login page
+      if (!window.location.pathname.includes('/login')) {
+        window.location.href = '/login';
+      }
+      return Promise.reject({
+        ...error,
+        response: {
+          ...error.response,
+          data: {
+            status: 'error',
+            message: 'Session expired. Please login again.',
+            code: 'AUTH_ERROR',
+          },
+        },
+      });
+    }
+
+    // Handle rate limiting
+    if (status === 429) {
+      return Promise.reject({
+        ...error,
+        response: {
+          ...error.response,
+          data: {
+            status: 'error',
+            message: 'Too many requests. Please try again later.',
+            code: 'RATE_LIMIT_ERROR',
+          },
+        },
+      });
+    }
+
+    // Handle validation errors
+    if (status === 400 && errorResponse?.errors) {
+      return Promise.reject({
+        ...error,
+        response: {
+          ...error.response,
+          data: {
+            status: 'error',
+            message: 'Validation error',
+            code: 'VALIDATION_ERROR',
+            errors: errorResponse.errors,
+          },
+        },
+      });
     }
 
     // Transform error response to match our ApiResponse format
@@ -44,14 +115,25 @@ api.interceptors.response.use(
           data: {
             status: 'error',
             message: errorResponse.message || 'An unexpected error occurred',
-            code: errorResponse.code,
+            code: errorResponse.code || 'UNKNOWN_ERROR',
             errors: errorResponse.errors,
           },
         },
       });
     }
     
-    return Promise.reject(error);
+    // Handle all other errors
+    return Promise.reject({
+      ...error,
+      response: {
+        ...error.response,
+        data: {
+          status: 'error',
+          message: 'An unexpected error occurred',
+          code: 'UNKNOWN_ERROR',
+        },
+      },
+    });
   }
 );
 

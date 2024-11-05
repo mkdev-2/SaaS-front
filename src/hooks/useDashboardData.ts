@@ -9,24 +9,16 @@ const POLLING_INTERVAL = 30000; // 30 seconds
 const MIN_POLLING_INTERVAL = 5000; // 5 seconds minimum between polls
 
 const fallbackStats: DashboardStats = {
-  totalIntegrations: 1,
+  totalIntegrations: 0,
   activeWorkflows: 0,
   apiCalls: 0,
-  totalUsers: 1,
+  totalUsers: 0,
   recentWorkflows: [],
-  integrationHealth: [
-    {
-      id: 'kommo',
-      name: 'Kommo CRM',
-      status: 'healthy',
-      uptime: 99.9,
-      lastCheck: new Date().toISOString()
-    }
-  ]
+  integrationHealth: []
 };
 
 export function useDashboardData() {
-  const isAuthenticated = useAuthStore(state => state.isAuthenticated);
+  const { isAuthenticated, user } = useAuthStore();
   const [data, setData] = useState<DashboardStats>(fallbackStats);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -38,8 +30,8 @@ export function useDashboardData() {
   const initialFetchDone = useRef(false);
 
   const fetchDashboardData = useCallback(async (force = false) => {
-    if (!isAuthenticated) {
-      setError('No authentication token provided');
+    // Only fetch if authenticated and we have a user
+    if (!isAuthenticated || !user) {
       setLoading(false);
       return;
     }
@@ -59,13 +51,12 @@ export function useDashboardData() {
         setData(response.data);
         setError(null);
       } else {
-        setError(response.message || 'Failed to fetch dashboard data');
-        setData(prev => Object.keys(prev).length === 0 ? fallbackStats : prev);
+        throw new Error(response.message || 'Failed to fetch dashboard data');
       }
     } catch (err: any) {
       if (!isMounted.current) return;
-      setError(err.response?.data?.message || 'Failed to connect to the server');
-      setData(prev => Object.keys(prev).length === 0 ? fallbackStats : prev);
+      console.error('Dashboard fetch error:', err);
+      setError(err.message || 'Failed to connect to the server');
     } finally {
       if (isMounted.current) {
         setLoading(false);
@@ -73,20 +64,25 @@ export function useDashboardData() {
         initialFetchDone.current = true;
       }
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, user]);
 
+  // Handle socket connection and polling
   useEffect(() => {
-    isMounted.current = true;
-    initialFetchDone.current = false;
+    if (!isAuthenticated || !user) {
+      socketService.disconnect();
+      return;
+    }
 
-    if (isAuthenticated && !initialFetchDone.current) {
-      socketService.connect();
+    // Initial fetch and socket connection
+    if (!initialFetchDone.current) {
       fetchDashboardData(true);
+      socketService.connect();
     }
 
     const unsubscribeConnection = socketService.onConnectionChange((status) => {
       if (!isMounted.current) return;
       setIsConnected(status);
+      
       if (status) {
         setError(null);
       }
@@ -96,33 +92,43 @@ export function useDashboardData() {
       if (!isMounted.current) return;
       setData(newData);
       setError(null);
+      lastFetchTime.current = Date.now();
     });
 
+    // Set up polling as fallback when socket is disconnected
     const setupPolling = () => {
-      if (!isConnected && initialFetchDone.current && isAuthenticated) {
-        pollTimeoutRef.current = setTimeout(() => {
+      if (pollTimeoutRef.current) {
+        clearTimeout(pollTimeoutRef.current);
+      }
+
+      if (!isConnected && initialFetchDone.current) {
+        pollTimeoutRef.current = setInterval(() => {
           if (isMounted.current && !isConnected) {
             fetchDashboardData();
-            setupPolling();
           }
         }, POLLING_INTERVAL);
       }
     };
 
-    if (!isConnected && initialFetchDone.current && isAuthenticated) {
-      setupPolling();
-    }
+    setupPolling();
 
     return () => {
-      isMounted.current = false;
       if (pollTimeoutRef.current) {
         clearTimeout(pollTimeoutRef.current);
       }
       unsubscribeConnection();
       unsubscribeUpdates();
+    };
+  }, [fetchDashboardData, isConnected, isAuthenticated, user]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    isMounted.current = true;
+    return () => {
+      isMounted.current = false;
       socketService.disconnect();
     };
-  }, [fetchDashboardData, isConnected, isAuthenticated]);
+  }, []);
 
   const refresh = useCallback(() => {
     if (Date.now() - lastFetchTime.current >= MIN_POLLING_INTERVAL) {
@@ -130,10 +136,10 @@ export function useDashboardData() {
     }
   }, [fetchDashboardData]);
 
-  return { 
-    data, 
-    loading, 
-    error, 
+  return {
+    data,
+    loading,
+    error,
     refresh,
     isConnected
   };

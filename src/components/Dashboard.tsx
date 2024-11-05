@@ -1,9 +1,15 @@
 import React from 'react';
 import { ArrowUpRight, ArrowDownRight, Activity, Users, Box, Zap, RefreshCw, AlertCircle } from 'lucide-react';
 import { useDashboardData } from '../hooks/useDashboardData';
+import useAuthStore from '../store/authStore';
 
 export default function Dashboard() {
   const { data, loading, error, refresh } = useDashboardData();
+  const { user } = useAuthStore();
+
+  if (!user) {
+    return null;
+  }
 
   const formatNumber = (num: number | undefined): string => {
     if (num === undefined || num === null) return '0';
@@ -60,7 +66,7 @@ export default function Dashboard() {
               Dashboard Sync Status
             </h3>
             <p className="mt-1 text-sm text-yellow-700">
-              {error}. Using locally cached data.
+              {error}
             </p>
           </div>
           <button
@@ -230,7 +236,7 @@ function StatCard({ title, value, change, icon: Icon }: StatCardProps) {
   );
 }
 
-function StatusBadge({ status }: { status: string }) {
+function StatusBadge({ status }: { status: 'active' | 'failed' | 'completed' }) {
   const colors = {
     active: 'bg-green-100 text-green-800',
     failed: 'bg-red-100 text-red-800',
@@ -238,13 +244,13 @@ function StatusBadge({ status }: { status: string }) {
   };
 
   return (
-    <span className={`px-3 py-1 rounded-full text-sm ${colors[status as keyof typeof colors] || colors.failed}`}>
+    <span className={`px-3 py-1 rounded-full text-sm ${colors[status]}`}>
       {status.charAt(0).toUpperCase() + status.slice(1)}
     </span>
   );
 }
 
-function HealthBadge({ status }: { status: string }) {
+function HealthBadge({ status }: { status: 'healthy' | 'warning' | 'error' }) {
   const colors = {
     healthy: 'bg-green-100 text-green-800',
     warning: 'bg-yellow-100 text-yellow-800',
@@ -252,7 +258,7 @@ function HealthBadge({ status }: { status: string }) {
   };
 
   return (
-    <span className={`px-3 py-1 rounded-full text-sm ${colors[status as keyof typeof colors] || colors.error}`}>
+    <span className={`px-3 py-1 rounded-full text-sm ${colors[status]}`}>
       {status.charAt(0).toUpperCase() + status.slice(1)}
     </span>
   );
