@@ -38,27 +38,14 @@ export default function KommoIntegration() {
     setFormError(null);
   };
 
-  const validateForm = (): boolean => {
-    if (!formData.accountDomain) {
-      setFormError('Account Domain is required');
-      return false;
-    }
-    if (!formData.clientId) {
-      setFormError('Client ID is required');
-      return false;
-    }
-    if (!formData.clientSecret) {
-      setFormError('Client Secret is required');
-      return false;
-    }
-    return true;
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormError(null);
 
-    if (!validateForm()) {
+    // Validate all fields are filled
+    const { accountDomain, clientId, clientSecret } = formData;
+    if (!accountDomain || !clientId || !clientSecret) {
+      setFormError('All fields are required');
       return;
     }
 
@@ -67,6 +54,7 @@ export default function KommoIntegration() {
     try {
       await saveConfig(formData);
     } catch (err: any) {
+      console.error('Submit error:', err);
       setFormError(err.message || 'Failed to save configuration');
     } finally {
       setIsSaving(false);

@@ -38,24 +38,25 @@ export function useKommoIntegration() {
       
       const { data: response } = await api.get<ApiResponse<KommoConfig>>('/integrations/kommo/config');
       
-      if (response.status === 'success') {
+      if (response.status === 'success' && response.data) {
         const isConnected = !!response.data?.access_token;
         updateState({
-          config: response.data || null,
+          config: response.data,
           isConnected,
         });
 
         if (isConnected) {
           await loadLeads();
         }
-      } else {
-        throw new Error(response.message || 'Failed to load configuration');
       }
     } catch (err: any) {
       console.error('Error loading Kommo config:', err);
-      updateState({
-        error: err.response?.data?.message || 'Failed to load configuration'
-      });
+      // Don't set error if it's a 404 (config not found)
+      if (err.response?.status !== 404) {
+        updateState({
+          error: err.response?.data?.message || 'Failed to load configuration'
+        });
+      }
     } finally {
       updateState({ isLoading: false });
     }
@@ -67,8 +68,6 @@ export function useKommoIntegration() {
       
       if (response.status === 'success' && response.data) {
         updateState({ leads: response.data, error: null });
-      } else {
-        throw new Error(response.message || 'Failed to load leads');
       }
     } catch (err: any) {
       console.error('Error loading leads:', err);
@@ -85,9 +84,9 @@ export function useKommoIntegration() {
 
     try {
       const { data: response } = await api.post<ApiResponse<KommoConfig>>('/integrations/kommo/config', {
-        account_domain: data.accountDomain,
-        client_id: data.clientId,
-        client_secret: data.clientSecret
+        accountDomain: data.accountDomain,
+        clientId: data.clientId,
+        clientSecret: data.clientSecret
       });
       
       if (response.status === 'success' && response.data) {
@@ -97,17 +96,16 @@ export function useKommoIntegration() {
           error: null,
         });
         await loadLeads();
-      } else {
-        throw new Error(response.message || 'Failed to save configuration');
       }
     } catch (err: any) {
+      console.error('Save config error:', err.response?.data);
       if (err.response?.data?.errors) {
         const errorMessages = err.response.data.errors
           .map((error: any) => `${error.field}: ${error.message}`)
           .join(', ');
         throw new Error(`Validation error: ${errorMessages}`);
       }
-      throw err;
+      throw new Error(err.response?.data?.message || 'Failed to save configuration');
     }
   };
 
@@ -122,8 +120,6 @@ export function useKommoIntegration() {
           leads: [],
           error: null,
         });
-      } else {
-        throw new Error(response.message || 'Failed to disconnect');
       }
     } catch (err: any) {
       console.error('Error disconnecting:', err);
