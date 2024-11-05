@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Save, RefreshCw, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { ExternalLink, RefreshCw, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useKommoIntegration } from '../../../hooks/useKommoIntegration';
 
@@ -7,14 +7,12 @@ interface KommoFormData {
   accountDomain: string;
   clientId: string;
   clientSecret: string;
-  accessToken: string;
 }
 
 const DEFAULT_VALUES = {
   accountDomain: 'vendaspersonalprime.kommo.com',
   clientId: '6fc1e2d2-0e1d-4549-8efd-1b0b37d0bbb3',
-  clientSecret: 'O4QcVGEURJVwaCwXIa9ZAxAgpelDtgBnrWObukW6SBlTjYKkSCNJklmhVH5tpTVh',
-  accessToken: 'eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiIsImp0aSI6IjQyMGI4Yjk3MGNjOGQ3ZGUxYzQwZWQ4ODRmMDJkZTg3ZTdmYjA3ZTE3N2NiYjc5MzY3NDc1YzIzOTljYTMwNzZlMmYyNGIzNWFhMTM1OWVhIn0.eyJhdWQiOiI2ZmMxZTJkMi0wZTFkLTQ1NDktOGVmZC0xYjBiMzdkMGJiYjMiLCJqdGkiOiI0MjBiOGI5NzBjYzhkN2RlMWM0MGVkODg0ZjAyZGU4N2U3ZmIwN2UxNzdjYmI3OTM2NzQ3NWMyMzk5Y2EzMDc2ZTJmMjRiMzVhYTEzNTllYSIsImlhdCI6MTczMDg0NTIwOSwibmJmIjoxNzMwODQ1MjA5LCJleHAiOjE4NjE4MzM2MDAsInN1YiI6IjExMDE1NDkxIiwiZ3JhbnRfdHlwZSI6IiIsImFjY291bnRfaWQiOjMyNjA2MDM5LCJiYXNlX2RvbWFpbiI6ImtvbW1vLmNvbSIsInZlcnNpb24iOjIsInNjb3BlcyI6WyJjcm0iLCJmaWxlcyIsImZpbGVzX2RlbGV0ZSIsIm5vdGlmaWNhdGlvbnMiLCJwdXNoX25vdGlmaWNhdGlvbnMiXSwiaGFzaF91dWlkIjoiMDNlM2E4OTktNmZmMC00ZmU5LWExMDAtYjc4NWM1NTU0OGI1IiwiYXBpX2RvbWFpbiI6ImFwaS1nLmtvbW1vLmNvbSJ9.oNtf6s9JRDoEL7rdmmHA2KeZX5Uxhtw9FNJf_rS1_t--wdDe0ohLDQbOQpyN-69OGD3lSi0Wg4OozwurhtXwd83cTWFtciPAT_1btVJLGFE2mTYAT4o0ucHOyA0lUFRR7XHphjdsSDB5v408r9FV7mhBRLzTNAV4Awh6Z5X1YxyJ9SsY2B2nBrEJOsYpFthWYfWrcJ5HflRKKeGe9qwLhwje8Gpq2ZHidKKIfiD7ZxAh_bPk0lks4WD3lCT5Otf7JOayowYVuhc-5FC5LpJ1kKXpXQO6j-K7Z1xSwRLLr9iC9-ZzAVqkMuxG-29rappWGTVcIZ2ZhJfF2s7QNBMHOA'
+  clientSecret: 'O4QcVGEURJVwaCwXIa9ZAxAgpelDtgBnrWObukW6SBlTjYKkSCNJklmhVH5tpTVh'
 };
 
 export default function KommoIntegration() {
@@ -25,7 +23,7 @@ export default function KommoIntegration() {
     error,
     leads,
     config,
-    saveConfig,
+    initiateOAuth,
     disconnect,
     refresh
   } = useKommoIntegration();
@@ -33,14 +31,13 @@ export default function KommoIntegration() {
   const [formData, setFormData] = useState<KommoFormData>({
     accountDomain: config?.account_domain || DEFAULT_VALUES.accountDomain,
     clientId: config?.client_id || DEFAULT_VALUES.clientId,
-    clientSecret: config?.client_secret || DEFAULT_VALUES.clientSecret,
-    accessToken: config?.access_token || DEFAULT_VALUES.accessToken
+    clientSecret: config?.client_secret || DEFAULT_VALUES.clientSecret
   });
 
   const [isSaving, setIsSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({
       ...prev,
@@ -49,26 +46,71 @@ export default function KommoIntegration() {
     setFormError(null);
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const validateForm = () => {
+    const { accountDomain, clientId, clientSecret } = formData;
+
+    if (!accountDomain || !clientId || !clientSecret) {
+      setFormError('All fields are required');
+      return false;
+    }
+
+    // Validate account domain format
+    if (!accountDomain.includes('.kommo.com')) {
+      setFormError('Account domain must end with .kommo.com');
+      return false;
+    }
+
+    // Validate client ID format (UUID)
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(clientId)) {
+      setFormError('Invalid client ID format');
+      return false;
+    }
+
+    return true;
+  };
+
+  const handleConnect = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormError(null);
 
-    // Validate all fields are filled
-    const { accountDomain, clientId, clientSecret, accessToken } = formData;
-    if (!accountDomain || !clientId || !clientSecret || !accessToken) {
-      setFormError('All fields are required');
+    if (!validateForm()) {
       return;
     }
 
     setIsSaving(true);
 
     try {
-      await saveConfig(formData);
-      navigate('/integrations/kommo/result?status=success&message=Successfully connected to Kommo CRM');
+      const authUrl = await initiateOAuth({
+        accountDomain: formData.accountDomain,
+        clientId: formData.clientId,
+        clientSecret: formData.clientSecret
+      });
+
+      // Open OAuth popup
+      const width = 600;
+      const height = 600;
+      const left = window.screenX + (window.outerWidth - width) / 2;
+      const top = window.screenY + (window.outerHeight - height) / 2;
+      
+      const popup = window.open(
+        authUrl,
+        'Kommo OAuth',
+        `width=${width},height=${height},left=${left},top=${top}`
+      );
+
+      if (popup) {
+        // Poll for popup closure
+        const checkPopup = setInterval(() => {
+          if (popup.closed) {
+            clearInterval(checkPopup);
+            navigate('/integrations/kommo/result?status=success&message=Successfully connected to Kommo CRM');
+          }
+        }, 500);
+      }
     } catch (err: any) {
-      console.error('Submit error:', err);
-      const errorMessage = err.message || 'Failed to connect to Kommo CRM';
-      navigate(`/integrations/kommo/result?status=error&message=${encodeURIComponent(errorMessage)}`);
+      console.error('OAuth error:', err);
+      setFormError(err.message || 'Failed to initiate OAuth connection');
     } finally {
       setIsSaving(false);
     }
@@ -80,8 +122,7 @@ export default function KommoIntegration() {
       navigate('/integrations/kommo/result?status=success&message=Successfully disconnected from Kommo CRM');
     } catch (err: any) {
       console.error('Disconnect error:', err);
-      const errorMessage = err.message || 'Failed to disconnect from Kommo CRM';
-      navigate(`/integrations/kommo/result?status=error&message=${encodeURIComponent(errorMessage)}`);
+      setFormError(err.message || 'Failed to disconnect from Kommo CRM');
     }
   };
 
@@ -129,7 +170,7 @@ export default function KommoIntegration() {
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form onSubmit={handleConnect} className="space-y-4">
         <div>
           <label htmlFor="accountDomain" className="block text-sm font-medium text-gray-700 mb-1">
             Account Domain
@@ -140,7 +181,7 @@ export default function KommoIntegration() {
             name="accountDomain"
             value={formData.accountDomain}
             onChange={handleChange}
-            placeholder={DEFAULT_VALUES.accountDomain}
+            placeholder="your-account.kommo.com"
             className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
             required
           />
@@ -156,8 +197,8 @@ export default function KommoIntegration() {
             name="clientId"
             value={formData.clientId}
             onChange={handleChange}
-            placeholder={DEFAULT_VALUES.clientId}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+            placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+            className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm font-mono"
             required
           />
         </div>
@@ -178,22 +219,6 @@ export default function KommoIntegration() {
           />
         </div>
 
-        <div>
-          <label htmlFor="accessToken" className="block text-sm font-medium text-gray-700 mb-1">
-            Access Token
-          </label>
-          <textarea
-            id="accessToken"
-            name="accessToken"
-            value={formData.accessToken}
-            onChange={handleChange}
-            placeholder="Enter your access token"
-            rows={3}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm font-mono"
-            required
-          />
-        </div>
-
         <div className="flex space-x-3">
           <button
             type="submit"
@@ -203,12 +228,12 @@ export default function KommoIntegration() {
             {isSaving ? (
               <>
                 <RefreshCw className="animate-spin h-4 w-4 mr-2" />
-                Saving...
+                Connecting...
               </>
             ) : (
               <>
-                <Save className="h-4 w-4 mr-2" />
-                Save Configuration
+                <ExternalLink className="h-4 w-4 mr-2" />
+                Connect with Kommo
               </>
             )}
           </button>
