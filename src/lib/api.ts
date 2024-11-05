@@ -5,42 +5,61 @@ const api = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
+  // Add withCredentials to handle cookies properly
+  withCredentials: true
 });
 
-// Request interceptor to add auth token
-api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('auth_token');
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
+// Request interceptor
+api.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem('auth_token');
+    if (token && config.headers) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
   }
-  return config;
-});
+);
 
-// Response interceptor to handle token expiration
+// Response interceptor
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config;
 
-    // If the error is 401 and we haven't tried to refresh the token yet
+    // If error is 401 and we haven't retried yet
     if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;
 
       try {
-        // Try to refresh the token
-        const response = await api.post('/auth/refresh', {
-          token: localStorage.getItem('refresh_token'),
-        });
+        // Get refresh token from localStorage
+        const refreshToken = localStorage.getItem('refresh_token');
+        if (!refreshToken) {
+          throw new Error('No refresh token available');
+        }
 
-        const { access_token, refresh_token } = response.data;
+        // Attempt to refresh the token
+        const { data } = await axios.post(
+          `${import.meta.env.VITE_API_URL}/auth/refresh`,
+          { refresh_token: refreshToken },
+          { withCredentials: true }
+        );
+
+        const { access_token, refresh_token } = data;
+
+        // Update tokens in localStorage
         localStorage.setItem('auth_token', access_token);
         localStorage.setItem('refresh_token', refresh_token);
 
-        // Retry the original request with the new token
+        // Update the original request authorization header
         originalRequest.headers.Authorization = `Bearer ${access_token}`;
+
+        // Retry the original request
         return api(originalRequest);
       } catch (refreshError) {
-        // If refresh fails, clear tokens and redirect to login
+        // Clear tokens and auth state on refresh failure
         localStorage.removeItem('auth_token');
         localStorage.removeItem('refresh_token');
         window.location.href = '/login';

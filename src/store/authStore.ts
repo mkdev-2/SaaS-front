@@ -15,7 +15,8 @@ interface AuthState {
   isAuthenticated: boolean;
   login: (email: string, password: string) => Promise<void>;
   register: (data: RegisterData) => Promise<void>;
-  logout: () => void;
+  logout: () => Promise<void>;
+  checkAuth: () => Promise<void>;
 }
 
 interface RegisterData {
@@ -37,6 +38,17 @@ const useAuthStore = create<AuthState>()(
       user: null,
       isAuthenticated: false,
 
+      checkAuth: async () => {
+        try {
+          const { data } = await api.get<User>('/auth/me');
+          set({ user: data, isAuthenticated: true });
+        } catch (error) {
+          set({ user: null, isAuthenticated: false });
+          localStorage.removeItem('auth_token');
+          localStorage.removeItem('refresh_token');
+        }
+      },
+
       login: async (email: string, password: string) => {
         try {
           const { data } = await api.post<AuthResponse>('/auth/login', {
@@ -44,14 +56,22 @@ const useAuthStore = create<AuthState>()(
             password,
           });
 
+          if (!data.access_token || !data.refresh_token) {
+            throw new Error('Invalid response from server');
+          }
+
           localStorage.setItem('auth_token', data.access_token);
           localStorage.setItem('refresh_token', data.refresh_token);
           set({ user: data.user, isAuthenticated: true });
         } catch (error: any) {
+          localStorage.removeItem('auth_token');
+          localStorage.removeItem('refresh_token');
+          set({ user: null, isAuthenticated: false });
+
           if (error.response?.status === 401) {
-            throw new Error('Invalid credentials');
+            throw new Error('Invalid email or password');
           }
-          throw new Error('Login failed. Please try again.');
+          throw new Error('Login failed. Please try again later.');
         }
       },
 
@@ -59,20 +79,23 @@ const useAuthStore = create<AuthState>()(
         try {
           const response = await api.post<AuthResponse>('/auth/register', data);
           
+          if (!response.data.access_token || !response.data.refresh_token) {
+            throw new Error('Invalid response from server');
+          }
+
           localStorage.setItem('auth_token', response.data.access_token);
           localStorage.setItem('refresh_token', response.data.refresh_token);
           set({ user: response.data.user, isAuthenticated: true });
         } catch (error: any) {
           if (error.response?.status === 409) {
-            throw new Error('User already exists');
+            throw new Error('Email already registered');
           }
-          throw new Error('Registration failed. Please try again.');
+          throw new Error('Registration failed. Please try again later.');
         }
       },
 
       logout: async () => {
         try {
-          // Notify the server to invalidate the refresh token
           await api.post('/auth/logout');
         } catch (error) {
           console.error('Logout error:', error);
@@ -90,17 +113,14 @@ const useAuthStore = create<AuthState>()(
   )
 );
 
-// Initialize auth state from token
+// Initialize auth state
 const initializeAuth = async () => {
   const token = localStorage.getItem('auth_token');
   if (token) {
     try {
-      const { data } = await api.get<User>('/auth/me');
-      useAuthStore.setState({ user: data, isAuthenticated: true });
+      await useAuthStore.getState().checkAuth();
     } catch (error) {
-      localStorage.removeItem('auth_token');
-      localStorage.removeItem('refresh_token');
-      useAuthStore.setState({ user: null, isAuthenticated: false });
+      console.error('Auth initialization error:', error);
     }
   }
 };
