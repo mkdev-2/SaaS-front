@@ -1,75 +1,19 @@
-import React, { useState, useEffect } from 'react';
-import { ExternalLink, RefreshCw, AlertCircle, CheckCircle2, XCircle, Settings } from 'lucide-react';
-import api from '../../../lib/api';
-import { ApiResponse } from '../../../types/api';
-import { KommoConfig, KommoLead } from '../../../lib/kommo';
+import React from 'react';
+import { ExternalLink, RefreshCw, AlertCircle, CheckCircle2, XCircle, Settings, Wifi, WifiOff } from 'lucide-react';
+import { useKommoIntegration } from '../../../hooks/useKommoIntegration';
 
 export default function KommoIntegration() {
-  const [isConnected, setIsConnected] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [leads, setLeads] = useState<KommoLead[]>([]);
-  const [config, setConfig] = useState<KommoConfig | null>(null);
-  const [needsConfiguration, setNeedsConfiguration] = useState(false);
-
-  useEffect(() => {
-    loadConfig();
-  }, []);
-
-  const loadConfig = async () => {
-    try {
-      setIsLoading(true);
-      setError(null);
-      setNeedsConfiguration(false);
-      
-      const { data: response } = await api.get<ApiResponse<KommoConfig>>('/integrations/kommo/config');
-      
-      if (response.status === 'success' && response.data) {
-        setConfig(response.data);
-        setIsConnected(!!response.data.access_token);
-        if (response.data.access_token) {
-          await loadLeads();
-        }
-      } else {
-        setIsConnected(false);
-        setConfig(null);
-      }
-    } catch (err: any) {
-      console.error('Error loading Kommo config:', err);
-      if (err.response?.status === 404) {
-        setNeedsConfiguration(true);
-        setError('Integration not configured. Please contact your administrator.');
-      } else {
-        setError('Failed to load integration configuration');
-      }
-      setIsConnected(false);
-      setConfig(null);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const loadLeads = async () => {
-    if (!config?.access_token) return;
-
-    try {
-      setError(null);
-      const { data: response } = await api.get<ApiResponse<KommoLead[]>>('/integrations/kommo/leads');
-      
-      if (response.status === 'success' && response.data) {
-        setLeads(response.data);
-      } else {
-        throw new Error(response.message || 'Failed to load leads');
-      }
-    } catch (err: any) {
-      console.error('Error loading leads:', err);
-      if (err.response?.status === 404) {
-        setError('Leads endpoint not available. Please check your integration setup.');
-      } else {
-        setError('Failed to load leads');
-      }
-    }
-  };
+  const {
+    isConnected,
+    isLoading,
+    error,
+    leads,
+    needsConfiguration,
+    isRealTimeEnabled,
+    connect,
+    disconnect,
+    refresh
+  } = useKommoIntegration();
 
   if (isLoading) {
     return (
@@ -143,7 +87,13 @@ export default function KommoIntegration() {
             <p className="text-sm text-gray-500">Sync leads and deals with Kommo CRM</p>
           </div>
         </div>
-        <div className="flex items-center">
+        <div className="flex items-center space-x-3">
+          {isRealTimeEnabled && (
+            <span className="flex items-center text-sm text-green-600">
+              <Wifi className="h-4 w-4 mr-1" />
+              Real-time
+            </span>
+          )}
           {isConnected ? (
             <span className="flex items-center text-sm text-green-600">
               <CheckCircle2 className="h-5 w-5 mr-1" />
@@ -169,12 +119,20 @@ export default function KommoIntegration() {
         <div className="space-y-4">
           <div className="flex items-center justify-between pb-4 border-b">
             <span className="text-sm font-medium text-gray-900">Recent Leads</span>
-            <button
-              onClick={loadLeads}
-              className="p-1 hover:bg-gray-100 rounded-full transition-colors"
-            >
-              <RefreshCw className="w-4 h-4 text-gray-500" />
-            </button>
+            <div className="flex items-center space-x-2">
+              {!isRealTimeEnabled && (
+                <span className="text-xs text-gray-500 flex items-center">
+                  <WifiOff className="h-3 w-3 mr-1" />
+                  Polling updates
+                </span>
+              )}
+              <button
+                onClick={refresh}
+                className="p-1 hover:bg-gray-100 rounded-full transition-colors"
+              >
+                <RefreshCw className="w-4 h-4 text-gray-500" />
+              </button>
+            </div>
           </div>
           
           <div className="space-y-3">
@@ -212,12 +170,7 @@ export default function KommoIntegration() {
             </button>
 
             <button
-              onClick={() => {
-                setIsConnected(false);
-                setConfig(null);
-                setLeads([]);
-                setError(null);
-              }}
+              onClick={disconnect}
               className="w-full py-2 px-4 bg-red-50 text-red-600 rounded-md hover:bg-red-100 text-sm transition-colors"
             >
               Disconnect
@@ -226,7 +179,7 @@ export default function KommoIntegration() {
         </div>
       ) : (
         <button
-          onClick={() => window.open('https://www.kommo.com/oauth', '_blank')}
+          onClick={connect}
           className="w-full py-2 px-4 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 flex items-center justify-center text-sm transition-colors"
         >
           <ExternalLink className="w-4 h-4 mr-2" />

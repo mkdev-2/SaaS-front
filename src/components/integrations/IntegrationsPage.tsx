@@ -1,13 +1,8 @@
 import React from 'react';
+import KommoIntegration from './kommo/KommoIntegration';
 import IntegrationCard from './IntegrationCard';
 
-const integrations = [
-  {
-    name: 'Kommo CRM',
-    description: 'Sync leads and deals with Kommo CRM',
-    status: 'coming_soon' as const,
-    logo: 'https://www.google.com/s2/favicons?domain=kommo.com&sz=64'
-  },
+const otherIntegrations = [
   {
     name: 'Power BI',
     description: 'Visualize your data with Power BI dashboards',
@@ -33,7 +28,8 @@ export default function IntegrationsPage() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {integrations.map((integration, index) => (
+        <KommoIntegration />
+        {otherIntegrations.map((integration, index) => (
           <IntegrationCard key={index} {...integration} />
         ))}
       </div>
