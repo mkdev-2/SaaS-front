@@ -15,7 +15,7 @@ interface AuthState {
   isAuthenticated: boolean;
   login: (email: string, password: string) => Promise<void>;
   register: (data: RegisterData) => Promise<void>;
-  logout: () => void;
+  logout: () => Promise<void>;
   checkAuth: () => Promise<void>;
 }
 
@@ -48,34 +48,51 @@ const useAuthStore = create<AuthState>()(
       },
 
       login: async (email: string, password: string) => {
-        const { data } = await api.post<AuthResponse>('/auth/login', {
-          email,
-          password,
-        });
+        try {
+          const { data } = await api.post<AuthResponse>('/auth/login', {
+            email,
+            password,
+          });
 
-        if (!data.access_token) {
-          throw new Error('Invalid response from server');
+          if (!data.access_token) {
+            throw new Error('Invalid response from server');
+          }
+
+          localStorage.setItem('auth_token', data.access_token);
+          set({ user: data.user, isAuthenticated: true });
+        } catch (error) {
+          localStorage.removeItem('auth_token');
+          set({ user: null, isAuthenticated: false });
+          throw error;
         }
-
-        localStorage.setItem('auth_token', data.access_token);
-        set({ user: data.user, isAuthenticated: true });
       },
 
       register: async (data: RegisterData) => {
-        const response = await api.post<AuthResponse>('/auth/register', data);
-        
-        if (!response.data.access_token) {
-          throw new Error('Invalid response from server');
-        }
+        try {
+          const response = await api.post<AuthResponse>('/auth/register', data);
+          
+          if (!response.data.access_token) {
+            throw new Error('Invalid response from server');
+          }
 
-        localStorage.setItem('auth_token', response.data.access_token);
-        set({ user: response.data.user, isAuthenticated: true });
+          localStorage.setItem('auth_token', response.data.access_token);
+          set({ user: response.data.user, isAuthenticated: true });
+        } catch (error) {
+          localStorage.removeItem('auth_token');
+          set({ user: null, isAuthenticated: false });
+          throw error;
+        }
       },
 
-      logout: () => {
-        // Simply clear the local state and token
-        localStorage.removeItem('auth_token');
-        set({ user: null, isAuthenticated: false });
+      logout: async () => {
+        try {
+          await api.post('/auth/logout');
+        } catch (error) {
+          console.error('Logout error:', error);
+        } finally {
+          localStorage.removeItem('auth_token');
+          set({ user: null, isAuthenticated: false });
+        }
       },
     }),
     {

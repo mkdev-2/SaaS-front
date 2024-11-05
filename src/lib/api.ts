@@ -12,7 +12,7 @@ const api = axios.create({
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('auth_token');
-    if (token && config.headers) {
+    if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
     return config;
@@ -26,7 +26,14 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response) => response,
   async (error: AxiosError) => {
-    // Pass the error through to be handled by components
+    const originalRequest = error.config;
+    
+    // Handle specific error cases
+    if (error.response?.status === 401) {
+      // Clear auth state on unauthorized
+      localStorage.removeItem('auth_token');
+    }
+
     return Promise.reject(error);
   }
 );
