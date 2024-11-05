@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import api from '../lib/api';
+import socketService from '../lib/socket';
 import { ApiResponse } from '../types/api';
 import { DashboardStats } from '../types/dashboard';
 
@@ -20,84 +21,111 @@ export function useDashboardData() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [wsConnected, setWsConnected] = useState(false);
+  
+  // Use refs to track the mounted state and last fetch time
+  const isMounted = useRef(true);
+  const lastFetchTime = useRef<number>(0);
+  const pollTimeoutRef = useRef<NodeJS.Timeout>();
 
-  const fetchDashboardData = async () => {
+  const fetchDashboardData = async (force = false) => {
+    // Prevent multiple fetches within 5 seconds unless forced
+    const now = Date.now();
+    if (!force && now - lastFetchTime.current < 5000) {
+      return;
+    }
+
     try {
+      setLoading(true);
       const { data: response } = await api.get<ApiResponse<DashboardStats>>('/dashboard/stats');
+      
+      if (!isMounted.current) return;
+
       if (response.status === 'success' && response.data) {
-        setData({
-          ...defaultStats,
+        setData(prevData => ({
+          ...prevData,
           ...response.data
-        });
+        }));
         setError(null);
       } else {
         throw new Error(response.message || 'Failed to fetch dashboard data');
       }
     } catch (err: any) {
+      if (!isMounted.current) return;
       setError(err.message || 'Failed to fetch dashboard data');
-      // Keep existing data on error
     } finally {
-      setLoading(false);
+      if (isMounted.current) {
+        setLoading(false);
+        lastFetchTime.current = Date.now();
+      }
     }
   };
 
   useEffect(() => {
+    isMounted.current = true;
+    
     // Initial fetch
-    fetchDashboardData();
+    fetchDashboardData(true);
 
-    // Set up WebSocket connection with retry logic
-    const connectWebSocket = () => {
-      const ws = new WebSocket(import.meta.env.VITE_WS_URL || 'wss://saas-backend-production-8b94.up.railway.app/ws');
-      
-      ws.onopen = () => {
-        setWsConnected(true);
-        console.log('WebSocket connected');
-      };
+    // Set up WebSocket connection
+    socketService.connect();
 
-      ws.onmessage = (event) => {
-        try {
-          const update = JSON.parse(event.data);
-          if (update.type === 'DASHBOARD_UPDATE' && update.data) {
-            setData(prevData => ({
-              ...prevData,
-              ...update.data
-            }));
+    // Subscribe to dashboard updates
+    const unsubscribeUpdates = socketService.onDashboardUpdate((newData) => {
+      if (isMounted.current) {
+        setData(prevData => ({
+          ...prevData,
+          ...newData
+        }));
+      }
+    });
+
+    // Subscribe to connection status
+    const unsubscribeConnection = socketService.onConnectionChange((status) => {
+      if (isMounted.current) {
+        setWsConnected(status);
+      }
+    });
+
+    // Setup polling only when WebSocket is not connected
+    const setupPolling = () => {
+      if (pollTimeoutRef.current) {
+        clearTimeout(pollTimeoutRef.current);
+      }
+
+      if (!wsConnected && isMounted.current) {
+        pollTimeoutRef.current = setTimeout(() => {
+          if (isMounted.current && !wsConnected) {
+            fetchDashboardData();
           }
-        } catch (err) {
-          console.error('WebSocket message error:', err);
-        }
-      };
-
-      ws.onclose = () => {
-        setWsConnected(false);
-        // Retry connection after 5 seconds
-        setTimeout(connectWebSocket, 5000);
-      };
-
-      ws.onerror = (err) => {
-        console.error('WebSocket error:', err);
-        ws.close();
-      };
-
-      return ws;
+          setupPolling();
+        }, POLLING_INTERVAL);
+      }
     };
 
-    const ws = connectWebSocket();
-
-    // Fallback polling for reliability
-    const pollInterval = setInterval(fetchDashboardData, POLLING_INTERVAL);
+    // Watch for WebSocket connection changes
+    const pollingSub = socketService.onConnectionChange((connected) => {
+      if (connected) {
+        if (pollTimeoutRef.current) {
+          clearTimeout(pollTimeoutRef.current);
+        }
+      } else {
+        setupPolling();
+      }
+    });
 
     return () => {
-      if (ws.readyState === WebSocket.OPEN) {
-        ws.close();
+      isMounted.current = false;
+      unsubscribeUpdates();
+      unsubscribeConnection();
+      pollingSub();
+      if (pollTimeoutRef.current) {
+        clearTimeout(pollTimeoutRef.current);
       }
-      clearInterval(pollInterval);
     };
   }, []);
 
   const refresh = () => {
-    setLoading(true);
-    fetchDashboardData();
+    fetchDashboardData(true);
   };
 
   return { data, loading, error, refresh, wsConnected };

@@ -11,6 +11,7 @@ class SocketService {
   private connectionCallbacks: Set<ConnectionCallback> = new Set();
   private reconnectAttempts = 0;
   private maxReconnectAttempts = 5;
+  private connectionTimeout: NodeJS.Timeout | null = null;
 
   private constructor() {}
 
@@ -30,12 +31,18 @@ class SocketService {
       return;
     }
 
-    this.socket = io(import.meta.env.VITE_WS_URL || 'wss://saas-backend-production-8b94.up.railway.app', {
+    // Use HTTP/HTTPS URL, socket.io will handle the WebSocket upgrade
+    const baseUrl = import.meta.env.VITE_API_URL || 'https://saas-backend-production-8b94.up.railway.app/api';
+    const wsUrl = baseUrl.replace('/api', '');
+
+    this.socket = io(wsUrl, {
       auth: { token },
       reconnection: true,
       reconnectionAttempts: this.maxReconnectAttempts,
       reconnectionDelay: 1000,
       timeout: 10000,
+      transports: ['websocket', 'polling'], // Try WebSocket first, fallback to polling
+      path: '/socket.io', // Default Socket.IO path
     });
 
     this.setupEventListeners();
@@ -49,6 +56,12 @@ class SocketService {
       this.reconnectAttempts = 0;
       this.notifyConnectionStatus(true);
       this.socket?.emit('subscribe:dashboard');
+      
+      // Clear any existing connection timeout
+      if (this.connectionTimeout) {
+        clearTimeout(this.connectionTimeout);
+        this.connectionTimeout = null;
+      }
     });
 
     this.socket.on('dashboard:update', (data: DashboardStats) => {
@@ -57,6 +70,7 @@ class SocketService {
 
     this.socket.on('connect_error', (error) => {
       console.error('WebSocket connection error:', error.message);
+      this.notifyConnectionStatus(false);
       this.handleReconnect();
     });
 
@@ -65,12 +79,20 @@ class SocketService {
       this.notifyConnectionStatus(false);
       this.handleReconnect();
     });
+
+    // Set a connection timeout
+    this.connectionTimeout = setTimeout(() => {
+      if (!this.socket?.connected) {
+        console.log('Connection timeout, falling back to polling');
+        this.notifyConnectionStatus(false);
+      }
+    }, 5000);
   }
 
   private handleReconnect() {
     this.reconnectAttempts++;
     if (this.reconnectAttempts >= this.maxReconnectAttempts) {
-      console.error('Max reconnection attempts reached');
+      console.log('Max reconnection attempts reached, falling back to polling');
       this.disconnect();
     }
   }
@@ -90,13 +112,20 @@ class SocketService {
   }
 
   disconnect() {
+    if (this.connectionTimeout) {
+      clearTimeout(this.connectionTimeout);
+      this.connectionTimeout = null;
+    }
+    
     if (this.socket) {
       this.socket.disconnect();
       this.socket = null;
     }
+    
     this.dashboardCallbacks.clear();
     this.connectionCallbacks.clear();
     this.reconnectAttempts = 0;
+    this.notifyConnectionStatus(false);
   }
 }
 
