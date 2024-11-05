@@ -9,21 +9,6 @@ const api = axios.create({
   withCredentials: true
 });
 
-// Flag to prevent multiple refresh token requests
-let isRefreshing = false;
-let failedQueue: any[] = [];
-
-const processQueue = (error: any = null) => {
-  failedQueue.forEach(prom => {
-    if (error) {
-      prom.reject(error);
-    } else {
-      prom.resolve();
-    }
-  });
-  failedQueue = [];
-};
-
 // Request interceptor
 api.interceptors.request.use(
   (config) => {
@@ -50,17 +35,7 @@ api.interceptors.response.use(
       
       // Handle invalid token
       if (errorCode === 'AUTH_INVALID_TOKEN' && !originalRequest._retry) {
-        if (isRefreshing) {
-          // If refresh is in progress, queue the request
-          return new Promise((resolve, reject) => {
-            failedQueue.push({ resolve, reject });
-          })
-            .then(() => axios(originalRequest))
-            .catch(err => Promise.reject(err));
-        }
-
         originalRequest._retry = true;
-        isRefreshing = true;
 
         try {
           // Attempt to refresh the token
@@ -78,19 +53,12 @@ api.interceptors.response.use(
           api.defaults.headers.common['Authorization'] = `Bearer ${access_token}`;
           originalRequest.headers['Authorization'] = `Bearer ${access_token}`;
           
-          // Process queued requests
-          processQueue();
-          
           return axios(originalRequest);
         } catch (refreshError) {
-          // If refresh fails, clear auth and redirect to login
-          processQueue(refreshError);
+          // If refresh fails, clear auth but don't redirect
           localStorage.removeItem('auth_token');
           useAuthStore.getState().logout();
-          window.location.href = '/login';
           return Promise.reject(refreshError);
-        } finally {
-          isRefreshing = false;
         }
       }
       
@@ -98,21 +66,10 @@ api.interceptors.response.use(
       if (errorCode === 'AUTH_NO_TOKEN') {
         localStorage.removeItem('auth_token');
         useAuthStore.getState().logout();
-        if (!window.location.pathname.includes('/login')) {
-          window.location.href = '/login';
-        }
       }
     }
 
-    // Handle 401 errors not caught above
-    if (error.response?.status === 401 && 
-        !window.location.pathname.includes('/login') && 
-        !window.location.pathname.includes('/register')) {
-      localStorage.removeItem('auth_token');
-      useAuthStore.getState().logout();
-      window.location.href = '/login';
-    }
-
+    // Pass the error through to be handled by components
     return Promise.reject(error);
   }
 );
