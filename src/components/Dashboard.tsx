@@ -1,9 +1,9 @@
 import React from 'react';
-import { ArrowUpRight, ArrowDownRight, Activity, Users, Box, Zap, RefreshCw } from 'lucide-react';
+import { ArrowUpRight, ArrowDownRight, Activity, Users, Box, Zap, RefreshCw, Wifi, WifiOff } from 'lucide-react';
 import { useDashboardData } from '../hooks/useDashboardData';
 
 export default function Dashboard() {
-  const { data, loading, error, refresh } = useDashboardData();
+  const { data, loading, error, refresh, wsConnected } = useDashboardData();
 
   const formatNumber = (num: number): string => {
     if (num >= 1000000) {
@@ -16,6 +16,7 @@ export default function Dashboard() {
   };
 
   const calculateChange = (current: number, previous: number): string => {
+    if (previous === 0) return '0%';
     const percentage = ((current - previous) / previous) * 100;
     return percentage.toFixed(1) + '%';
   };
@@ -38,6 +39,21 @@ export default function Dashboard() {
 
   return (
     <div className="p-6 space-y-6">
+      {/* Connection Status */}
+      <div className="flex items-center justify-end space-x-2 text-sm">
+        {wsConnected ? (
+          <div className="flex items-center text-green-600">
+            <Wifi className="h-4 w-4 mr-1" />
+            Real-time updates active
+          </div>
+        ) : (
+          <div className="flex items-center text-gray-500">
+            <WifiOff className="h-4 w-4 mr-1" />
+            Using polling updates
+          </div>
+        )}
+      </div>
+
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {loading ? (
@@ -52,26 +68,26 @@ export default function Dashboard() {
           <>
             <StatCard
               title="Total Integrations"
-              value={formatNumber(data?.totalIntegrations || 0)}
-              change={calculateChange(data?.totalIntegrations || 0, (data?.totalIntegrations || 0) - 2)}
+              value={formatNumber(data.totalIntegrations)}
+              change={calculateChange(data.totalIntegrations, data.totalIntegrations - 2)}
               icon={Zap}
             />
             <StatCard
               title="Active Workflows"
-              value={formatNumber(data?.activeWorkflows || 0)}
-              change={calculateChange(data?.activeWorkflows || 0, (data?.activeWorkflows || 0) - 5)}
+              value={formatNumber(data.activeWorkflows)}
+              change={calculateChange(data.activeWorkflows, data.activeWorkflows - 5)}
               icon={Box}
             />
             <StatCard
               title="API Calls"
-              value={formatNumber(data?.apiCalls || 0)}
-              change={calculateChange(data?.apiCalls || 0, (data?.apiCalls || 0) - 1000)}
+              value={formatNumber(data.apiCalls)}
+              change={calculateChange(data.apiCalls, data.apiCalls - 1000)}
               icon={Activity}
             />
             <StatCard
               title="Total Users"
-              value={formatNumber(data?.totalUsers || 0)}
-              change={calculateChange(data?.totalUsers || 0, (data?.totalUsers || 0) - 1)}
+              value={formatNumber(data.totalUsers)}
+              change={calculateChange(data.totalUsers, data.totalUsers - 1)}
               icon={Users}
             />
           </>
@@ -105,8 +121,8 @@ export default function Dashboard() {
                   </div>
                 </div>
               ))
-            ) : (
-              data?.recentWorkflows.map((workflow) => (
+            ) : data.recentWorkflows.length > 0 ? (
+              data.recentWorkflows.map((workflow) => (
                 <div key={workflow.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
                   <div className="flex items-center space-x-3">
                     <div className="h-8 w-8 bg-indigo-100 rounded-full flex items-center justify-center">
@@ -120,6 +136,10 @@ export default function Dashboard() {
                   <StatusBadge status={workflow.status} />
                 </div>
               ))
+            ) : (
+              <div className="text-center py-8 text-gray-500">
+                No workflows to display
+              </div>
             )}
           </div>
         </div>
@@ -149,8 +169,8 @@ export default function Dashboard() {
                   </div>
                 </div>
               ))
-            ) : (
-              data?.integrationHealth.map((integration) => (
+            ) : data.integrationHealth.length > 0 ? (
+              data.integrationHealth.map((integration) => (
                 <div key={integration.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
                   <div className="flex items-center space-x-3">
                     <div className="h-8 w-8 bg-indigo-100 rounded-full flex items-center justify-center">
@@ -164,6 +184,10 @@ export default function Dashboard() {
                   <HealthBadge status={integration.status} />
                 </div>
               ))
+            ) : (
+              <div className="text-center py-8 text-gray-500">
+                No integrations to display
+              </div>
             )}
           </div>
         </div>
