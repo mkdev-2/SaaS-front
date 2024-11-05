@@ -41,7 +41,10 @@ export default function LoginForm() {
     try {
       await login(email.trim(), password);
       const from = location.state?.from?.pathname || '/dashboard';
-      navigate(from);
+      // Ensure navigation happens after successful login
+      setTimeout(() => {
+        navigate(from, { replace: true });
+      }, 0);
     } catch (err: any) {
       setIsLoading(false);
       if (err.response?.status === 401) {

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Mail, Lock, User, Building } from 'lucide-react';
-import { useNavigate, Link, useLocation } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import useAuthStore from '../../store/authStore';
 
 interface FormData {
@@ -20,7 +20,6 @@ export default function RegisterForm() {
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
-  const location = useLocation();
   const register = useAuthStore((state) => state.register);
 
   const validateForm = () => {
@@ -71,11 +70,10 @@ export default function RegisterForm() {
         company: formData.company?.trim()
       });
       
-      // Add a small delay to ensure the auth state is updated
+      // Ensure navigation happens after successful registration
       setTimeout(() => {
-        const from = location.state?.from?.pathname || '/dashboard';
-        navigate(from, { replace: true });
-      }, 100);
+        navigate('/dashboard', { replace: true });
+      }, 0);
     } catch (err: any) {
       setIsLoading(false);
       if (err.response?.status === 409) {
