@@ -28,7 +28,6 @@ interface RegisterData {
 
 interface AuthResponse {
   access_token: string;
-  refresh_token: string;
   user: User;
 }
 
@@ -45,7 +44,6 @@ const useAuthStore = create<AuthState>()(
         } catch (error) {
           set({ user: null, isAuthenticated: false });
           localStorage.removeItem('auth_token');
-          localStorage.removeItem('refresh_token');
         }
       },
 
@@ -55,24 +53,22 @@ const useAuthStore = create<AuthState>()(
           password,
         });
 
-        if (!data.access_token || !data.refresh_token) {
+        if (!data.access_token) {
           throw new Error('Invalid response from server');
         }
 
         localStorage.setItem('auth_token', data.access_token);
-        localStorage.setItem('refresh_token', data.refresh_token);
         set({ user: data.user, isAuthenticated: true });
       },
 
       register: async (data: RegisterData) => {
         const response = await api.post<AuthResponse>('/auth/register', data);
         
-        if (!response.data.access_token || !response.data.refresh_token) {
+        if (!response.data.access_token) {
           throw new Error('Invalid response from server');
         }
 
         localStorage.setItem('auth_token', response.data.access_token);
-        localStorage.setItem('refresh_token', response.data.refresh_token);
         set({ user: response.data.user, isAuthenticated: true });
       },
 
@@ -83,7 +79,6 @@ const useAuthStore = create<AuthState>()(
           console.error('Logout error:', error);
         } finally {
           localStorage.removeItem('auth_token');
-          localStorage.removeItem('refresh_token');
           set({ user: null, isAuthenticated: false });
         }
       },
