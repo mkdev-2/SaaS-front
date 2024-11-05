@@ -6,7 +6,15 @@ interface KommoFormData {
   accountDomain: string;
   clientId: string;
   clientSecret: string;
+  accessToken: string;
 }
+
+const DEFAULT_VALUES = {
+  accountDomain: 'vendaspersonalprime.kommo.com',
+  clientId: '6fc1e2d2-0e1d-4549-8efd-1b0b37d0bbb3',
+  clientSecret: 'O4QcVGEURJVwaCwXIa9ZAxAgpelDtgBnrWObukW6SBlTjYKkSCNJklmhVH5tpTVh',
+  accessToken: 'eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiIsImp0aSI6IjQyMGI4Yjk3MGNjOGQ3ZGUxYzQwZWQ4ODRmMDJkZTg3ZTdmYjA3ZTE3N2NiYjc5MzY3NDc1YzIzOTljYTMwNzZlMmYyNGIzNWFhMTM1OWVhIn0.eyJhdWQiOiI2ZmMxZTJkMi0wZTFkLTQ1NDktOGVmZC0xYjBiMzdkMGJiYjMiLCJqdGkiOiI0MjBiOGI5NzBjYzhkN2RlMWM0MGVkODg0ZjAyZGU4N2U3ZmIwN2UxNzdjYmI3OTM2NzQ3NWMyMzk5Y2EzMDc2ZTJmMjRiMzVhYTEzNTllYSIsImlhdCI6MTczMDg0NTIwOSwibmJmIjoxNzMwODQ1MjA5LCJleHAiOjE4NjE4MzM2MDAsInN1YiI6IjExMDE1NDkxIiwiZ3JhbnRfdHlwZSI6IiIsImFjY291bnRfaWQiOjMyNjA2MDM5LCJiYXNlX2RvbWFpbiI6ImtvbW1vLmNvbSIsInZlcnNpb24iOjIsInNjb3BlcyI6WyJjcm0iLCJmaWxlcyIsImZpbGVzX2RlbGV0ZSIsIm5vdGlmaWNhdGlvbnMiLCJwdXNoX25vdGlmaWNhdGlvbnMiXSwiaGFzaF91dWlkIjoiMDNlM2E4OTktNmZmMC00ZmU5LWExMDAtYjc4NWM1NTU0OGI1IiwiYXBpX2RvbWFpbiI6ImFwaS1nLmtvbW1vLmNvbSJ9.oNtf6s9JRDoEL7rdmmHA2KeZX5Uxhtw9FNJf_rS1_t--wdDe0ohLDQbOQpyN-69OGD3lSi0Wg4OozwurhtXwd83cTWFtciPAT_1btVJLGFE2mTYAT4o0ucHOyA0lUFRR7XHphjdsSDB5v408r9FV7mhBRLzTNAV4Awh6Z5X1YxyJ9SsY2B2nBrEJOsYpFthWYfWrcJ5HflRKKeGe9qwLhwje8Gpq2ZHidKKIfiD7ZxAh_bPk0lks4WD3lCT5Otf7JOayowYVuhc-5FC5LpJ1kKXpXQO6j-K7Z1xSwRLLr9iC9-ZzAVqkMuxG-29rappWGTVcIZ2ZhJfF2s7QNBMHOA'
+};
 
 export default function KommoIntegration() {
   const {
@@ -21,15 +29,16 @@ export default function KommoIntegration() {
   } = useKommoIntegration();
 
   const [formData, setFormData] = useState<KommoFormData>({
-    accountDomain: config?.account_domain || '',
-    clientId: config?.client_id || '',
-    clientSecret: config?.client_secret || ''
+    accountDomain: config?.account_domain || DEFAULT_VALUES.accountDomain,
+    clientId: config?.client_id || DEFAULT_VALUES.clientId,
+    clientSecret: config?.client_secret || DEFAULT_VALUES.clientSecret,
+    accessToken: config?.access_token || DEFAULT_VALUES.accessToken
   });
 
   const [isSaving, setIsSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({
       ...prev,
@@ -43,8 +52,8 @@ export default function KommoIntegration() {
     setFormError(null);
 
     // Validate all fields are filled
-    const { accountDomain, clientId, clientSecret } = formData;
-    if (!accountDomain || !clientId || !clientSecret) {
+    const { accountDomain, clientId, clientSecret, accessToken } = formData;
+    if (!accountDomain || !clientId || !clientSecret || !accessToken) {
       setFormError('All fields are required');
       return;
     }
@@ -116,7 +125,7 @@ export default function KommoIntegration() {
             name="accountDomain"
             value={formData.accountDomain}
             onChange={handleChange}
-            placeholder="vendaspersonalprime.kommo.com"
+            placeholder={DEFAULT_VALUES.accountDomain}
             className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
             required
           />
@@ -132,7 +141,7 @@ export default function KommoIntegration() {
             name="clientId"
             value={formData.clientId}
             onChange={handleChange}
-            placeholder="6fc1e2d2-0e1d-4549-8efd-1b0b37d0bbb3"
+            placeholder={DEFAULT_VALUES.clientId}
             className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
             required
           />
@@ -150,6 +159,22 @@ export default function KommoIntegration() {
             onChange={handleChange}
             placeholder="Enter your client secret"
             className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+            required
+          />
+        </div>
+
+        <div>
+          <label htmlFor="accessToken" className="block text-sm font-medium text-gray-700 mb-1">
+            Access Token
+          </label>
+          <textarea
+            id="accessToken"
+            name="accessToken"
+            value={formData.accessToken}
+            onChange={handleChange}
+            placeholder="Enter your access token"
+            rows={3}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm font-mono"
             required
           />
         </div>

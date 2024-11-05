@@ -16,6 +16,7 @@ interface SaveConfigData {
   accountDomain: string;
   clientId: string;
   clientSecret: string;
+  accessToken: string;
 }
 
 const initialState: KommoState = {
@@ -48,7 +49,8 @@ export function useKommoIntegration() {
       if (response.status === 'success' && response.data) {
         const isConnected = !!response.data.account_domain && 
                           !!response.data.client_id && 
-                          !!response.data.client_secret;
+                          !!response.data.client_secret &&
+                          !!response.data.access_token;
         updateState({
           config: response.data,
           isConnected,
@@ -92,15 +94,12 @@ export function useKommoIntegration() {
       throw new Error('You must be logged in to save configuration');
     }
 
-    if (!data.accountDomain || !data.clientId || !data.clientSecret) {
-      throw new Error('All fields are required');
-    }
-
     try {
       const { data: response } = await api.post<ApiResponse<KommoConfig>>('/integrations/kommo/config', {
         accountDomain: data.accountDomain,
         clientId: data.clientId,
-        clientSecret: data.clientSecret
+        clientSecret: data.clientSecret,
+        accessToken: data.accessToken
       });
       
       if (response.status === 'success' && response.data) {
