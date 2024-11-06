@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { Play, RefreshCw, CheckCircle2, XCircle, AlertTriangle } from 'lucide-react';
+import { Play, RefreshCw, CheckCircle2, XCircle, AlertTriangle, ChevronDown, ChevronUp } from 'lucide-react';
 import { useKommoIntegration } from '../../hooks/useKommoIntegration';
+import api from '../../lib/api';
 
 interface TestResult {
   name: string;
@@ -14,88 +15,98 @@ export default function KommoTestingPage() {
   const { isConnected, config } = useKommoIntegration();
   const [results, setResults] = useState<TestResult[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [expandedResult, setExpandedResult] = useState<number | null>(null);
 
   const runTests = async () => {
     setIsLoading(true);
     setResults([]);
+    setExpandedResult(null);
 
     try {
-      // Test basic connection
       const startTime = Date.now();
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/integrations/kommo/test`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
-        }
-      });
+      const { data: response } = await api.post('/integrations/kommo/test');
 
-      const data = await response.json();
-      const duration = Date.now() - startTime;
+      if (response.status === 'success' && response.data?.diagnostics) {
+        const { diagnostics } = response.data;
+        const duration = Date.now() - startTime;
 
-      if (data.diagnostics) {
         const testResults: TestResult[] = [
           {
-            name: 'Connection Test',
-            status: data.diagnostics.connection?.success ? 'success' : 'error',
-            message: data.diagnostics.connection?.success ? 
-              'Successfully connected to Kommo API' : 
-              'Failed to connect to Kommo API',
+            name: 'Configuration Check',
+            status: diagnostics.config.hasAccessToken && !diagnostics.config.tokenExpired ? 'success' : 'warning',
+            message: diagnostics.config.hasAccessToken 
+              ? diagnostics.config.tokenExpired 
+                ? 'Access token has expired'
+                : 'Configuration is valid'
+              : 'Missing access token',
             duration,
-            details: data.diagnostics.connection
+            details: diagnostics.config
+          },
+          {
+            name: 'API Connection',
+            status: diagnostics.connection?.success ? 'success' : 'error',
+            message: diagnostics.connection?.success 
+              ? `Connected successfully (${diagnostics.connection.statusCode})` 
+              : `Connection failed: ${diagnostics.connection?.error || 'Unknown error'}`,
+            duration,
+            details: diagnostics.connection
           },
           {
             name: 'Account Access',
-            status: data.diagnostics.account?.success ? 'success' : 'error',
-            message: data.diagnostics.account?.success ?
-              'Successfully accessed account information' :
-              'Failed to access account information',
+            status: diagnostics.account?.success ? 'success' : 'error',
+            message: diagnostics.account?.success
+              ? 'Successfully retrieved account information'
+              : `Failed to access account: ${diagnostics.account?.error || 'Unknown error'}`,
             duration,
-            details: data.diagnostics.account
+            details: diagnostics.account
           },
           {
-            name: 'Leads Access',
-            status: data.diagnostics.leads?.success ? 'success' : 'error',
-            message: data.diagnostics.leads?.success ?
-              `Successfully accessed leads (${data.diagnostics.leads.count} leads found)` :
-              'Failed to access leads',
+            name: 'Leads API',
+            status: diagnostics.leads?.success ? 'success' : 'error',
+            message: diagnostics.leads?.success
+              ? `Successfully accessed leads (${diagnostics.leads.count} leads available)`
+              : `Failed to access leads: ${diagnostics.leads?.error || 'Unknown error'}`,
             duration,
-            details: data.diagnostics.leads
+            details: diagnostics.leads
           },
           {
             name: 'Custom Fields',
-            status: data.diagnostics.customFields?.success ? 'success' : 'error',
-            message: data.diagnostics.customFields?.success ?
-              `Successfully accessed custom fields (${data.diagnostics.customFields.count} fields found)` :
-              'Failed to access custom fields',
+            status: diagnostics.customFields?.success ? 'success' : 'error',
+            message: diagnostics.customFields?.success
+              ? `Successfully retrieved custom fields (${diagnostics.customFields.count} fields)`
+              : `Failed to access custom fields: ${diagnostics.customFields?.error || 'Unknown error'}`,
             duration,
-            details: data.diagnostics.customFields
+            details: diagnostics.customFields
           },
           {
             name: 'Tags',
-            status: data.diagnostics.tags?.success ? 'success' : 'error',
-            message: data.diagnostics.tags?.success ?
-              `Successfully accessed tags (${data.diagnostics.tags.count} tags found)` :
-              'Failed to access tags',
+            status: diagnostics.tags?.success ? 'success' : 'error',
+            message: diagnostics.tags?.success
+              ? `Successfully retrieved tags (${diagnostics.tags.count} tags)`
+              : `Failed to access tags: ${diagnostics.tags?.error || 'Unknown error'}`,
             duration,
-            details: data.diagnostics.tags
+            details: diagnostics.tags
           }
         ];
 
         setResults(testResults);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Test execution error:', error);
       setResults([{
         name: 'Connection Test',
         status: 'error',
-        message: 'Failed to execute tests',
+        message: error.response?.data?.message || 'Failed to execute tests',
         duration: 0,
-        details: error
+        details: error.response?.data
       }]);
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const toggleResultDetails = (index: number) => {
+    setExpandedResult(expandedResult === index ? null : index);
   };
 
   if (!isConnected) {
@@ -166,7 +177,10 @@ export default function KommoTestingPage() {
         <div className="bg-white rounded-xl shadow-sm divide-y divide-gray-200">
           {results.map((result, index) => (
             <div key={index} className="p-6">
-              <div className="flex items-center justify-between">
+              <button
+                onClick={() => toggleResultDetails(index)}
+                className="w-full flex items-center justify-between focus:outline-none"
+              >
                 <div className="flex items-center">
                   {result.status === 'success' && (
                     <CheckCircle2 className="h-5 w-5 text-green-500 mr-3" />
@@ -177,18 +191,26 @@ export default function KommoTestingPage() {
                   {result.status === 'warning' && (
                     <AlertTriangle className="h-5 w-5 text-yellow-500 mr-3" />
                   )}
-                  <div>
+                  <div className="text-left">
                     <h3 className="text-sm font-medium text-gray-900">
                       {result.name}
                     </h3>
                     <p className="text-sm text-gray-500">{result.message}</p>
                   </div>
                 </div>
-                <span className="text-sm text-gray-500">
-                  {result.duration}ms
-                </span>
-              </div>
-              {result.details && (
+                <div className="flex items-center ml-4">
+                  <span className="text-sm text-gray-500 mr-2">
+                    {result.duration}ms
+                  </span>
+                  {expandedResult === index ? (
+                    <ChevronUp className="h-5 w-5 text-gray-400" />
+                  ) : (
+                    <ChevronDown className="h-5 w-5 text-gray-400" />
+                  )}
+                </div>
+              </button>
+              
+              {expandedResult === index && result.details && (
                 <div className="mt-4">
                   <pre className="text-xs bg-gray-50 rounded-lg p-4 overflow-x-auto">
                     {JSON.stringify(result.details, null, 2)}
