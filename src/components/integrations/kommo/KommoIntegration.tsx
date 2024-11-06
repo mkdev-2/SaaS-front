@@ -6,10 +6,6 @@ import KommoLeadsList from './KommoLeadsList';
 import KommoConnectionStatus from './KommoConnectionStatus';
 import KommoButton from './KommoButton';
 
-const REDIRECT_URI = 'https://saas-backend-production-8b94.up.railway.app/api/kommo/callback';
-const CLIENT_ID = '6fc1e2d2-0e1d-4549-8efd-1b0b37d0bbb3';
-const ACCOUNT_DOMAIN = 'vendaspersonalprime.kommo.com';
-
 export default function KommoIntegration() {
   const navigate = useNavigate();
   const {
@@ -18,70 +14,43 @@ export default function KommoIntegration() {
     error,
     leads,
     config,
+    initiateOAuth,
     disconnect,
     refresh
   } = useKommoIntegration();
 
   const [isSaving, setIsSaving] = useState(false);
+  const [authError, setAuthError] = useState<string | null>(null);
 
-  const handleKommoAuth = () => {
-    const params = new URLSearchParams({
-      client_id: CLIENT_ID,
-      mode: 'post_message',
-      redirect_uri: REDIRECT_URI,
-      response_type: 'code',
-      state: 'test'
-    });
-
-    const width = 600;
-    const height = 400;
-    const left = window.screenX + (window.outerWidth - width) / 2;
-    const top = window.screenY + (window.outerHeight - height) / 2;
-
-    const authWindow = window.open(
-      `https://${ACCOUNT_DOMAIN}/oauth2/authorize?${params.toString()}`,
-      'Kommo Authorization',
-      `width=${width},height=${height},left=${left},top=${top}`
-    );
-
-    if (authWindow) {
-      const handleMessage = async (event: MessageEvent) => {
-        if (event.origin !== window.location.origin) return;
-
-        if (event.data?.type === 'KOMMO_AUTH_CODE' && event.data?.code) {
-          try {
-            setIsSaving(true);
-            await handleAuthCode(event.data.code);
-            refresh();
-          } catch (err: any) {
-            console.error('Auth error:', err);
-          } finally {
-            setIsSaving(false);
-            authWindow.close();
-          }
-        }
-
-        if (event.data?.type === 'KOMMO_AUTH_ERROR') {
-          console.error('Kommo auth error:', event.data.error);
-          authWindow.close();
-        }
-      };
-
-      window.addEventListener('message', handleMessage);
-      return () => window.removeEventListener('message', handleMessage);
-    }
-  };
-
-  const handleAuthCode = async (code: string) => {
+  const handleKommoAuth = async () => {
     try {
-      const response = await fetch(`${REDIRECT_URI}?code=${code}`);
-      if (!response.ok) {
-        throw new Error('Failed to exchange auth code');
+      setIsSaving(true);
+      setAuthError(null);
+
+      const authUrl = await initiateOAuth({
+        accountDomain: 'vendaspersonalprime.kommo.com',
+        clientId: '6fc1e2d2-0e1d-4549-8efd-1b0b37d0bbb3',
+        clientSecret: 'O4QcVGEURJVwaCwXIa9ZAxAgpelDtgBnrWObukW6SBlTjYKkSCNJklmhVH5tpTVh',
+        redirectUri: 'https://saas-backend-production-8b94.up.railway.app/api/kommo/callback'
+      });
+
+      if (authUrl) {
+        const width = 600;
+        const height = 400;
+        const left = window.screenX + (window.outerWidth - width) / 2;
+        const top = window.screenY + (window.outerHeight - height) / 2;
+
+        window.open(
+          authUrl,
+          'Kommo Authorization',
+          `width=${width},height=${height},left=${left},top=${top}`
+        );
       }
-      return await response.json();
-    } catch (err) {
-      console.error('Error exchanging auth code:', err);
-      throw err;
+    } catch (err: any) {
+      console.error('OAuth error:', err);
+      setAuthError(err.message || 'Failed to connect to Kommo');
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -91,6 +60,7 @@ export default function KommoIntegration() {
       navigate('/integrations');
     } catch (err: any) {
       console.error('Disconnect error:', err);
+      setAuthError(err.message || 'Failed to disconnect from Kommo');
     }
   };
 
@@ -125,7 +95,7 @@ export default function KommoIntegration() {
       <KommoConnectionStatus
         isConnected={isConnected}
         config={config}
-        error={error}
+        error={authError || error}
       />
 
       {!isConnected && (
