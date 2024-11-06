@@ -14,8 +14,10 @@ const DEFAULT_VALUES = {
   accountDomain: 'vendaspersonalprime.kommo.com',
   clientId: '6fc1e2d2-0e1d-4549-8efd-1b0b37d0bbb3',
   clientSecret: 'O4QcVGEURJVwaCwXIa9ZAxAgpelDtgBnrWObukW6SBlTjYKkSCNJklmhVH5tpTVh',
-  accessToken: 'eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiIsImp0aSI6IjQyMGI4Yjk3MGNjOGQ3ZGUxYzQwZWQ4ODRmMDJkZTg3ZTdmYjA3ZTE3N2NiYjc5MzY3NDc1YzIzOTljYTMwNzZlMmYyNGIzNWFhMTM1OWVhIn0.eyJhdWQiOiI2ZmMxZTJkMi0wZTFkLTQ1NDktOGVmZC0xYjBiMzdkMGJiYjMiLCJqdGkiOiI0MjBiOGI5NzBjYzhkN2RlMWM0MGVkODg0ZjAyZGU4N2U3ZmIwN2UxNzdjYmI3OTM2NzQ3NWMyMzk5Y2EzMDc2ZTJmMjRiMzVhYTEzNTllYSIsImlhdCI6MTczMDg0NTIwOSwibmJmIjoxNzMwODQ1MjA5LCJleHAiOjE4NjE4MzM2MDAsInN1YiI6IjExMDE1NDkxIiwiZ3JhbnRfdHlwZSI6IiIsImFjY291bnRfaWQiOjMyNjA2MDM5LCJiYXNlX2RvbWFpbiI6ImtvbW1vLmNvbSIsInZlcnNpb24iOjIsInNjb3BlcyI6WyJjcm0iLCJmaWxlcyIsImZpbGVzX2RlbGV0ZSIsIm5vdGlmaWNhdGlvbnMiLCJwdXNoX25vdGlmaWNhdGlvbnMiXSwiaGFzaF91dWlkIjoiMDNlM2E4OTktNmZmMC00ZmU5LWExMDAtYjc4NW'
+  accessToken: ''
 };
+
+const REDIRECT_URI = `${import.meta.env.VITE_API_URL}/kommo/callback`;
 
 export default function KommoIntegration() {
   const navigate = useNavigate();
@@ -90,7 +92,10 @@ export default function KommoIntegration() {
     setIsSaving(true);
 
     try {
-      await initiateOAuth(formData);
+      await initiateOAuth({
+        ...formData,
+        redirectUri: REDIRECT_URI
+      });
       navigate('/integrations/kommo/result?status=success&message=Successfully connected to Kommo CRM');
     } catch (err: any) {
       console.error('OAuth error:', err);
