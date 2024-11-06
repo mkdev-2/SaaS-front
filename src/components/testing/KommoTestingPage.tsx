@@ -40,24 +40,24 @@ export default function KommoTestingPage() {
       let connectionResult: TestResult;
       try {
         const startTime = Date.now();
-        const { data: response } = await api.get('/kommo/leads?limit=1');
+        const { data: response } = await api.get('/kommo/config/verify');
         const duration = Date.now() - startTime;
 
         connectionResult = {
           name: 'API Connection',
           status: 'success',
-          message: 'Successfully connected to Kommo API',
+          message: 'Successfully verified Kommo API connection',
           duration,
           details: {
             responseTime: duration,
-            hasData: !!response.data
+            status: response.status
           }
         };
       } catch (error: any) {
         connectionResult = {
           name: 'API Connection',
           status: 'error',
-          message: error.response?.data?.message || 'Failed to connect to Kommo API',
+          message: error.response?.data?.message || 'Failed to verify Kommo API connection',
           duration: 0,
           details: {
             error: error.message,
@@ -66,28 +66,29 @@ export default function KommoTestingPage() {
         };
       }
 
-      // Third test - Account Access
-      let accountResult: TestResult;
+      // Third test - Integration Status
+      let integrationResult: TestResult;
       try {
         const startTime = Date.now();
-        const { data: response } = await api.get('/kommo/account');
+        const { data: response } = await api.get('/kommo/status');
         const duration = Date.now() - startTime;
 
-        accountResult = {
-          name: 'Account Access',
+        integrationResult = {
+          name: 'Integration Status',
           status: 'success',
-          message: 'Successfully retrieved account information',
+          message: 'Successfully retrieved integration status',
           duration,
           details: {
             responseTime: duration,
-            hasData: !!response.data
+            isConnected: response.data?.isConnected,
+            lastSync: response.data?.lastSync
           }
         };
       } catch (error: any) {
-        accountResult = {
-          name: 'Account Access',
+        integrationResult = {
+          name: 'Integration Status',
           status: 'error',
-          message: error.response?.data?.message || 'Failed to access account information',
+          message: error.response?.data?.message || 'Failed to check integration status',
           duration: 0,
           details: {
             error: error.message,
@@ -96,7 +97,7 @@ export default function KommoTestingPage() {
         };
       }
 
-      setResults([configResult, connectionResult, accountResult]);
+      setResults([configResult, connectionResult, integrationResult]);
     } catch (error: any) {
       console.error('Test execution error:', error);
       setResults([{
