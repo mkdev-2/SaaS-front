@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { RefreshCw } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useKommoIntegration } from '../../../hooks/useKommoIntegration';
 import KommoLeadsList from './KommoLeadsList';
 import KommoConnectionStatus from './KommoConnectionStatus';
+import KommoButton from './KommoButton';
 
 const REDIRECT_URI = 'https://saas-backend-production-8b94.up.railway.app/api/kommo/callback';
 const CLIENT_ID = '6fc1e2d2-0e1d-4549-8efd-1b0b37d0bbb3';
@@ -109,12 +110,9 @@ export default function KommoIntegration() {
         <div className="flex items-center space-x-3">
           <div className="h-10 w-10 bg-indigo-100 rounded-lg flex items-center justify-center">
             <img
-              src="https://www.kommo.com/favicon.ico"
+              src="https://www.google.com/s2/favicons?domain=kommo.com&sz=64"
               alt="Kommo"
               className="h-6 w-6"
-              onError={(e) => {
-                e.currentTarget.src = 'https://www.google.com/s2/favicons?domain=kommo.com&sz=64';
-              }}
             />
           </div>
           <div>
@@ -131,21 +129,11 @@ export default function KommoIntegration() {
       />
 
       {!isConnected && (
-        <button
+        <KommoButton
           onClick={handleKommoAuth}
+          isLoading={isSaving}
           disabled={isSaving}
-          className="w-full flex items-center justify-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-[#0077FF] hover:bg-[#0066DD] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#0077FF] disabled:opacity-50"
-        >
-          {isSaving ? (
-            <RefreshCw className="animate-spin h-5 w-5" />
-          ) : (
-            <img
-              src="https://www.kommo.com/static/assets/oauth/oauth-button.svg"
-              alt="Connect with Kommo"
-              className="h-5"
-            />
-          )}
-        </button>
+        />
       )}
 
       {isConnected && (
