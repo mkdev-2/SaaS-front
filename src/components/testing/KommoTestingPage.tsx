@@ -24,7 +24,7 @@ export default function KommoTestingPage() {
 
     try {
       const startTime = Date.now();
-      const { data: response } = await api.post('/integrations/kommo/test');
+      const { data: response } = await api.post('/kommo/test');
 
       if (response.status === 'success' && response.data?.diagnostics) {
         const { diagnostics } = response.data;
