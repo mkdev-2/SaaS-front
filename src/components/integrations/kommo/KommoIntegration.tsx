@@ -6,11 +6,6 @@ import KommoLeadsList from './KommoLeadsList';
 import KommoConnectionStatus from './KommoConnectionStatus';
 import KommoButton from './KommoButton';
 
-// Kommo OAuth configuration
-const KOMMO_AUTH_URL = 'https://vendaspersonalprime.kommo.com/oauth2/authorize';
-const CLIENT_ID = '6fc1e2d2-0e1d-4549-8efd-1b0b37d0bbb3';
-const REDIRECT_URI = 'https://saas-backend-production-8b94.up.railway.app/api/kommo/callback';
-
 export default function KommoIntegration() {
   const navigate = useNavigate();
   const {
@@ -19,51 +14,66 @@ export default function KommoIntegration() {
     error,
     leads,
     config,
+    initiateOAuth,
     disconnect,
     refresh
   } = useKommoIntegration();
 
   const [authError, setAuthError] = useState<string | null>(null);
 
-  const handleKommoAuth = () => {
-    const params = new URLSearchParams({
-      client_id: CLIENT_ID,
-      redirect_uri: REDIRECT_URI,
-      response_type: 'code',
-      state: 'test'
-    });
+  const handleKommoAuth = async () => {
+    try {
+      setAuthError(null);
+      const authUrl = await initiateOAuth({
+        accountDomain: 'vendaspersonalprime.kommo.com',
+        clientId: '6fc1e2d2-0e1d-4549-8efd-1b0b37d0bbb3',
+        clientSecret: 'O4QcVGEURJVwaCwXIa9ZAxAgpelDtgBnrWObukW6SBlTjYKkSCNJklmhVH5tpTVh',
+        redirectUri: 'https://saas-backend-production-8b94.up.railway.app/api/kommo/callback'
+      });
 
-    const width = 600;
-    const height = 600;
-    const left = window.screenX + (window.outerWidth - width) / 2;
-    const top = window.screenY + (window.outerHeight - height) / 2;
-
-    const popup = window.open(
-      `${KOMMO_AUTH_URL}?${params.toString()}`,
-      'Kommo Authorization',
-      `width=${width},height=${height},left=${left},top=${top}`
-    );
-
-    // Add message listener for the popup callback
-    const handleMessage = async (event: MessageEvent) => {
-      if (event.data?.type === 'KOMMO_AUTH_CODE') {
-        window.removeEventListener('message', handleMessage);
-        popup?.close();
-        
-        try {
-          await refresh();
-          navigate('/integrations');
-        } catch (err: any) {
-          setAuthError(err.message || 'Failed to complete authentication');
-        }
-      } else if (event.data?.type === 'KOMMO_AUTH_ERROR') {
-        window.removeEventListener('message', handleMessage);
-        popup?.close();
-        setAuthError('Authentication failed. Please try again.');
+      if (!authUrl) {
+        throw new Error('Failed to get authorization URL');
       }
-    };
 
-    window.addEventListener('message', handleMessage);
+      const width = 600;
+      const height = 600;
+      const left = window.screenX + (window.outerWidth - width) / 2;
+      const top = window.screenY + (window.outerHeight - height) / 2;
+
+      const popup = window.open(
+        authUrl,
+        'Kommo Authorization',
+        `width=${width},height=${height},left=${left},top=${top}`
+      );
+
+      if (!popup) {
+        throw new Error('Failed to open authorization window. Please allow popups for this site.');
+      }
+
+      // Add message listener for the popup callback
+      const handleMessage = async (event: MessageEvent) => {
+        if (event.data?.type === 'KOMMO_AUTH_CODE') {
+          window.removeEventListener('message', handleMessage);
+          popup?.close();
+          
+          try {
+            await refresh();
+            navigate('/integrations');
+          } catch (err: any) {
+            setAuthError(err.message || 'Failed to complete authentication');
+          }
+        } else if (event.data?.type === 'KOMMO_AUTH_ERROR') {
+          window.removeEventListener('message', handleMessage);
+          popup?.close();
+          setAuthError('Authentication failed. Please try again.');
+        }
+      };
+
+      window.addEventListener('message', handleMessage);
+    } catch (err: any) {
+      console.error('OAuth error:', err);
+      setAuthError(err.message || 'Failed to initiate authentication');
+    }
   };
 
   const handleDisconnect = async () => {
