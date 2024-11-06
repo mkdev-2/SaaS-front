@@ -2,16 +2,25 @@
 <html>
 <head>
   <title>Kommo Authentication</title>
+  <script>
+    window.onload = function() {
+      const urlParams = new URLSearchParams(window.location.search);
+      const code = urlParams.get('code');
+      const error = urlParams.get('error');
+      
+      if (code) {
+        window.opener.postMessage({ type: 'KOMMO_AUTH_CODE', code }, '*');
+        window.close();
+      } else if (error) {
+        window.opener.postMessage({ type: 'KOMMO_AUTH_ERROR', error }, '*');
+        window.close();
+      }
+    };
+  </script>
 </head>
 <body>
-  <script>
-    const urlParams = new URLSearchParams(window.location.search);
-    const code = urlParams.get('code');
-    
-    if (code) {
-      window.opener.postMessage({ type: 'KOMMO_AUTH_CODE', code }, '*');
-      window.close();
-    }
-  </script>
+  <div style="display: flex; justify-content: center; align-items: center; height: 100vh; font-family: system-ui, -apple-system, sans-serif;">
+    <p>Processing authentication... You can close this window.</p>
+  </div>
 </body>
 </html>

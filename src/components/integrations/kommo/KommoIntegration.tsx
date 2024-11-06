@@ -9,14 +9,12 @@ interface KommoFormData {
   accountDomain: string;
   clientId: string;
   clientSecret: string;
-  accessToken: string;
 }
 
 const DEFAULT_VALUES = {
   accountDomain: 'vendaspersonalprime.kommo.com',
   clientId: '6fc1e2d2-0e1d-4549-8efd-1b0b37d0bbb3',
-  clientSecret: 'O4QcVGEURJVwaCwXIa9ZAxAgpelDtgBnrWObukW6SBlTjYKkSCNJklmhVH5tpTVh',
-  accessToken: ''
+  clientSecret: 'O4QcVGEURJVwaCwXIa9ZAxAgpelDtgBnrWObukW6SBlTjYKkSCNJklmhVH5tpTVh'
 };
 
 const REDIRECT_URI = 'https://saas-backend-production-8b94.up.railway.app/api/kommo/callback';
@@ -37,8 +35,7 @@ export default function KommoIntegration() {
   const [formData, setFormData] = useState<KommoFormData>({
     accountDomain: config?.account_domain || DEFAULT_VALUES.accountDomain,
     clientId: config?.client_id || DEFAULT_VALUES.clientId,
-    clientSecret: config?.client_secret || DEFAULT_VALUES.clientSecret,
-    accessToken: config?.access_token || DEFAULT_VALUES.accessToken
+    clientSecret: config?.client_secret || DEFAULT_VALUES.clientSecret
   });
 
   const [isSaving, setIsSaving] = useState(false);
@@ -49,7 +46,8 @@ export default function KommoIntegration() {
       client_id: formData.clientId,
       redirect_uri: REDIRECT_URI,
       response_type: 'code',
-      state: 'test'
+      state: 'test',
+      mode: 'post_message'
     });
 
     return `https://${formData.accountDomain}/oauth2/authorize?${params.toString()}`;
@@ -65,9 +63,9 @@ export default function KommoIntegration() {
   };
 
   const validateForm = () => {
-    const { accountDomain, clientId, clientSecret, accessToken } = formData;
+    const { accountDomain, clientId, clientSecret } = formData;
 
-    if (!accountDomain || !clientId || !clientSecret || !accessToken) {
+    if (!accountDomain || !clientId || !clientSecret) {
       setFormError('All fields are required');
       return false;
     }
@@ -80,11 +78,6 @@ export default function KommoIntegration() {
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
     if (!uuidRegex.test(clientId)) {
       setFormError('Invalid client ID format');
-      return false;
-    }
-
-    if (!accessToken.includes('.')) {
-      setFormError('Invalid access token format');
       return false;
     }
 
@@ -106,7 +99,34 @@ export default function KommoIntegration() {
         ...formData,
         redirectUri: REDIRECT_URI
       });
-      navigate('/integrations/kommo/result?status=success&message=Successfully connected to Kommo CRM');
+      
+      // Open OAuth authorization window
+      const authWindow = window.open(getAuthUrl(), 'KommoAuth', 'width=600,height=600');
+      
+      if (authWindow) {
+        const messageHandler = async (event: MessageEvent) => {
+          if (event.data?.type === 'KOMMO_AUTH_CODE' && event.data?.code) {
+            window.removeEventListener('message', messageHandler);
+            authWindow.close();
+            
+            try {
+              await initiateOAuth({
+                ...formData,
+                redirectUri: REDIRECT_URI,
+                code: event.data.code
+              });
+              navigate('/integrations/kommo/result?status=success&message=Successfully connected to Kommo CRM');
+            } catch (err: any) {
+              console.error('OAuth error:', err);
+              setFormError(err.message || 'Failed to connect to Kommo');
+            }
+          }
+        };
+
+        window.addEventListener('message', messageHandler);
+      } else {
+        setFormError('Failed to open authorization window. Please allow popups and try again.');
+      }
     } catch (err: any) {
       console.error('OAuth error:', err);
       setFormError(err.message || 'Failed to connect to Kommo');
