@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
-import { RefreshCw, CheckCircle2 } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { RefreshCw } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useKommoIntegration } from '../../../hooks/useKommoIntegration';
 import KommoAuthForm from './KommoAuthForm';
 import KommoLeadsList from './KommoLeadsList';
+import KommoConnectionStatus from './KommoConnectionStatus';
 
 interface KommoFormData {
   accountDomain: string;
@@ -33,27 +34,36 @@ export default function KommoIntegration() {
   } = useKommoIntegration();
 
   const [formData, setFormData] = useState<KommoFormData>({
-    accountDomain: config?.account_domain || DEFAULT_VALUES.accountDomain,
-    clientId: config?.client_id || DEFAULT_VALUES.clientId,
-    clientSecret: config?.client_secret || DEFAULT_VALUES.clientSecret
+    accountDomain: config?.accountDomain || DEFAULT_VALUES.accountDomain,
+    clientId: config?.clientId || DEFAULT_VALUES.clientId,
+    clientSecret: config?.clientSecret || DEFAULT_VALUES.clientSecret
   });
 
   const [isSaving, setIsSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (config) {
+      setFormData(prev => ({
+        ...prev,
+        accountDomain: config.accountDomain || prev.accountDomain,
+        clientId: config.clientId || prev.clientId
+      }));
+    }
+  }, [config]);
 
   const getAuthUrl = () => {
     const params = new URLSearchParams({
       client_id: formData.clientId,
       redirect_uri: REDIRECT_URI,
       response_type: 'code',
-      state: 'test',
-      mode: 'post_message'
+      state: 'test'
     });
 
     return `https://${formData.accountDomain}/oauth2/authorize?${params.toString()}`;
   };
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({
       ...prev,
@@ -95,42 +105,19 @@ export default function KommoIntegration() {
     setIsSaving(true);
 
     try {
-      await initiateOAuth({
+      const response = await initiateOAuth({
         ...formData,
         redirectUri: REDIRECT_URI
       });
-      
-      // Open OAuth authorization window
-      const authWindow = window.open(getAuthUrl(), 'KommoAuth', 'width=600,height=600');
-      
-      if (authWindow) {
-        const messageHandler = async (event: MessageEvent) => {
-          if (event.data?.type === 'KOMMO_AUTH_CODE' && event.data?.code) {
-            window.removeEventListener('message', messageHandler);
-            authWindow.close();
-            
-            try {
-              await initiateOAuth({
-                ...formData,
-                redirectUri: REDIRECT_URI,
-                code: event.data.code
-              });
-              navigate('/integrations/kommo/result?status=success&message=Successfully connected to Kommo CRM');
-            } catch (err: any) {
-              console.error('OAuth error:', err);
-              setFormError(err.message || 'Failed to connect to Kommo');
-            }
-          }
-        };
 
-        window.addEventListener('message', messageHandler);
+      if (response?.authUrl) {
+        window.location.href = response.authUrl;
       } else {
-        setFormError('Failed to open authorization window. Please allow popups and try again.');
+        window.location.href = getAuthUrl();
       }
     } catch (err: any) {
       console.error('OAuth error:', err);
       setFormError(err.message || 'Failed to connect to Kommo');
-    } finally {
       setIsSaving(false);
     }
   };
@@ -174,13 +161,13 @@ export default function KommoIntegration() {
             <p className="text-sm text-gray-500">Connect your Kommo CRM account</p>
           </div>
         </div>
-        {isConnected && (
-          <span className="flex items-center text-sm text-green-600">
-            <CheckCircle2 className="h-5 w-5 mr-1" />
-            Connected
-          </span>
-        )}
       </div>
+
+      <KommoConnectionStatus
+        isConnected={isConnected}
+        config={config}
+        error={error || formError}
+      />
 
       <KommoAuthForm
         formData={formData}
@@ -189,6 +176,7 @@ export default function KommoIntegration() {
         onSubmit={handleSubmit}
         onChange={handleChange}
         getAuthUrl={getAuthUrl}
+        isConnected={isConnected}
       />
 
       {isConnected && (
@@ -200,7 +188,9 @@ export default function KommoIntegration() {
         </button>
       )}
 
-      {isConnected && <KommoLeadsList leads={leads} onRefresh={refresh} />}
+      {isConnected && leads?.length > 0 && (
+        <KommoLeadsList leads={leads} onRefresh={refresh} />
+      )}
     </div>
   );
 }

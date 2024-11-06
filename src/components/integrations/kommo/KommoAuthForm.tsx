@@ -1,5 +1,5 @@
 import React from 'react';
-import { ExternalLink, RefreshCw, AlertCircle, LinkIcon } from 'lucide-react';
+import { ExternalLink, RefreshCw, AlertCircle } from 'lucide-react';
 
 interface KommoAuthFormProps {
   formData: {
@@ -9,8 +9,9 @@ interface KommoAuthFormProps {
   };
   error: string | null;
   isSaving: boolean;
+  isConnected: boolean;
   onSubmit: (e: React.FormEvent) => void;
-  onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => void;
+  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   getAuthUrl: () => string;
 }
 
@@ -18,10 +19,13 @@ export default function KommoAuthForm({
   formData,
   error,
   isSaving,
+  isConnected,
   onSubmit,
   onChange,
   getAuthUrl
 }: KommoAuthFormProps) {
+  if (isConnected) return null;
+
   return (
     <form onSubmit={onSubmit} className="space-y-4">
       {error && (
@@ -79,35 +83,23 @@ export default function KommoAuthForm({
         />
       </div>
 
-      <div className="flex space-x-3">
-        <button
-          type="submit"
-          disabled={isSaving}
-          className="flex-1 flex items-center justify-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          {isSaving ? (
-            <>
-              <RefreshCw className="animate-spin h-4 w-4 mr-2" />
-              Connecting...
-            </>
-          ) : (
-            <>
-              <ExternalLink className="h-4 w-4 mr-2" />
-              Connect with Kommo
-            </>
-          )}
-        </button>
-
-        <a
-          href={getAuthUrl()}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 flex items-center"
-        >
-          <LinkIcon className="h-4 w-4 mr-2" />
-          Test Auth URL
-        </a>
-      </div>
+      <button
+        type="submit"
+        disabled={isSaving}
+        className="w-full flex items-center justify-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
+      >
+        {isSaving ? (
+          <>
+            <RefreshCw className="animate-spin h-4 w-4 mr-2" />
+            Connecting...
+          </>
+        ) : (
+          <>
+            <ExternalLink className="h-4 w-4 mr-2" />
+            Connect with Kommo
+          </>
+        )}
+      </button>
     </form>
   );
 }
