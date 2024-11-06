@@ -73,7 +73,6 @@ export interface DiagnosticResults {
   leads: {
     success: boolean;
     count?: number;
-    sample?: string;
     error?: string;
     details?: any;
     timestamp: string;
