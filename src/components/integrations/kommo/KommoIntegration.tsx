@@ -12,7 +12,8 @@ interface KommoFormData {
   clientSecret: string;
 }
 
-const REDIRECT_URI = `${window.location.origin}/integrations/kommo/callback`;
+// Use the production callback URL
+const REDIRECT_URI = 'https://saas-backend-production-8b94.up.railway.app/api/kommo/callback';
 
 export default function KommoIntegration() {
   const navigate = useNavigate();
