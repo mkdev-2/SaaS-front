@@ -93,15 +93,18 @@ export default function KommoIntegration() {
     setIsSaving(true);
 
     try {
-      await initiateOAuth({
+      const authUrl = await initiateOAuth({
         accountDomain: formData.accountDomain,
         clientId: formData.clientId,
         clientSecret: formData.clientSecret,
-        accessToken: '',
         redirectUri: REDIRECT_URI
       });
 
-      window.location.href = getAuthUrl();
+      if (authUrl) {
+        window.location.href = authUrl;
+      } else {
+        window.location.href = getAuthUrl();
+      }
     } catch (err: any) {
       console.error('OAuth error:', err);
       setFormError(err.message || 'Failed to connect to Kommo');

@@ -16,7 +16,6 @@ interface InitiateOAuthData {
   accountDomain: string;
   clientId: string;
   clientSecret: string;
-  accessToken: string;
   redirectUri: string;
 }
 
@@ -45,16 +44,20 @@ export function useKommoIntegration() {
     try {
       updateState({ isLoading: true, error: null });
       
-      const { data: response } = await api.get<ApiResponse<KommoConfig>>('/kommo/config');
+      // Get Kommo configuration
+      const { data: configResponse } = await api.get<ApiResponse<KommoConfig>>('/kommo/config');
       
-      if (response.status === 'success' && response.data) {
+      if (configResponse.status === 'success' && configResponse.data) {
+        // Check connection status
+        const { data: statusResponse } = await api.get<ApiResponse<{ isConnected: boolean }>>('/kommo/status');
+        
         updateState({
-          config: response.data,
-          isConnected: true,
+          config: configResponse.data,
+          isConnected: statusResponse.data?.isConnected ?? false,
           error: null
         });
 
-        if (response.data.isConnected) {
+        if (statusResponse.data?.isConnected) {
           await loadLeads();
         }
       } else {
@@ -101,13 +104,14 @@ export function useKommoIntegration() {
     try {
       updateState({ isLoading: true, error: null });
 
-      const { data: configResponse } = await api.post<ApiResponse<void>>('/kommo/config', data);
-
-      if (configResponse.status !== 'success') {
-        throw new Error(configResponse.message || 'Failed to save configuration');
+      // Save configuration and initiate OAuth
+      const { data: response } = await api.post<ApiResponse<{ authUrl: string }>>('/kommo/auth/init', data);
+      
+      if (response.status === 'success' && response.data?.authUrl) {
+        return response.data.authUrl;
       }
 
-      return true;
+      throw new Error('Failed to initiate OAuth flow');
     } catch (err: any) {
       console.error('Connection error:', err);
       
@@ -130,7 +134,7 @@ export function useKommoIntegration() {
     try {
       updateState({ isLoading: true, error: null });
 
-      const { data: response } = await api.delete<ApiResponse<void>>('/kommo/config');
+      const { data: response } = await api.post<ApiResponse<void>>('/kommo/disconnect');
       
       if (response.status === 'success') {
         updateState({
