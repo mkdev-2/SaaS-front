@@ -1,86 +1,198 @@
-import React from 'react';
-import { ArrowUpRight, ArrowDownRight, Activity, Users, Box, Zap, RefreshCw, AlertCircle } from 'lucide-react';
+import React, { useMemo } from 'react';
+import { ArrowUpRight, ArrowDownRight, Activity, Users, Box, Zap, RefreshCw, AlertCircle, Tags, ShoppingBag, DollarSign } from 'lucide-react';
 import { useDashboardData } from '../hooks/useDashboardData';
 import { useKommoIntegration } from '../hooks/useKommoIntegration';
+
+interface KommoMetrics {
+  dailyLeads: {
+    count: number;
+    value: number;
+  };
+  tags: {
+    sellers: Map<string, number>;
+    personas: Map<string, number>;
+    sources: Map<string, number>;
+  };
+  sales: {
+    total: number;
+    byProduct: Map<string, { count: number; value: number }>;
+    byPayment: Map<string, { count: number; value: number }>;
+    byPersona: Map<string, { count: number; value: number }>;
+  };
+}
 
 export default function Dashboard() {
   const { data, loading, error, refresh } = useDashboardData();
   const { isConnected: isKommoConnected, leads: kommoLeads, error: kommoError } = useKommoIntegration();
 
-  const formatNumber = (num: number | undefined): string => {
-    if (num === undefined || num === null) return '0';
-    
-    if (num >= 1000000) {
-      return (num / 1000000).toFixed(1) + 'M';
+  // Calculate Kommo metrics
+  const kommoMetrics = useMemo((): KommoMetrics => {
+    if (!kommoLeads?.length) {
+      return {
+        dailyLeads: { count: 0, value: 0 },
+        tags: {
+          sellers: new Map(),
+          personas: new Map(),
+          sources: new Map()
+        },
+        sales: {
+          total: 0,
+          byProduct: new Map(),
+          byPayment: new Map(),
+          byPersona: new Map()
+        }
+      };
     }
-    if (num >= 1000) {
-      return (num / 1000).toFixed(1) + 'k';
-    }
-    return num.toString();
-  };
 
-  const calculateChange = (current: number | undefined, previous: number | undefined): string => {
-    if (current === undefined || previous === undefined || previous === 0) return '0%';
-    const percentage = ((current - previous) / previous) * 100;
-    return percentage.toFixed(1) + '%';
-  };
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
 
-  // Calcula estatísticas do Kommo
-  const kommoStats = {
-    totalLeads: kommoLeads?.length || 0,
-    totalValue: kommoLeads?.reduce((sum, lead) => sum + (lead.price || 0), 0) || 0,
-    recentLeads: kommoLeads?.slice(0, 5) || []
-  };
+    return kommoLeads.reduce((metrics, lead) => {
+      const leadDate = new Date(lead.created_at * 1000);
+      
+      // Count daily leads
+      if (leadDate >= today) {
+        metrics.dailyLeads.count++;
+        metrics.dailyLeads.value += lead.price || 0;
+      }
+
+      // Process tags and custom fields
+      lead.custom_fields_values?.forEach(field => {
+        const value = field.values[0]?.value;
+        if (!value) return;
+
+        switch (field.field_name.toLowerCase()) {
+          case 'vendedor':
+          case 'seller':
+            metrics.tags.sellers.set(
+              value,
+              (metrics.tags.sellers.get(value) || 0) + 1
+            );
+            break;
+
+          case 'persona':
+            metrics.tags.personas.set(
+              value,
+              (metrics.tags.personas.get(value) || 0) + 1
+            );
+            if (lead.price > 0) {
+              const current = metrics.sales.byPersona.get(value) || { count: 0, value: 0 };
+              metrics.sales.byPersona.set(value, {
+                count: current.count + 1,
+                value: current.value + lead.price
+              });
+            }
+            break;
+
+          case 'origem':
+          case 'source':
+            metrics.tags.sources.set(
+              value,
+              (metrics.tags.sources.get(value) || 0) + 1
+            );
+            break;
+
+          case 'produto':
+          case 'product':
+            if (lead.price > 0) {
+              const current = metrics.sales.byProduct.get(value) || { count: 0, value: 0 };
+              metrics.sales.byProduct.set(value, {
+                count: current.count + 1,
+                value: current.value + lead.price
+              });
+            }
+            break;
+
+          case 'forma_pagamento':
+          case 'payment_method':
+            if (lead.price > 0) {
+              const current = metrics.sales.byPayment.get(value) || { count: 0, value: 0 };
+              metrics.sales.byPayment.set(value, {
+                count: current.count + 1,
+                value: current.value + lead.price
+              });
+            }
+            break;
+        }
+      });
+
+      // Add to total sales
+      if (lead.price > 0) {
+        metrics.sales.total += lead.price;
+      }
+
+      return metrics;
+    }, {
+      dailyLeads: { count: 0, value: 0 },
+      tags: {
+        sellers: new Map(),
+        personas: new Map(),
+        sources: new Map()
+      },
+      sales: {
+        total: 0,
+        byProduct: new Map(),
+        byPayment: new Map(),
+        byPersona: new Map()
+      }
+    });
+  }, [kommoLeads]);
 
   const stats = [
     {
-      title: "Total Integrations",
-      value: isKommoConnected ? 1 : 0,
+      title: "Today's Leads",
+      value: kommoMetrics.dailyLeads.count,
       previousValue: 0,
-      icon: Zap
-    },
-    {
-      title: "Active Workflows",
-      value: data?.activeWorkflows ?? 0,
-      previousValue: (data?.activeWorkflows ?? 0) - 5,
-      icon: Box
-    },
-    {
-      title: "Total Leads",
-      value: kommoStats.totalLeads,
-      previousValue: kommoStats.totalLeads - 2,
       icon: Users
     },
     {
-      title: "Total Lead Value",
-      value: kommoStats.totalValue,
-      previousValue: kommoStats.totalValue - 1000,
-      icon: Activity,
+      title: "Today's Lead Value",
+      value: kommoMetrics.dailyLeads.value,
+      previousValue: 0,
+      icon: DollarSign,
+      format: (value: number) => `$${value.toLocaleString()}`
+    },
+    {
+      title: "Active Tags",
+      value: kommoMetrics.tags.personas.size + kommoMetrics.tags.sources.size,
+      previousValue: 0,
+      icon: Tags
+    },
+    {
+      title: "Total Sales",
+      value: kommoMetrics.sales.total,
+      previousValue: 0,
+      icon: ShoppingBag,
       format: (value: number) => `$${value.toLocaleString()}`
     }
   ];
 
   return (
     <div className="p-6 space-y-6">
-      {/* Alerta de status do Kommo */}
-      {kommoError && (
+      {/* Error alerts */}
+      {(error || kommoError) && (
         <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 flex items-start">
           <AlertCircle className="h-5 w-5 text-yellow-600 mt-0.5 mr-3 flex-shrink-0" />
           <div className="flex-1">
             <h3 className="text-sm font-medium text-yellow-800">
-              Kommo Integration Status
+              Integration Status
             </h3>
             <p className="mt-1 text-sm text-yellow-700">
-              {kommoError}
+              {error || kommoError}
             </p>
           </div>
+          <button
+            onClick={refresh}
+            className="ml-3 bg-yellow-100 p-2 rounded-full text-yellow-600 hover:bg-yellow-200"
+          >
+            <RefreshCw className="h-4 w-4" />
+          </button>
         </div>
       )}
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {loading ? (
-          // Loading skeleton for stats
           [...Array(4)].map((_, i) => (
             <div key={i} className="bg-white rounded-xl shadow-sm p-6 animate-pulse">
               <div className="h-8 bg-gray-200 rounded w-1/3 mb-4"></div>
@@ -92,77 +204,112 @@ export default function Dashboard() {
             <StatCard
               key={index}
               title={stat.title}
-              value={stat.format ? stat.format(stat.value) : formatNumber(stat.value)}
-              change={calculateChange(stat.value, stat.previousValue)}
+              value={stat.format ? stat.format(stat.value) : stat.value.toString()}
+              change={`${((stat.value - (stat.previousValue || 0)) / (stat.previousValue || 1) * 100).toFixed(1)}%`}
               icon={stat.icon}
             />
           ))
         )}
       </div>
 
-      {/* Kommo Leads Section */}
-      {isKommoConnected && kommoStats.recentLeads.length > 0 && (
-        <div className="bg-white rounded-xl shadow-sm p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-gray-900">Recent Kommo Leads</h2>
-            <button
-              onClick={refresh}
-              className="p-2 hover:bg-gray-100 rounded-full transition-colors"
-              disabled={loading}
-            >
-              <RefreshCw className={`h-5 w-5 text-gray-500 ${loading ? 'animate-spin' : ''}`} />
-            </button>
+      {/* Sales Analysis */}
+      {isKommoConnected && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Sales by Persona */}
+          <div className="bg-white rounded-xl shadow-sm p-6">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">Sales by Persona</h2>
+            <div className="space-y-4">
+              {Array.from(kommoMetrics.sales.byPersona.entries())
+                .sort(([, a], [, b]) => b.value - a.value)
+                .map(([persona, stats]) => (
+                  <div key={persona} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                    <div>
+                      <span className="font-medium">{persona}</span>
+                      <p className="text-xs text-gray-500 mt-1">
+                        {stats.count} {stats.count === 1 ? 'sale' : 'sales'}
+                      </p>
+                    </div>
+                    <span className="text-sm font-medium text-gray-900">
+                      ${stats.value.toLocaleString()}
+                    </span>
+                  </div>
+                ))}
+            </div>
           </div>
-          
-          <div className="space-y-4">
-            {kommoStats.recentLeads.map((lead) => (
-              <div key={lead.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                <div>
-                  <p className="font-medium">{lead.name}</p>
-                  <p className="text-sm text-gray-500">
-                    Created: {new Date(lead.created_at * 1000).toLocaleDateString()}
-                  </p>
-                </div>
-                <span className="text-sm font-medium text-gray-900">
-                  ${lead.price.toLocaleString()}
-                </span>
-              </div>
-            ))}
+
+          {/* Sales by Payment Method */}
+          <div className="bg-white rounded-xl shadow-sm p-6">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">Sales by Payment Method</h2>
+            <div className="space-y-4">
+              {Array.from(kommoMetrics.sales.byPayment.entries())
+                .sort(([, a], [, b]) => b.value - a.value)
+                .map(([method, stats]) => (
+                  <div key={method} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                    <div>
+                      <span className="font-medium">{method}</span>
+                      <p className="text-xs text-gray-500 mt-1">
+                        {stats.count} {stats.count === 1 ? 'transaction' : 'transactions'}
+                      </p>
+                    </div>
+                    <span className="text-sm font-medium text-gray-900">
+                      ${stats.value.toLocaleString()}
+                    </span>
+                  </div>
+                ))}
+            </div>
           </div>
         </div>
       )}
 
-      {/* Integration Health */}
-      <div className="bg-white rounded-xl shadow-sm p-6">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-gray-900">Integration Health</h2>
-          <button
-            onClick={refresh}
-            className="p-2 hover:bg-gray-100 rounded-full transition-colors"
-            disabled={loading}
-          >
-            <RefreshCw className={`h-5 w-5 text-gray-500 ${loading ? 'animate-spin' : ''}`} />
-          </button>
-        </div>
-        
-        <div className="space-y-4">
-          {/* Kommo Health Status */}
-          <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-            <div className="flex items-center space-x-3">
-              <div className="h-8 w-8 bg-indigo-100 rounded-full flex items-center justify-center">
-                <Activity className="h-4 w-4 text-indigo-600" />
-              </div>
-              <div>
-                <p className="font-medium">Kommo CRM</p>
-                <p className="text-sm text-gray-500">
-                  {isKommoConnected ? 'Connected' : 'Not Connected'}
-                </p>
-              </div>
+      {/* Tag Distribution */}
+      {isKommoConnected && (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Personas */}
+          <div className="bg-white rounded-xl shadow-sm p-6">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">Lead Distribution by Persona</h2>
+            <div className="space-y-2">
+              {Array.from(kommoMetrics.tags.personas.entries())
+                .sort(([, a], [, b]) => b - a)
+                .map(([persona, count]) => (
+                  <div key={persona} className="flex justify-between items-center px-3 py-2 bg-indigo-50 text-indigo-700 rounded-lg">
+                    <span>{persona}</span>
+                    <span className="font-medium">{count}</span>
+                  </div>
+                ))}
             </div>
-            <HealthBadge status={isKommoConnected ? 'healthy' : 'error'} />
+          </div>
+
+          {/* Lead Sources */}
+          <div className="bg-white rounded-xl shadow-sm p-6">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">Lead Sources</h2>
+            <div className="space-y-2">
+              {Array.from(kommoMetrics.tags.sources.entries())
+                .sort(([, a], [, b]) => b - a)
+                .map(([source, count]) => (
+                  <div key={source} className="flex justify-between items-center px-3 py-2 bg-green-50 text-green-700 rounded-lg">
+                    <span>{source}</span>
+                    <span className="font-medium">{count}</span>
+                  </div>
+                ))}
+            </div>
+          </div>
+
+          {/* Seller Performance */}
+          <div className="bg-white rounded-xl shadow-sm p-6">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">Seller Performance</h2>
+            <div className="space-y-2">
+              {Array.from(kommoMetrics.tags.sellers.entries())
+                .sort(([, a], [, b]) => b - a)
+                .map(([seller, count]) => (
+                  <div key={seller} className="flex justify-between items-center px-3 py-2 bg-blue-50 text-blue-700 rounded-lg">
+                    <span>{seller}</span>
+                    <span className="font-medium">{count} leads</span>
+                  </div>
+                ))}
+            </div>
           </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }
@@ -197,19 +344,5 @@ function StatCard({ title, value, change, icon: Icon }: StatCardProps) {
       <h3 className="text-2xl font-bold mt-4">{value}</h3>
       <p className="text-gray-600 text-sm">{title}</p>
     </div>
-  );
-}
-
-function HealthBadge({ status }: { status: 'healthy' | 'warning' | 'error' }) {
-  const colors = {
-    healthy: 'bg-green-100 text-green-800',
-    warning: 'bg-yellow-100 text-yellow-800',
-    error: 'bg-red-100 text-red-800'
-  };
-
-  return (
-    <span className={`px-3 py-1 rounded-full text-sm ${colors[status]}`}>
-      {status.charAt(0).toUpperCase() + status.slice(1)}
-    </span>
   );
 }

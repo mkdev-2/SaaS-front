@@ -10,7 +10,6 @@ export interface KommoConfig {
   refresh_token?: string;
   expires_at?: number;
 }
-
 export interface KommoLead {
   id: number;
   name: string;
@@ -19,7 +18,25 @@ export interface KommoLead {
   responsible_user_id: number;
   created_at: number;
   updated_at: number;
+  custom_fields_values?: Array<{
+    field_id: number;
+    field_name: string;
+    field_code: string;
+    values: Array<{
+      value: string;
+      enum_id?: number;
+    }>;
+  }>;
 }
+// export interface KommoLead {
+//   id: number;
+//   name: string;
+//   status_id: number;
+//   price: number;
+//   responsible_user_id: number;
+//   created_at: number;
+//   updated_at: number;
+// }
 
 class KommoAPI {
   private static instance: KommoAPI;
