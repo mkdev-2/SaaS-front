@@ -57,7 +57,6 @@ export function useKommoIntegration() {
           await loadLeads();
         }
       } else {
-        // No configuration found - this is not an error state
         updateState({
           isConnected: false,
           config: null,
@@ -66,7 +65,6 @@ export function useKommoIntegration() {
       }
     } catch (err: any) {
       console.error('Error loading Kommo config:', err);
-      // Only set error if it's not a 404 (no config found)
       if (err.response?.status !== 404) {
         updateState({
           isConnected: false,
@@ -91,7 +89,6 @@ export function useKommoIntegration() {
     } catch (err: any) {
       console.error('Error loading leads:', err);
       if (err.response?.status === 401) {
-        // Token expired or invalid - mark as disconnected
         updateState({
           isConnected: false,
           error: 'Session expired. Please reconnect to Kommo.'
@@ -112,41 +109,70 @@ export function useKommoIntegration() {
     try {
       updateState({ isLoading: true, error: null });
 
-      // First, validate and save the configuration
-      const { data: configResponse } = await api.post<ApiResponse<KommoConfig>>('/integrations/kommo/config', {
+      // Get OAuth URL from backend
+      const { data: response } = await api.post<ApiResponse<{ authUrl: string }>>('/integrations/kommo/oauth/init', {
         accountDomain: data.accountDomain,
         clientId: data.clientId,
         clientSecret: data.clientSecret,
         redirectUri: `${window.location.origin}/integrations/kommo/callback`
       });
 
-      if (configResponse.status !== 'success' || !configResponse.data) {
-        throw new Error(configResponse.message || 'Failed to save configuration');
-      }
+      if (response.status === 'success' && response.data?.authUrl) {
+        // Open OAuth popup
+        const width = 600;
+        const height = 600;
+        const left = window.screenX + (window.outerWidth - width) / 2;
+        const top = window.screenY + (window.outerHeight - height) / 2;
+        
+        const popup = window.open(
+          response.data.authUrl,
+          'Kommo OAuth',
+          `width=${width},height=${height},left=${left},top=${top}`
+        );
 
-      // Then verify credentials and get access token
-      const { data: authResponse } = await api.post<ApiResponse<KommoConfig>>('/integrations/kommo/auth', {
-        accountDomain: data.accountDomain,
-        clientId: data.clientId,
-        clientSecret: data.clientSecret
-      });
+        if (!popup) {
+          throw new Error('Popup blocked. Please allow popups for this site.');
+        }
 
-      if (authResponse.status === 'success' && authResponse.data) {
-        updateState({
-          config: authResponse.data,
-          isConnected: true,
-          error: null
+        // Poll for popup closure and OAuth completion
+        return new Promise<void>((resolve, reject) => {
+          const checkInterval = setInterval(async () => {
+            if (popup.closed) {
+              clearInterval(checkInterval);
+              
+              try {
+                // Check if connection was successful
+                const { data: statusResponse } = await api.get<ApiResponse<KommoConfig>>('/integrations/kommo/config');
+                
+                if (statusResponse.status === 'success' && statusResponse.data?.access_token) {
+                  updateState({
+                    config: statusResponse.data,
+                    isConnected: true,
+                    error: null
+                  });
+                  resolve();
+                } else {
+                  reject(new Error('OAuth connection failed'));
+                }
+              } catch (err) {
+                reject(err);
+              }
+            }
+          }, 500);
+
+          // Timeout after 5 minutes
+          setTimeout(() => {
+            clearInterval(checkInterval);
+            popup.close();
+            reject(new Error('OAuth connection timed out'));
+          }, 5 * 60 * 1000);
         });
-
-        await loadLeads();
-        return true;
       }
 
-      throw new Error(authResponse.message || 'Failed to authenticate with Kommo');
+      throw new Error(response.message || 'Failed to initiate OAuth connection');
     } catch (err: any) {
-      console.error('Connection error:', err);
+      console.error('OAuth error:', err);
       
-      // Handle validation errors
       if (err.response?.data?.errors) {
         const errorMessages = err.response.data.errors
           .map((error: any) => `${error.field}: ${error.message}`)
@@ -154,13 +180,7 @@ export function useKommoIntegration() {
         throw new Error(`Validation error: ${errorMessages}`);
       }
 
-      // Handle authentication errors
-      if (err.response?.status === 401) {
-        throw new Error('Invalid credentials');
-      }
-
-      // Handle other errors
-      throw new Error(err.response?.data?.message || 'Failed to connect to Kommo');
+      throw new Error(err.message || 'Failed to connect to Kommo');
     } finally {
       updateState({ isLoading: false });
     }
@@ -195,7 +215,6 @@ export function useKommoIntegration() {
     }
   };
 
-  // Load config on mount and when user changes
   useEffect(() => {
     if (user) {
       loadConfig();
@@ -204,11 +223,10 @@ export function useKommoIntegration() {
     }
   }, [user]);
 
-  // Refresh leads periodically when connected
   useEffect(() => {
     if (!state.isConnected) return;
 
-    const interval = setInterval(loadLeads, 5 * 60 * 1000); // Refresh every 5 minutes
+    const interval = setInterval(loadLeads, 5 * 60 * 1000);
     return () => clearInterval(interval);
   }, [state.isConnected]);
 
