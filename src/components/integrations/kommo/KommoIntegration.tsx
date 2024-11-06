@@ -7,7 +7,15 @@ interface KommoFormData {
   accountDomain: string;
   clientId: string;
   clientSecret: string;
+  accessToken: string;
 }
+
+const DEFAULT_VALUES = {
+  accountDomain: 'vendaspersonalprime.kommo.com',
+  clientId: '6fc1e2d2-0e1d-4549-8efd-1b0b37d0bbb3',
+  clientSecret: 'O4QcVGEURJVwaCwXIa9ZAxAgpelDtgBnrWObukW6SBlTjYKkSCNJklmhVH5tpTVh',
+  accessToken: 'eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiIsImp0aSI6IjQyMGI4Yjk3MGNjOGQ3ZGUxYzQwZWQ4ODRmMDJkZTg3ZTdmYjA3ZTE3N2NiYjc5MzY3NDc1YzIzOTljYTMwNzZlMmYyNGIzNWFhMTM1OWVhIn0.eyJhdWQiOiI2ZmMxZTJkMi0wZTFkLTQ1NDktOGVmZC0xYjBiMzdkMGJiYjMiLCJqdGkiOiI0MjBiOGI5NzBjYzhkN2RlMWM0MGVkODg0ZjAyZGU4N2U3ZmIwN2UxNzdjYmI3OTM2NzQ3NWMyMzk5Y2EzMDc2ZTJmMjRiMzVhYTEzNTllYSIsImlhdCI6MTczMDg0NTIwOSwibmJmIjoxNzMwODQ1MjA5LCJleHAiOjE4NjE4MzM2MDAsInN1YiI6IjExMDE1NDkxIiwiZ3JhbnRfdHlwZSI6IiIsImFjY291bnRfaWQiOjMyNjA2MDM5LCJiYXNlX2RvbWFpbiI6ImtvbW1vLmNvbSIsInZlcnNpb24iOjIsInNjb3BlcyI6WyJjcm0iLCJmaWxlcyIsImZpbGVzX2RlbGV0ZSIsIm5vdGlmaWNhdGlvbnMiLCJwdXNoX25vdGlmaWNhdGlvbnMiXSwiaGFzaF91dWlkIjoiMDNlM2E4OTktNmZmMC00ZmU5LWExMDAtYjc4NW'
+};
 
 export default function KommoIntegration() {
   const navigate = useNavigate();
@@ -23,15 +31,16 @@ export default function KommoIntegration() {
   } = useKommoIntegration();
 
   const [formData, setFormData] = useState<KommoFormData>({
-    accountDomain: config?.account_domain || '',
-    clientId: config?.client_id || '',
-    clientSecret: config?.client_secret || ''
+    accountDomain: config?.account_domain || DEFAULT_VALUES.accountDomain,
+    clientId: config?.client_id || DEFAULT_VALUES.clientId,
+    clientSecret: config?.client_secret || DEFAULT_VALUES.clientSecret,
+    accessToken: config?.access_token || DEFAULT_VALUES.accessToken
   });
 
   const [isSaving, setIsSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({
       ...prev,
@@ -41,9 +50,9 @@ export default function KommoIntegration() {
   };
 
   const validateForm = () => {
-    const { accountDomain, clientId, clientSecret } = formData;
+    const { accountDomain, clientId, clientSecret, accessToken } = formData;
 
-    if (!accountDomain || !clientId || !clientSecret) {
+    if (!accountDomain || !clientId || !clientSecret || !accessToken) {
       setFormError('All fields are required');
       return false;
     }
@@ -51,6 +60,19 @@ export default function KommoIntegration() {
     // Validate account domain format
     if (!accountDomain.includes('.kommo.com')) {
       setFormError('Account domain must end with .kommo.com');
+      return false;
+    }
+
+    // Validate client ID format (UUID)
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(clientId)) {
+      setFormError('Invalid client ID format');
+      return false;
+    }
+
+    // Validate access token format (JWT)
+    if (!accessToken.includes('.')) {
+      setFormError('Invalid access token format');
       return false;
     }
 
@@ -68,54 +90,11 @@ export default function KommoIntegration() {
     setIsSaving(true);
 
     try {
-      // First, initiate OAuth flow
-      const authUrl = await initiateOAuth({
-        accountDomain: formData.accountDomain.replace('https://', '').trim(),
-        clientId: formData.clientId.trim(),
-        clientSecret: formData.clientSecret.trim()
-      });
-
-      // Open OAuth popup
-      const width = 600;
-      const height = 600;
-      const left = window.screenX + (window.outerWidth - width) / 2;
-      const top = window.screenY + (window.outerHeight - height) / 2;
-      
-      const popup = window.open(
-        authUrl,
-        'Kommo OAuth',
-        `width=${width},height=${height},left=${left},top=${top}`
-      );
-
-      if (popup) {
-        // Listen for OAuth callback message
-        const messageHandler = (event: MessageEvent) => {
-          if (event.data?.type === 'KOMMO_AUTH_SUCCESS') {
-            window.removeEventListener('message', messageHandler);
-            popup.close();
-            navigate('/integrations/kommo/result?status=success&message=Successfully connected to Kommo CRM');
-          } else if (event.data?.type === 'KOMMO_AUTH_ERROR') {
-            window.removeEventListener('message', messageHandler);
-            popup.close();
-            setFormError(event.data.error || 'Failed to authenticate with Kommo');
-          }
-        };
-
-        window.addEventListener('message', messageHandler);
-
-        // Poll for popup closure
-        const checkPopup = setInterval(() => {
-          if (popup.closed) {
-            clearInterval(checkPopup);
-            window.removeEventListener('message', messageHandler);
-          }
-        }, 500);
-      } else {
-        throw new Error('Failed to open OAuth popup. Please allow popups for this site.');
-      }
+      await initiateOAuth(formData);
+      navigate('/integrations/kommo/result?status=success&message=Successfully connected to Kommo CRM');
     } catch (err: any) {
       console.error('OAuth error:', err);
-      setFormError(err.message || 'Failed to initiate OAuth connection');
+      setFormError(err.message || 'Failed to connect to Kommo');
     } finally {
       setIsSaving(false);
     }
@@ -186,11 +165,10 @@ export default function KommoIntegration() {
             name="accountDomain"
             value={formData.accountDomain}
             onChange={handleChange}
-            placeholder="vendaspersonalprime.kommo.com"
+            placeholder="your-account.kommo.com"
             className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
             required
           />
-          <p className="mt-1 text-sm text-gray-500">Example: your-account.kommo.com</p>
         </div>
 
         <div>
@@ -204,7 +182,7 @@ export default function KommoIntegration() {
             value={formData.clientId}
             onChange={handleChange}
             placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-            className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+            className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm font-mono"
             required
           />
         </div>
@@ -223,6 +201,25 @@ export default function KommoIntegration() {
             className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
             required
           />
+        </div>
+
+        <div>
+          <label htmlFor="accessToken" className="block text-sm font-medium text-gray-700 mb-1">
+            Access Token
+          </label>
+          <textarea
+            id="accessToken"
+            name="accessToken"
+            value={formData.accessToken}
+            onChange={handleChange}
+            placeholder="Enter your access token"
+            rows={3}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm font-mono"
+            required
+          />
+          <p className="mt-1 text-xs text-gray-500">
+            Paste your JWT access token here. You can find this in your Kommo developer settings.
+          </p>
         </div>
 
         <div className="flex space-x-3">

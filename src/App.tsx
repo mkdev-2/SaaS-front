@@ -5,7 +5,6 @@ import RegisterForm from './components/auth/RegisterForm';
 import AdminDashboard from './components/admin/AdminDashboard';
 import Dashboard from './components/Dashboard';
 import IntegrationsPage from './components/integrations/IntegrationsPage';
-import KommoSetup from './components/integrations/kommo/KommoSetup';
 import KommoConnectionResult from './components/integrations/kommo/KommoConnectionResult';
 import WorkflowsPage from './components/workflows/WorkflowsPage';
 import Navbar from './components/Navbar';
@@ -80,14 +79,6 @@ export default function App() {
             <ProtectedRoute>
               <AppLayout>
                 <IntegrationsPage />
-              </AppLayout>
-            </ProtectedRoute>
-          } />
-
-          <Route path="/integrations/kommo/setup" element={
-            <ProtectedRoute>
-              <AppLayout>
-                <KommoSetup />
               </AppLayout>
             </ProtectedRoute>
           } />
