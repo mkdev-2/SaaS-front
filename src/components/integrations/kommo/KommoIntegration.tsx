@@ -9,12 +9,6 @@ interface KommoFormData {
   clientSecret: string;
 }
 
-const DEFAULT_VALUES = {
-  accountDomain: 'https://vendaspersonalprime.kommo.com',
-  clientId: '6fc1e2d2-0e1d-4549-8efd-1b0b37d0bbb3',
-  clientSecret: 'O4QcVGEURJVwaCwXIa9ZAxAgpelDtgBnrWObukW6SBlTjYKkSCNJklmhVH5tpTVh'
-};
-
 export default function KommoIntegration() {
   const navigate = useNavigate();
   const {
@@ -29,9 +23,9 @@ export default function KommoIntegration() {
   } = useKommoIntegration();
 
   const [formData, setFormData] = useState<KommoFormData>({
-    accountDomain: config?.account_domain || DEFAULT_VALUES.accountDomain,
-    clientId: config?.client_id || DEFAULT_VALUES.clientId,
-    clientSecret: config?.client_secret || DEFAULT_VALUES.clientSecret
+    accountDomain: config?.account_domain || '',
+    clientId: config?.client_id || '',
+    clientSecret: config?.client_secret || ''
   });
 
   const [isSaving, setIsSaving] = useState(false);
@@ -60,13 +54,6 @@ export default function KommoIntegration() {
       return false;
     }
 
-    // Validate client ID format (UUID)
-    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-    if (!uuidRegex.test(clientId)) {
-      setFormError('Invalid client ID format');
-      return false;
-    }
-
     return true;
   };
 
@@ -81,10 +68,11 @@ export default function KommoIntegration() {
     setIsSaving(true);
 
     try {
+      // First, initiate OAuth flow
       const authUrl = await initiateOAuth({
-        accountDomain: formData.accountDomain,
-        clientId: formData.clientId,
-        clientSecret: formData.clientSecret
+        accountDomain: formData.accountDomain.replace('https://', '').trim(),
+        clientId: formData.clientId.trim(),
+        clientSecret: formData.clientSecret.trim()
       });
 
       // Open OAuth popup
@@ -100,13 +88,30 @@ export default function KommoIntegration() {
       );
 
       if (popup) {
+        // Listen for OAuth callback message
+        const messageHandler = (event: MessageEvent) => {
+          if (event.data?.type === 'KOMMO_AUTH_SUCCESS') {
+            window.removeEventListener('message', messageHandler);
+            popup.close();
+            navigate('/integrations/kommo/result?status=success&message=Successfully connected to Kommo CRM');
+          } else if (event.data?.type === 'KOMMO_AUTH_ERROR') {
+            window.removeEventListener('message', messageHandler);
+            popup.close();
+            setFormError(event.data.error || 'Failed to authenticate with Kommo');
+          }
+        };
+
+        window.addEventListener('message', messageHandler);
+
         // Poll for popup closure
         const checkPopup = setInterval(() => {
           if (popup.closed) {
             clearInterval(checkPopup);
-            navigate('/integrations/kommo/result?status=success&message=Successfully connected to Kommo CRM');
+            window.removeEventListener('message', messageHandler);
           }
         }, 500);
+      } else {
+        throw new Error('Failed to open OAuth popup. Please allow popups for this site.');
       }
     } catch (err: any) {
       console.error('OAuth error:', err);
@@ -181,10 +186,11 @@ export default function KommoIntegration() {
             name="accountDomain"
             value={formData.accountDomain}
             onChange={handleChange}
-            placeholder="your-account.kommo.com"
+            placeholder="vendaspersonalprime.kommo.com"
             className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
             required
           />
+          <p className="mt-1 text-sm text-gray-500">Example: your-account.kommo.com</p>
         </div>
 
         <div>
@@ -198,7 +204,7 @@ export default function KommoIntegration() {
             value={formData.clientId}
             onChange={handleChange}
             placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-            className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm font-mono"
+            className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
             required
           />
         </div>
