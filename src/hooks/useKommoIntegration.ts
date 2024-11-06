@@ -46,10 +46,7 @@ export function useKommoIntegration() {
       const { data: response } = await api.get<ApiResponse<KommoConfig>>('/integrations/kommo/config');
       
       if (response.status === 'success' && response.data) {
-        const isConnected = !!response.data.account_domain && 
-                          !!response.data.client_id && 
-                          !!response.data.client_secret &&
-                          !!response.data.access_token;
+        const isConnected = !!response.data.access_token;
         updateState({
           config: response.data,
           isConnected,
@@ -96,39 +93,55 @@ export function useKommoIntegration() {
     const redirectUri = `${window.location.origin}/integrations/kommo/callback`;
 
     try {
-      const { data: response } = await api.post<ApiResponse<void>>('/integrations/kommo/config', {
-        account_domain: data.accountDomain,
-        client_id: data.clientId,
-        client_secret: data.clientSecret,
-        redirect_uri: redirectUri
+      // Save initial configuration
+      const { data: configResponse } = await api.post<ApiResponse<void>>('/integrations/kommo/config', {
+        accountDomain: data.accountDomain,
+        clientId: data.clientId,
+        clientSecret: data.clientSecret,
+        redirectUri
       });
-      
-      if (response.status === 'success') {
+
+      if (configResponse.status !== 'success') {
+        throw new Error(configResponse.message || 'Failed to save configuration');
+      }
+
+      // Verify credentials and get access token
+      const { data: verifyResponse } = await api.post<ApiResponse<{ accessToken: string }>>('/integrations/kommo/verify', {
+        accountDomain: data.accountDomain,
+        clientId: data.clientId,
+        clientSecret: data.clientSecret
+      });
+
+      if (verifyResponse.status !== 'success' || !verifyResponse.data?.accessToken) {
+        throw new Error('Failed to verify credentials');
+      }
+
+      // Update configuration with access token
+      const { data: updateResponse } = await api.put<ApiResponse<KommoConfig>>('/integrations/kommo/config', {
+        accessToken: verifyResponse.data.accessToken
+      });
+
+      if (updateResponse.status === 'success' && updateResponse.data) {
         updateState({
-          config: {
-            account_domain: data.accountDomain,
-            client_id: data.clientId,
-            client_secret: data.clientSecret,
-            redirect_uri: redirectUri
-          },
+          config: updateResponse.data,
           isConnected: true,
           error: null
         });
-        
-        // Return the OAuth URL with all required parameters
-        return `https://${data.accountDomain}/oauth2/authorize?client_id=${data.clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&state=${user.id}`;
+
+        await loadLeads();
+        return true;
       }
-      
-      throw new Error(response.message || 'Failed to save Kommo configuration');
+
+      throw new Error('Failed to update configuration');
     } catch (err: any) {
-      console.error('OAuth initiation error:', err.response?.data);
+      console.error('Connection error:', err.response?.data);
       if (err.response?.data?.errors) {
         const errorMessages = err.response.data.errors
           .map((error: any) => `${error.field}: ${error.message}`)
           .join(', ');
         throw new Error(`Validation error: ${errorMessages}`);
       }
-      throw new Error(err.response?.data?.message || 'Failed to initiate OAuth');
+      throw new Error(err.response?.data?.message || 'Failed to connect to Kommo');
     }
   };
 
@@ -145,15 +158,19 @@ export function useKommoIntegration() {
           leads: [],
           error: null,
         });
+      } else {
+        throw new Error(response.message || 'Failed to disconnect');
       }
     } catch (err: any) {
       console.error('Error disconnecting:', err);
       updateState({
         error: err.response?.data?.message || 'Failed to disconnect'
       });
+      throw err;
     }
   };
 
+  // Load config on mount and when user changes
   useEffect(() => {
     if (user) {
       loadConfig();
@@ -161,6 +178,14 @@ export function useKommoIntegration() {
       updateState(initialState);
     }
   }, [user]);
+
+  // Refresh leads periodically when connected
+  useEffect(() => {
+    if (!state.isConnected) return;
+
+    const interval = setInterval(loadLeads, 5 * 60 * 1000); // Refresh every 5 minutes
+    return () => clearInterval(interval);
+  }, [state.isConnected]);
 
   return {
     ...state,
