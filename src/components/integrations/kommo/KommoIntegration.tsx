@@ -24,16 +24,16 @@ export default function KommoIntegration() {
   const handleKommoAuth = async () => {
     try {
       setAuthError(null);
-      const authUrl = await initiateOAuth({
-        accountDomain: 'vendaspersonalprime.kommo.com',
-        clientId: '6fc1e2d2-0e1d-4549-8efd-1b0b37d0bbb3',
-        clientSecret: 'O4QcVGEURJVwaCwXIa9ZAxAgpelDtgBnrWObukW6SBlTjYKkSCNJklmhVH5tpTVh',
-        redirectUri: 'https://saas-backend-production-8b94.up.railway.app/api/kommo/callback'
+      
+      // Construct OAuth URL directly
+      const params = new URLSearchParams({
+        client_id: '6fc1e2d2-0e1d-4549-8efd-1b0b37d0bbb3',
+        redirect_uri: 'https://saas-backend-production-8b94.up.railway.app/api/kommo/callback',
+        response_type: 'code',
+        state: 'test'
       });
 
-      if (!authUrl) {
-        throw new Error('Failed to get authorization URL');
-      }
+      const authUrl = `https://vendaspersonalprime.kommo.com/oauth2/authorize?${params.toString()}`;
 
       const width = 600;
       const height = 600;
@@ -57,6 +57,15 @@ export default function KommoIntegration() {
           popup?.close();
           
           try {
+            // Exchange code for token
+            await initiateOAuth({
+              accountDomain: 'vendaspersonalprime.kommo.com',
+              clientId: '6fc1e2d2-0e1d-4549-8efd-1b0b37d0bbb3',
+              clientSecret: 'O4QcVGEURJVwaCwXIa9ZAxAgpelDtgBnrWObukW6SBlTjYKkSCNJklmhVH5tpTVh',
+              redirectUri: 'https://saas-backend-production-8b94.up.railway.app/api/kommo/callback',
+              code: event.data.code
+            });
+            
             await refresh();
             navigate('/integrations');
           } catch (err: any) {

@@ -17,6 +17,7 @@ interface InitiateOAuthData {
   clientId: string;
   clientSecret: string;
   redirectUri: string;
+  code?: string;
 }
 
 const initialState: KommoState = {
@@ -104,30 +105,38 @@ export function useKommoIntegration() {
     try {
       updateState({ isLoading: true, error: null });
 
-      // Initiate OAuth flow
-      const { data: response } = await api.post<ApiResponse<{ authUrl: string }>>('/kommo/auth/init', {
+      // If we have a code, exchange it for a token
+      if (data.code) {
+        const { data: response } = await api.post<ApiResponse<void>>('/kommo/auth/callback', {
+          code: data.code,
+          accountDomain: data.accountDomain,
+          clientId: data.clientId,
+          clientSecret: data.clientSecret,
+          redirectUri: data.redirectUri
+        });
+
+        if (response.status !== 'success') {
+          throw new Error(response.message || 'Failed to exchange code for token');
+        }
+
+        await loadConfig();
+        return;
+      }
+
+      // Otherwise, just save the initial config
+      const { data: response } = await api.post<ApiResponse<void>>('/kommo/config', {
         accountDomain: data.accountDomain,
         clientId: data.clientId,
         clientSecret: data.clientSecret,
         redirectUri: data.redirectUri
       });
-      
-      if (response.status === 'success' && response.data?.authUrl) {
-        return response.data.authUrl;
-      }
 
-      throw new Error('Failed to initiate OAuth flow');
+      if (response.status !== 'success') {
+        throw new Error(response.message || 'Failed to save configuration');
+      }
     } catch (err: any) {
-      console.error('Connection error:', err);
-      
-      if (err.response?.data?.errors) {
-        const errorMessages = err.response.data.errors
-          .map((error: any) => `${error.field}: ${error.message}`)
-          .join(', ');
-        throw new Error(`Validation error: ${errorMessages}`);
-      }
-
-      throw new Error(err.response?.data?.message || 'Failed to connect to Kommo');
+      console.error('OAuth error:', err);
+      throw err;
     } finally {
       updateState({ isLoading: false });
     }
