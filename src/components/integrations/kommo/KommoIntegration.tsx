@@ -4,7 +4,9 @@ import { useNavigate } from 'react-router-dom';
 import { useKommoIntegration } from '../../../hooks/useKommoIntegration';
 import KommoLeadsList from './KommoLeadsList';
 import KommoConnectionStatus from './KommoConnectionStatus';
+import KommoButton from './KommoButton';
 
+// Kommo OAuth configuration
 const KOMMO_AUTH_URL = 'https://vendaspersonalprime.kommo.com/oauth2/authorize';
 const CLIENT_ID = '6fc1e2d2-0e1d-4549-8efd-1b0b37d0bbb3';
 const REDIRECT_URI = 'https://saas-backend-production-8b94.up.railway.app/api/kommo/callback';
@@ -36,11 +38,32 @@ export default function KommoIntegration() {
     const left = window.screenX + (window.outerWidth - width) / 2;
     const top = window.screenY + (window.outerHeight - height) / 2;
 
-    window.open(
+    const popup = window.open(
       `${KOMMO_AUTH_URL}?${params.toString()}`,
       'Kommo Authorization',
       `width=${width},height=${height},left=${left},top=${top}`
     );
+
+    // Add message listener for the popup callback
+    const handleMessage = async (event: MessageEvent) => {
+      if (event.data?.type === 'KOMMO_AUTH_CODE') {
+        window.removeEventListener('message', handleMessage);
+        popup?.close();
+        
+        try {
+          await refresh();
+          navigate('/integrations');
+        } catch (err: any) {
+          setAuthError(err.message || 'Failed to complete authentication');
+        }
+      } else if (event.data?.type === 'KOMMO_AUTH_ERROR') {
+        window.removeEventListener('message', handleMessage);
+        popup?.close();
+        setAuthError('Authentication failed. Please try again.');
+      }
+    };
+
+    window.addEventListener('message', handleMessage);
   };
 
   const handleDisconnect = async () => {
@@ -88,31 +111,11 @@ export default function KommoIntegration() {
       />
 
       {!isConnected && (
-        <button
+        <KommoButton 
           onClick={handleKommoAuth}
-          className="w-full flex items-center justify-center px-4 py-2.5 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-[#0077FF] hover:bg-[#0066DD] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#0077FF] disabled:opacity-50 transition-colors"
-        >
-          <div className="flex items-center space-x-2">
-            <svg
-              width="24"
-              height="24"
-              viewBox="0 0 24 24"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
-              className="h-5 w-5"
-            >
-              <path
-                d="M12 2C6.48 2 2 6.48 2 12C2 17.52 6.48 22 12 22C17.52 22 22 17.52 22 12C22 6.48 17.52 2 12 2ZM12 20C7.59 20 4 16.41 4 12C4 7.59 7.59 4 12 4C16.41 4 20 7.59 20 12C20 16.41 16.41 20 12 20Z"
-                fill="currentColor"
-              />
-              <path
-                d="M12 17C14.7614 17 17 14.7614 17 12C17 9.23858 14.7614 7 12 7C9.23858 7 7 9.23858 7 12C7 14.7614 9.23858 17 12 17Z"
-                fill="currentColor"
-              />
-            </svg>
-            <span className="font-medium">Connect with Kommo</span>
-          </div>
-        </button>
+          disabled={isLoading}
+          isLoading={isLoading}
+        />
       )}
 
       {isConnected && (
