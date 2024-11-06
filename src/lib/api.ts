@@ -58,8 +58,11 @@ api.interceptors.response.use(
 
     // Handle authentication errors
     if (status === 401) {
-      localStorage.removeItem('auth_token');
-      useAuthStore.getState().logout(false); // Pass false to prevent API call
+      // Only logout if it's not a Kommo API error
+      if (!error.config?.url?.includes('/kommo/')) {
+        localStorage.removeItem('auth_token');
+        useAuthStore.getState().logout(false); // Pass false to prevent API call
+      }
       
       return Promise.reject({
         ...error,

@@ -48,14 +48,13 @@ export function useKommoIntegration() {
       const { data: response } = await api.get<ApiResponse<KommoConfig>>('/kommo/config');
       
       if (response.status === 'success' && response.data) {
-        const isConnected = !!response.data.accessToken;
         updateState({
           config: response.data,
-          isConnected,
+          isConnected: true,
           error: null
         });
 
-        if (isConnected) {
+        if (response.data.isConnected) {
           await loadLeads();
         }
       } else {
