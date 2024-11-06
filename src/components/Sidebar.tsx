@@ -6,7 +6,7 @@ export default function Sidebar() {
   const location = useLocation();
   
   const menuItems = [
-    { icon: Layout, label: 'Dashboard', path: '/' },
+    { icon: Layout, label: 'Dashboard', path: '/dashboard' },
     { icon: Zap, label: 'Integrations', path: '/integrations' },
     { icon: Box, label: 'Workflows', path: '/workflows' },
     { icon: TestTube, label: 'Connection Tests', path: '/tests' },
