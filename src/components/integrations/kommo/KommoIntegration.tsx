@@ -10,7 +10,7 @@ interface KommoFormData {
 }
 
 const DEFAULT_VALUES = {
-  accountDomain: 'vendaspersonalprime.kommo.com',
+  accountDomain: 'https://vendaspersonalprime.kommo.com',
   clientId: '6fc1e2d2-0e1d-4549-8efd-1b0b37d0bbb3',
   clientSecret: 'O4QcVGEURJVwaCwXIa9ZAxAgpelDtgBnrWObukW6SBlTjYKkSCNJklmhVH5tpTVh'
 };
