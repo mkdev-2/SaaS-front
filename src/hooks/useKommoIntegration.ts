@@ -44,20 +44,20 @@ export function useKommoIntegration() {
     try {
       updateState({ isLoading: true, error: null });
       
-      // Get Kommo configuration
-      const { data: configResponse } = await api.get<ApiResponse<KommoConfig>>('/kommo/config');
+      // Get Kommo configuration and status in parallel
+      const [configResponse, statusResponse] = await Promise.all([
+        api.get<ApiResponse<KommoConfig>>('/kommo/config'),
+        api.get<ApiResponse<{ status: string; isConnected: boolean; error?: string }>>('/kommo/status')
+      ]);
       
-      if (configResponse.status === 'success' && configResponse.data) {
-        // Check connection status
-        const { data: statusResponse } = await api.get<ApiResponse<{ isConnected: boolean }>>('/kommo/status');
-        
+      if (configResponse.data.status === 'success' && configResponse.data.data) {
         updateState({
-          config: configResponse.data,
-          isConnected: statusResponse.data?.isConnected ?? false,
-          error: null
+          config: configResponse.data.data,
+          isConnected: statusResponse.data.data?.isConnected ?? false,
+          error: statusResponse.data.data?.error || null
         });
 
-        if (statusResponse.data?.isConnected) {
+        if (statusResponse.data.data?.isConnected) {
           await loadLeads();
         }
       } else {
@@ -104,8 +104,13 @@ export function useKommoIntegration() {
     try {
       updateState({ isLoading: true, error: null });
 
-      // Save configuration and initiate OAuth
-      const { data: response } = await api.post<ApiResponse<{ authUrl: string }>>('/kommo/auth/init', data);
+      // Initiate OAuth flow
+      const { data: response } = await api.post<ApiResponse<{ authUrl: string }>>('/kommo/auth/init', {
+        accountDomain: data.accountDomain,
+        clientId: data.clientId,
+        clientSecret: data.clientSecret,
+        redirectUri: data.redirectUri
+      });
       
       if (response.status === 'success' && response.data?.authUrl) {
         return response.data.authUrl;
@@ -169,6 +174,6 @@ export function useKommoIntegration() {
     ...state,
     initiateOAuth,
     disconnect,
-    refresh: loadLeads,
+    refresh: loadConfig,
   };
 }

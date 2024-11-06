@@ -1,9 +1,10 @@
 import React from 'react';
 import { CheckCircle2, AlertTriangle, XCircle } from 'lucide-react';
+import { KommoConfig } from '../../../lib/kommo/types';
 
 interface KommoConnectionStatusProps {
   isConnected: boolean;
-  config: any;
+  config: KommoConfig | null;
   error: string | null;
 }
 
@@ -35,13 +36,17 @@ export default function KommoConnectionStatus({ isConnected, config, error }: Ko
       {config && (
         <div className="mt-2 text-xs text-gray-500">
           <p>Account: {config.accountDomain}</p>
-          <p>Last connected: {new Date(config.connectedAt).toLocaleString()}</p>
+          {config.connectedAt && (
+            <p>Last connected: {new Date(config.connectedAt).toLocaleString()}</p>
+          )}
         </div>
       )}
       {error && (
-        <p className="mt-2 text-xs text-red-600">
-          {error}
-        </p>
+        <div className="mt-2 p-2 bg-red-50 rounded-lg">
+          <p className="text-xs text-red-600">
+            {error}
+          </p>
+        </div>
       )}
     </div>
   );
