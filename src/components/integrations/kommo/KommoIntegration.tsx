@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ExternalLink, RefreshCw, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { ExternalLink, RefreshCw, AlertCircle, CheckCircle2, Link as LinkIcon } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useKommoIntegration } from '../../../hooks/useKommoIntegration';
 
@@ -17,7 +17,7 @@ const DEFAULT_VALUES = {
   accessToken: ''
 };
 
-const REDIRECT_URI = `${import.meta.env.VITE_API_URL}/kommo/callback`;
+const REDIRECT_URI = 'https://saas-backend-production-8b94.up.railway.app/api/kommo/callback';
 
 export default function KommoIntegration() {
   const navigate = useNavigate();
@@ -41,6 +41,18 @@ export default function KommoIntegration() {
 
   const [isSaving, setIsSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+
+  const getAuthUrl = () => {
+    const params = new URLSearchParams({
+      client_id: formData.clientId,
+      mode: 'post_message',
+      redirect_uri: REDIRECT_URI,
+      response_type: 'code',
+      state: 'test'
+    });
+
+    return `https://${formData.accountDomain}/oauth2/access_token?${params.toString()}`;
+  };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -245,6 +257,16 @@ export default function KommoIntegration() {
               </>
             )}
           </button>
+
+          <a
+            href={getAuthUrl()}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 flex items-center"
+          >
+            <LinkIcon className="h-4 w-4 mr-2" />
+            Test Auth URL
+          </a>
 
           {isConnected && (
             <button
