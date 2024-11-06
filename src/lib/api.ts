@@ -3,7 +3,7 @@ import { ApiResponse } from '../types/api';
 import useAuthStore from '../store/authStore';
 
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:3000/api',
+  baseURL: import.meta.env.VITE_API_URL,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -56,10 +56,10 @@ api.interceptors.response.use(
       });
     }
 
-    // Handle authentication errors - Don't redirect automatically
+    // Handle authentication errors
     if (status === 401) {
       localStorage.removeItem('auth_token');
-      useAuthStore.getState().logout();
+      useAuthStore.getState().logout(false); // Pass false to prevent API call
       
       return Promise.reject({
         ...error,

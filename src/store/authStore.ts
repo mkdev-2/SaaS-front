@@ -13,10 +13,11 @@ interface User {
 
 interface AuthState {
   user: User | null;
+  token: string | null;
   isAuthenticated: boolean;
   login: (email: string, password: string) => Promise<void>;
   register: (data: RegisterData) => Promise<void>;
-  logout: () => Promise<void>;
+  logout: (callApi?: boolean) => Promise<void>;
   checkAuth: () => Promise<void>;
 }
 
@@ -31,6 +32,7 @@ const useAuthStore = create<AuthState>()(
   persist(
     (set) => ({
       user: null,
+      token: null,
       isAuthenticated: false,
 
       checkAuth: async () => {
@@ -42,7 +44,7 @@ const useAuthStore = create<AuthState>()(
             throw new Error(response.message || 'Authentication failed');
           }
         } catch (error) {
-          set({ user: null, isAuthenticated: false });
+          set({ user: null, token: null, isAuthenticated: false });
           localStorage.removeItem('auth_token');
           throw error;
         }
@@ -58,7 +60,7 @@ const useAuthStore = create<AuthState>()(
           if (response.status === 'success' && response.data) {
             const { token, user } = response.data;
             localStorage.setItem('auth_token', token);
-            set({ user, isAuthenticated: true });
+            set({ user, token, isAuthenticated: true });
           } else {
             throw new Error(response.message || 'Login failed');
           }
@@ -77,7 +79,7 @@ const useAuthStore = create<AuthState>()(
           if (response.status === 'success' && response.data) {
             const { token, user } = response.data;
             localStorage.setItem('auth_token', token);
-            set({ user, isAuthenticated: true });
+            set({ user, token, isAuthenticated: true });
           } else {
             throw new Error(response.message || 'Registration failed');
           }
@@ -89,23 +91,29 @@ const useAuthStore = create<AuthState>()(
         }
       },
 
-      logout: async () => {
+      logout: async (callApi = true) => {
         try {
-          const { data: response } = await api.post<ApiResponse<void>>('/auth/logout');
-          if (response.status !== 'success') {
-            console.error('Logout error:', response.message);
+          if (callApi) {
+            const { data: response } = await api.post<ApiResponse<void>>('/auth/logout');
+            if (response.status !== 'success') {
+              console.error('Logout error:', response.message);
+            }
           }
         } catch (error) {
           console.error('Logout error:', error);
         } finally {
           localStorage.removeItem('auth_token');
-          set({ user: null, isAuthenticated: false });
+          set({ user: null, token: null, isAuthenticated: false });
         }
       },
     }),
     {
       name: 'auth-storage',
-      partialize: (state) => ({ user: state.user, isAuthenticated: state.isAuthenticated }),
+      partialize: (state) => ({ 
+        user: state.user, 
+        token: state.token, 
+        isAuthenticated: state.isAuthenticated 
+      }),
     }
   )
 );
