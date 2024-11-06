@@ -16,6 +16,7 @@ interface InitiateOAuthData {
   accountDomain: string;
   clientId: string;
   clientSecret: string;
+  accessToken: string;
 }
 
 const initialState: KommoState = {
@@ -46,31 +47,18 @@ export function useKommoIntegration() {
       const { data: response } = await api.get<ApiResponse<KommoConfig>>('/integrations/kommo/config');
       
       if (response.status === 'success' && response.data) {
-        const isConnected = !!response.data.access_token;
         updateState({
           config: response.data,
-          isConnected,
+          isConnected: true,
           error: null
         });
 
-        if (isConnected) {
-          await loadLeads();
-        }
-      } else {
-        // No configuration found - this is not an error state
-        updateState({
-          isConnected: false,
-          config: null,
-          error: null
-        });
+        await loadLeads();
       }
     } catch (err: any) {
       console.error('Error loading Kommo config:', err);
-      // Only set error if it's not a 404 (no config found)
       if (err.response?.status !== 404) {
         updateState({
-          isConnected: false,
-          config: null,
           error: err.response?.data?.message || 'Failed to load configuration'
         });
       }
@@ -90,17 +78,9 @@ export function useKommoIntegration() {
       }
     } catch (err: any) {
       console.error('Error loading leads:', err);
-      if (err.response?.status === 401) {
-        // Token expired or invalid - mark as disconnected
-        updateState({
-          isConnected: false,
-          error: 'Session expired. Please reconnect to Kommo.'
-        });
-      } else {
-        updateState({
-          error: err.response?.data?.message || 'Failed to load leads'
-        });
-      }
+      updateState({
+        error: err.response?.data?.message || 'Failed to load leads'
+      });
     }
   };
 
@@ -112,54 +92,27 @@ export function useKommoIntegration() {
     try {
       updateState({ isLoading: true, error: null });
 
-      // First, validate and save the configuration
-      const { data: configResponse } = await api.post<ApiResponse<KommoConfig>>('/integrations/kommo/config', {
+      const { data: response } = await api.post<ApiResponse<void>>('/integrations/kommo/config', {
         accountDomain: data.accountDomain,
         clientId: data.clientId,
         clientSecret: data.clientSecret,
-        redirectUri: `${window.location.origin}/integrations/kommo/callback`
+        accessToken: data.accessToken
       });
 
-      if (configResponse.status !== 'success' || !configResponse.data) {
-        throw new Error(configResponse.message || 'Failed to save configuration');
-      }
-
-      // Then verify credentials and get access token
-      const { data: authResponse } = await api.post<ApiResponse<KommoConfig>>('/integrations/kommo/auth', {
-        accountDomain: data.accountDomain,
-        clientId: data.clientId,
-        clientSecret: data.clientSecret
-      });
-
-      if (authResponse.status === 'success' && authResponse.data) {
-        updateState({
-          config: authResponse.data,
-          isConnected: true,
-          error: null
-        });
-
-        await loadLeads();
+      if (response.status === 'success') {
+        await loadConfig(); // Recarrega a configuração após salvar
         return true;
       }
 
-      throw new Error(authResponse.message || 'Failed to authenticate with Kommo');
+      throw new Error(response.message || 'Failed to save configuration');
     } catch (err: any) {
       console.error('Connection error:', err);
-      
-      // Handle validation errors
       if (err.response?.data?.errors) {
         const errorMessages = err.response.data.errors
           .map((error: any) => `${error.field}: ${error.message}`)
           .join(', ');
         throw new Error(`Validation error: ${errorMessages}`);
       }
-
-      // Handle authentication errors
-      if (err.response?.status === 401) {
-        throw new Error('Invalid credentials');
-      }
-
-      // Handle other errors
       throw new Error(err.response?.data?.message || 'Failed to connect to Kommo');
     } finally {
       updateState({ isLoading: false });
@@ -179,7 +132,7 @@ export function useKommoIntegration() {
           isConnected: false,
           config: null,
           leads: [],
-          error: null
+          error: null,
         });
       } else {
         throw new Error(response.message || 'Failed to disconnect');
@@ -195,7 +148,7 @@ export function useKommoIntegration() {
     }
   };
 
-  // Load config on mount and when user changes
+  // Carrega a configuração quando o componente monta ou quando o usuário muda
   useEffect(() => {
     if (user) {
       loadConfig();
@@ -204,11 +157,11 @@ export function useKommoIntegration() {
     }
   }, [user]);
 
-  // Refresh leads periodically when connected
+  // Atualiza os leads periodicamente se estiver conectado
   useEffect(() => {
     if (!state.isConnected) return;
 
-    const interval = setInterval(loadLeads, 5 * 60 * 1000); // Refresh every 5 minutes
+    const interval = setInterval(loadLeads, 5 * 60 * 1000); // Atualiza a cada 5 minutos
     return () => clearInterval(interval);
   }, [state.isConnected]);
 
