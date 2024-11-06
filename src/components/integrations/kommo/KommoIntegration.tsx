@@ -6,6 +6,13 @@ import KommoLeadsList from './KommoLeadsList';
 import KommoConnectionStatus from './KommoConnectionStatus';
 import KommoButton from './KommoButton';
 
+const KOMMO_CONFIG = {
+  accountDomain: 'vendaspersonalprime.kommo.com',
+  clientId: '6fc1e2d2-0e1d-4549-8efd-1b0b37d0bbb3',
+  clientSecret: 'O4QcVGEURJVwaCwXIa9ZAxAgpelDtgBnrWObukW6SBlTjYKkSCNJklmhVH5tpTVh',
+  redirectUri: 'https://saas-backend-production-8b94.up.railway.app/api/kommo/callback'
+};
+
 export default function KommoIntegration() {
   const navigate = useNavigate();
   const {
@@ -27,13 +34,13 @@ export default function KommoIntegration() {
       
       // Construct OAuth URL directly
       const params = new URLSearchParams({
-        client_id: '6fc1e2d2-0e1d-4549-8efd-1b0b37d0bbb3',
-        redirect_uri: 'https://saas-backend-production-8b94.up.railway.app/api/kommo/callback',
+        client_id: KOMMO_CONFIG.clientId,
+        redirect_uri: KOMMO_CONFIG.redirectUri,
         response_type: 'code',
         state: 'test'
       });
 
-      const authUrl = `https://vendaspersonalprime.kommo.com/oauth2/authorize?${params.toString()}`;
+      const authUrl = `https://${KOMMO_CONFIG.accountDomain}/oauth2/authorize?${params.toString()}`;
 
       const width = 600;
       const height = 600;
@@ -59,10 +66,7 @@ export default function KommoIntegration() {
           try {
             // Exchange code for token
             await initiateOAuth({
-              accountDomain: 'vendaspersonalprime.kommo.com',
-              clientId: '6fc1e2d2-0e1d-4549-8efd-1b0b37d0bbb3',
-              clientSecret: 'O4QcVGEURJVwaCwXIa9ZAxAgpelDtgBnrWObukW6SBlTjYKkSCNJklmhVH5tpTVh',
-              redirectUri: 'https://saas-backend-production-8b94.up.railway.app/api/kommo/callback',
+              ...KOMMO_CONFIG,
               code: event.data.code
             });
             
