@@ -12,7 +12,7 @@ interface TestResult {
 }
 
 export default function KommoTestingPage() {
-  const { isConnected, config } = useKommoIntegration();
+  const { isConnected, config, error: integrationError } = useKommoIntegration();
   const [results, setResults] = useState<TestResult[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [expandedResult, setExpandedResult] = useState<number | null>(null);
@@ -109,7 +109,7 @@ export default function KommoTestingPage() {
     setExpandedResult(expandedResult === index ? null : index);
   };
 
-  if (!isConnected) {
+  if (!isConnected || !config) {
     return (
       <div className="p-6">
         <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
@@ -163,13 +163,28 @@ export default function KommoTestingPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <p className="text-sm text-gray-500">Account Domain</p>
-            <p className="font-medium">{config?.account_domain}</p>
+            <p className="font-medium">{config.accountDomain}</p>
           </div>
           <div>
             <p className="text-sm text-gray-500">Client ID</p>
-            <p className="font-mono text-sm">{config?.client_id}</p>
+            <p className="font-mono text-sm">{config.clientId}</p>
+          </div>
+          <div>
+            <p className="text-sm text-gray-500">Connection Status</p>
+            <p className="font-medium text-green-600">Connected</p>
+          </div>
+          <div>
+            <p className="text-sm text-gray-500">Last Connected</p>
+            <p className="font-medium">
+              {new Date(config.connectedAt).toLocaleString()}
+            </p>
           </div>
         </div>
+        {integrationError && (
+          <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+            <p className="text-sm text-red-600">{integrationError}</p>
+          </div>
+        )}
       </div>
 
       {/* Test Results */}
