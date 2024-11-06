@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Layout, PieChart, Box, Zap, Settings } from 'lucide-react';
+import { Layout, PieChart, Box, Zap, Settings, TestTube } from 'lucide-react';
 
 export default function Sidebar() {
   const location = useLocation();
@@ -9,6 +9,7 @@ export default function Sidebar() {
     { icon: Layout, label: 'Dashboard', path: '/' },
     { icon: Zap, label: 'Integrations', path: '/integrations' },
     { icon: Box, label: 'Workflows', path: '/workflows' },
+    { icon: TestTube, label: 'Connection Tests', path: '/tests' },
     { icon: PieChart, label: 'Analytics', path: '/analytics' },
     { icon: Settings, label: 'Settings', path: '/settings' }
   ];
