@@ -110,12 +110,16 @@ export function useKommoIntegration() {
     try {
       updateState({ isLoading: true, error: null });
 
+      // Get the current domain for the redirect URI
+      const redirectUri = `${window.location.origin}/integrations/kommo/callback`;
+
       // Save initial configuration
       const { data: configResponse } = await api.post<ApiResponse<void>>('/kommo/config', {
         accountDomain: data.accountDomain,
         clientId: data.clientId,
         clientSecret: data.clientSecret,
-        accessToken: data.accessToken
+        accessToken: data.accessToken,
+        redirectUri
       });
 
       if (configResponse.status !== 'success') {
