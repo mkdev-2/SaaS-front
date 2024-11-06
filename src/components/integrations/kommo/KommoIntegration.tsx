@@ -2,18 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { RefreshCw } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useKommoIntegration } from '../../../hooks/useKommoIntegration';
-import KommoAuthForm from './KommoAuthForm';
 import KommoLeadsList from './KommoLeadsList';
 import KommoConnectionStatus from './KommoConnectionStatus';
 
-interface KommoFormData {
-  accountDomain: string;
-  clientId: string;
-  clientSecret: string;
-}
-
-// Use the production callback URL
 const REDIRECT_URI = 'https://saas-backend-production-8b94.up.railway.app/api/kommo/callback';
+const CLIENT_ID = '6fc1e2d2-0e1d-4549-8efd-1b0b37d0bbb3';
+const ACCOUNT_DOMAIN = 'vendaspersonalprime.kommo.com';
 
 export default function KommoIntegration() {
   const navigate = useNavigate();
@@ -23,94 +17,70 @@ export default function KommoIntegration() {
     error,
     leads,
     config,
-    initiateOAuth,
     disconnect,
     refresh
   } = useKommoIntegration();
 
-  const [formData, setFormData] = useState<KommoFormData>({
-    accountDomain: '',
-    clientId: '',
-    clientSecret: ''
-  });
-
   const [isSaving, setIsSaving] = useState(false);
-  const [formError, setFormError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (config) {
-      setFormData(prev => ({
-        ...prev,
-        accountDomain: config.accountDomain || prev.accountDomain,
-        clientId: config.clientId || prev.clientId
-      }));
-    }
-  }, [config]);
-
-  const getAuthUrl = () => {
+  const handleKommoAuth = () => {
     const params = new URLSearchParams({
-      client_id: formData.clientId,
+      client_id: CLIENT_ID,
+      mode: 'post_message',
       redirect_uri: REDIRECT_URI,
       response_type: 'code',
       state: 'test'
     });
 
-    return `https://${formData.accountDomain}/oauth2/authorize?${params.toString()}`;
+    const width = 600;
+    const height = 400;
+    const left = window.screenX + (window.outerWidth - width) / 2;
+    const top = window.screenY + (window.outerHeight - height) / 2;
+
+    const authWindow = window.open(
+      `https://${ACCOUNT_DOMAIN}/oauth2/authorize?${params.toString()}`,
+      'Kommo Authorization',
+      `width=${width},height=${height},left=${left},top=${top}`
+    );
+
+    if (authWindow) {
+      const handleMessage = async (event: MessageEvent) => {
+        if (event.origin !== window.location.origin) return;
+
+        if (event.data?.type === 'KOMMO_AUTH_CODE' && event.data?.code) {
+          try {
+            setIsSaving(true);
+            await handleAuthCode(event.data.code);
+            refresh();
+          } catch (err: any) {
+            console.error('Auth error:', err);
+          } finally {
+            setIsSaving(false);
+            authWindow.close();
+          }
+        }
+
+        if (event.data?.type === 'KOMMO_AUTH_ERROR') {
+          console.error('Kommo auth error:', event.data.error);
+          authWindow.close();
+        }
+      };
+
+      window.addEventListener('message', handleMessage);
+      return () => window.removeEventListener('message', handleMessage);
+    }
   };
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value.trim()
-    }));
-    setFormError(null);
-  };
-
-  const validateForm = () => {
-    const { accountDomain, clientId, clientSecret } = formData;
-
-    if (!accountDomain || !clientId || !clientSecret) {
-      setFormError('All fields are required');
-      return false;
-    }
-
-    if (!accountDomain.includes('.kommo.com')) {
-      setFormError('Account domain must end with .kommo.com');
-      return false;
-    }
-
-    return true;
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setFormError(null);
-
-    if (!validateForm()) {
-      return;
-    }
-
-    setIsSaving(true);
-
+  const handleAuthCode = async (code: string) => {
     try {
-      const authUrl = await initiateOAuth({
-        accountDomain: formData.accountDomain,
-        clientId: formData.clientId,
-        clientSecret: formData.clientSecret,
-        redirectUri: REDIRECT_URI
-      });
-
-      if (authUrl) {
-        window.location.href = authUrl;
-      } else {
-        window.location.href = getAuthUrl();
+      const response = await fetch(`${REDIRECT_URI}?code=${code}`);
+      if (!response.ok) {
+        throw new Error('Failed to exchange auth code');
       }
-    } catch (err: any) {
-      console.error('OAuth error:', err);
-      setFormError(err.message || 'Failed to connect to Kommo');
-    } finally {
-      setIsSaving(false);
+      return await response.json();
+    } catch (err) {
+      console.error('Error exchanging auth code:', err);
+      throw err;
     }
   };
 
@@ -120,7 +90,6 @@ export default function KommoIntegration() {
       navigate('/integrations');
     } catch (err: any) {
       console.error('Disconnect error:', err);
-      setFormError(err.message || 'Failed to disconnect from Kommo CRM');
     }
   };
 
@@ -158,18 +127,26 @@ export default function KommoIntegration() {
       <KommoConnectionStatus
         isConnected={isConnected}
         config={config}
-        error={error || formError}
+        error={error}
       />
 
-      <KommoAuthForm
-        formData={formData}
-        error={error || formError}
-        isSaving={isSaving}
-        onSubmit={handleSubmit}
-        onChange={handleChange}
-        getAuthUrl={getAuthUrl}
-        isConnected={isConnected}
-      />
+      {!isConnected && (
+        <button
+          onClick={handleKommoAuth}
+          disabled={isSaving}
+          className="w-full flex items-center justify-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-[#0077FF] hover:bg-[#0066DD] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#0077FF] disabled:opacity-50"
+        >
+          {isSaving ? (
+            <RefreshCw className="animate-spin h-5 w-5" />
+          ) : (
+            <img
+              src="https://www.kommo.com/static/assets/oauth/oauth-button.svg"
+              alt="Connect with Kommo"
+              className="h-5"
+            />
+          )}
+        </button>
+      )}
 
       {isConnected && (
         <button
