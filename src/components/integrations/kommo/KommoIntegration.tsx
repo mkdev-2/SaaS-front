@@ -45,13 +45,12 @@ export default function KommoIntegration() {
   const getAuthUrl = () => {
     const params = new URLSearchParams({
       client_id: formData.clientId,
-      mode: 'post_message',
       redirect_uri: REDIRECT_URI,
       response_type: 'code',
       state: 'test'
     });
 
-    return `https://${formData.accountDomain}/oauth2/access_token?${params.toString()}`;
+    return `https://${formData.accountDomain}/oauth2/authorize?${params.toString()}`;
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
