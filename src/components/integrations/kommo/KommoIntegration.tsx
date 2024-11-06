@@ -12,13 +12,7 @@ interface KommoFormData {
   clientSecret: string;
 }
 
-const DEFAULT_VALUES = {
-  accountDomain: 'vendaspersonalprime.kommo.com',
-  clientId: '6fc1e2d2-0e1d-4549-8efd-1b0b37d0bbb3',
-  clientSecret: 'O4QcVGEURJVwaCwXIa9ZAxAgpelDtgBnrWObukW6SBlTjYKkSCNJklmhVH5tpTVh'
-};
-
-const REDIRECT_URI = 'https://saas-backend-production-8b94.up.railway.app/api/kommo/callback';
+const REDIRECT_URI = `${window.location.origin}/integrations/kommo/callback`;
 
 export default function KommoIntegration() {
   const navigate = useNavigate();
@@ -34,9 +28,9 @@ export default function KommoIntegration() {
   } = useKommoIntegration();
 
   const [formData, setFormData] = useState<KommoFormData>({
-    accountDomain: config?.accountDomain || DEFAULT_VALUES.accountDomain,
-    clientId: config?.clientId || DEFAULT_VALUES.clientId,
-    clientSecret: config?.clientSecret || DEFAULT_VALUES.clientSecret
+    accountDomain: '',
+    clientId: '',
+    clientSecret: ''
   });
 
   const [isSaving, setIsSaving] = useState(false);
@@ -85,12 +79,6 @@ export default function KommoIntegration() {
       return false;
     }
 
-    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-    if (!uuidRegex.test(clientId)) {
-      setFormError('Invalid client ID format');
-      return false;
-    }
-
     return true;
   };
 
@@ -105,19 +93,19 @@ export default function KommoIntegration() {
     setIsSaving(true);
 
     try {
-      const response = await initiateOAuth({
-        ...formData,
+      await initiateOAuth({
+        accountDomain: formData.accountDomain,
+        clientId: formData.clientId,
+        clientSecret: formData.clientSecret,
+        accessToken: '',
         redirectUri: REDIRECT_URI
       });
 
-      if (response?.authUrl) {
-        window.location.href = response.authUrl;
-      } else {
-        window.location.href = getAuthUrl();
-      }
+      window.location.href = getAuthUrl();
     } catch (err: any) {
       console.error('OAuth error:', err);
       setFormError(err.message || 'Failed to connect to Kommo');
+    } finally {
       setIsSaving(false);
     }
   };
@@ -125,7 +113,7 @@ export default function KommoIntegration() {
   const handleDisconnect = async () => {
     try {
       await disconnect();
-      navigate('/integrations/kommo/result?status=success&message=Successfully disconnected from Kommo CRM');
+      navigate('/integrations');
     } catch (err: any) {
       console.error('Disconnect error:', err);
       setFormError(err.message || 'Failed to disconnect from Kommo CRM');
