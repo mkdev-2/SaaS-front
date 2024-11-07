@@ -49,14 +49,32 @@ export default function KommoIntegration() {
     try {
       setAuthError(null);
 
-      const params = new URLSearchParams({
+      // Create a form and submit it programmatically
+      const form = document.createElement('form');
+      form.method = 'POST';
+      form.action = `https://${KOMMO_CONFIG.accountDomain}/oauth2/authorize`;
+
+      // Add the required OAuth parameters
+      const params = {
         client_id: KOMMO_CONFIG.clientId,
         redirect_uri: KOMMO_CONFIG.redirectUri,
         response_type: 'code',
         state: 'initial_auth'
+      };
+
+      // Create hidden inputs for each parameter
+      Object.entries(params).forEach(([key, value]) => {
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = key;
+        input.value = value;
+        form.appendChild(input);
       });
 
-      window.location.href = `https://${KOMMO_CONFIG.accountDomain}/oauth2/authorize?${params.toString()}`;
+      // Add the form to the document and submit it
+      document.body.appendChild(form);
+      form.submit();
+      document.body.removeChild(form);
     } catch (err: any) {
       console.error('OAuth error:', err);
       setAuthError(err.message || 'Failed to initiate authentication');
