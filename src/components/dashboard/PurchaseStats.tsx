@@ -1,5 +1,5 @@
 import React from 'react';
-import { DollarSign, ShoppingBag, CreditCard } from 'lucide-react';
+import { DollarSign, ShoppingBag, CreditCard, Users } from 'lucide-react';
 
 interface PurchaseStatsProps {
   total: number;
