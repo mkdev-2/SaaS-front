@@ -14,8 +14,6 @@ interface KommoState {
 
 interface InitiateOAuthData {
   accountDomain: string;
-  clientId: string;
-  redirectUri: string;
   code?: string;
 }
 
@@ -44,7 +42,7 @@ export function useKommoIntegration() {
     try {
       updateState({ isLoading: true, error: null });
       
-      const { data: response } = await api.get<ApiResponse<KommoConfig>>('/integrations/kommo/config');
+      const { data: response } = await api.get<ApiResponse<KommoConfig>>('/kommo/config');
       
       if (response.status === 'success' && response.data) {
         updateState({
@@ -64,6 +62,7 @@ export function useKommoIntegration() {
         });
       }
     } catch (err: any) {
+      console.error('Erro ao carregar configuração:', err);
       updateState({
         isConnected: false,
         config: null,
@@ -78,12 +77,13 @@ export function useKommoIntegration() {
     if (!state.isConnected) return;
 
     try {
-      const { data: response } = await api.get<ApiResponse<KommoLead[]>>('/integrations/kommo/leads');
+      const { data: response } = await api.get<ApiResponse<KommoLead[]>>('/kommo/leads');
       
       if (response.status === 'success' && response.data) {
         updateState({ leads: response.data, error: null });
       }
     } catch (err: any) {
+      console.error('Erro ao carregar leads:', err);
       updateState({
         error: err.response?.data?.message || 'Falha ao carregar leads'
       });
@@ -100,11 +100,9 @@ export function useKommoIntegration() {
 
       // Se temos um código, trocar por token
       if (data.code) {
-        const { data: response } = await api.post<ApiResponse<void>>('/integrations/kommo/auth/callback', {
+        const { data: response } = await api.post<ApiResponse<void>>('/kommo/auth/callback', {
           code: data.code,
-          accountDomain: data.accountDomain,
-          clientId: data.clientId,
-          redirectUri: data.redirectUri
+          accountDomain: data.accountDomain
         });
 
         if (response.status !== 'success') {
@@ -115,18 +113,16 @@ export function useKommoIntegration() {
         return;
       }
 
-      // Salvar configuração inicial
-      const { data: response } = await api.post<ApiResponse<void>>('/integrations/kommo/config', {
-        accountDomain: data.accountDomain,
-        clientId: data.clientId,
-        redirectUri: data.redirectUri
+      // Iniciar processo de autenticação
+      const { data: response } = await api.post<ApiResponse<{ authUrl: string }>>('/kommo/auth/init', {
+        accountDomain: data.accountDomain
       });
 
-      if (response.status !== 'success') {
-        throw new Error(response.message || 'Falha ao salvar configuração');
+      if (response.status !== 'success' || !response.data?.authUrl) {
+        throw new Error(response.message || 'URL de autenticação não fornecida');
       }
 
-      return true;
+      return response.data;
     } catch (err: any) {
       console.error('Erro OAuth:', err);
       
@@ -149,7 +145,7 @@ export function useKommoIntegration() {
     try {
       updateState({ isLoading: true, error: null });
 
-      const { data: response } = await api.delete<ApiResponse<void>>('/integrations/kommo/config');
+      const { data: response } = await api.delete<ApiResponse<void>>('/kommo/config');
       
       if (response.status === 'success') {
         updateState({
