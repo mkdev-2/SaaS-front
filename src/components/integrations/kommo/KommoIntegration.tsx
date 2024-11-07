@@ -98,7 +98,7 @@ export default function KommoIntegration() {
       setAuthWindow(authWindow);
     } catch (err: any) {
       console.error('Erro ao iniciar autenticação:', err);
-      setAuthError(err.message || 'Falha ao iniciar autenticação');
+      setAuthError(err.message || 'Ocorreu um erro inesperado');
     }
   };
 
