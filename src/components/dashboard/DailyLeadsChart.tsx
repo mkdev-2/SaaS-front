@@ -1,9 +1,12 @@
 import React from 'react';
-import { KommoLead } from '../../lib/kommo/types';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 interface DailyLeadsChartProps {
-  data: KommoLead[];
+  data: Array<{
+    date: string;
+    leads: number;
+    value: number;
+  }>;
   period: string;
 }
 
@@ -24,25 +27,9 @@ export default function DailyLeadsChart({ data, period }: DailyLeadsChartProps) 
         break;
     }
 
-    const dateMap = new Map<string, { leads: number; value: number }>();
-    
-    data.forEach(lead => {
-      const leadDate = new Date(lead.created_at * 1000);
-      if (leadDate >= startDate) {
-        const dateKey = leadDate.toLocaleDateString();
-        const current = dateMap.get(dateKey) || { leads: 0, value: 0 };
-        dateMap.set(dateKey, {
-          leads: current.leads + 1,
-          value: current.value + (lead.price || 0)
-        });
-      }
-    });
-
-    return Array.from(dateMap.entries()).map(([date, stats]) => ({
-      date,
-      leads: stats.leads,
-      value: stats.value
-    }));
+    return data
+      .filter(item => new Date(item.date) >= startDate)
+      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
   }, [data, period]);
 
   if (!chartData.length) {
@@ -58,10 +45,19 @@ export default function DailyLeadsChart({ data, period }: DailyLeadsChartProps) 
       <ResponsiveContainer width="100%" height="100%">
         <BarChart data={chartData}>
           <CartesianGrid strokeDasharray="3 3" />
-          <XAxis dataKey="date" />
+          <XAxis 
+            dataKey="date" 
+            tickFormatter={(value) => new Date(value).toLocaleDateString()}
+          />
           <YAxis yAxisId="left" orientation="left" stroke="#4F46E5" />
           <YAxis yAxisId="right" orientation="right" stroke="#10B981" />
-          <Tooltip />
+          <Tooltip 
+            labelFormatter={(value) => new Date(value).toLocaleDateString()}
+            formatter={(value: number, name: string) => [
+              name === 'leads' ? value : `$${value.toLocaleString()}`,
+              name === 'leads' ? 'Leads' : 'Value'
+            ]}
+          />
           <Bar yAxisId="left" dataKey="leads" fill="#4F46E5" name="Leads" />
           <Bar yAxisId="right" dataKey="value" fill="#10B981" name="Value" />
         </BarChart>

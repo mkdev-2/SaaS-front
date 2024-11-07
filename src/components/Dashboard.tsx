@@ -1,199 +1,71 @@
 import React, { useState } from 'react';
 import { ArrowUpRight, ArrowDownRight, Activity, Users, Box, Zap, RefreshCw, AlertCircle, Tags, ShoppingBag, DollarSign } from 'lucide-react';
 import { useDashboardData } from '../hooks/useDashboardData';
-import { useKommoIntegration } from '../hooks/useKommoIntegration';
 import DailyLeadsChart from './dashboard/DailyLeadsChart';
 import VendorStats from './dashboard/VendorStats';
 import PersonaStats from './dashboard/PersonaStats';
 import PurchaseStats from './dashboard/PurchaseStats';
 import PeriodSelector from './dashboard/PeriodSelector';
 
-interface KommoMetrics {
-  dailyLeads: {
-    count: number;
-    value: number;
-  };
-  tags: {
-    sellers: Map<string, number>;
-    personas: Map<string, number>;
-    sources: Map<string, number>;
-  };
-  sales: {
-    total: number;
-    byProduct: Map<string, { count: number; value: number }>;
-    byPayment: Map<string, { count: number; value: number }>;
-    byPersona: Map<string, { count: number; value: number }>;
-  };
-}
-
 export default function Dashboard() {
   const { data, loading, error, refresh } = useDashboardData();
-  const { isConnected: isKommoConnected, leads: kommoLeads, error: kommoError } = useKommoIntegration();
   const [selectedPeriod, setSelectedPeriod] = useState('today');
 
-  // Calculate Kommo metrics
-  const kommoMetrics = React.useMemo((): KommoMetrics => {
-    if (!kommoLeads?.length) {
-      return {
-        dailyLeads: { count: 0, value: 0 },
-        tags: {
-          sellers: new Map(),
-          personas: new Map(),
-          sources: new Map()
-        },
-        sales: {
-          total: 0,
-          byProduct: new Map(),
-          byPayment: new Map(),
-          byPersona: new Map()
-        }
-      };
-    }
+  const stats = React.useMemo(() => {
+    if (!data?.kommo?.analytics) return [];
 
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    const periodStats = data.kommo.analytics.periodStats[
+      selectedPeriod === 'today' ? 'day' : 
+      selectedPeriod === 'week' ? 'week' : 
+      'fortnight'
+    ];
 
-    return kommoLeads.reduce((metrics, lead) => {
-      const leadDate = new Date(lead.created_at * 1000);
-      
-      // Count daily leads
-      if (leadDate >= today) {
-        metrics.dailyLeads.count++;
-        metrics.dailyLeads.value += lead.price || 0;
-      }
-
-      // Process tags and custom fields
-      lead.custom_fields_values?.forEach(field => {
-        const value = field.values[0]?.value;
-        if (!value) return;
-
-        switch (field.field_name.toLowerCase()) {
-          case 'vendedor':
-          case 'seller':
-            metrics.tags.sellers.set(
-              value,
-              (metrics.tags.sellers.get(value) || 0) + 1
-            );
-            break;
-
-          case 'persona':
-            metrics.tags.personas.set(
-              value,
-              (metrics.tags.personas.get(value) || 0) + 1
-            );
-            if (lead.price > 0) {
-              const current = metrics.sales.byPersona.get(value) || { count: 0, value: 0 };
-              metrics.sales.byPersona.set(value, {
-                count: current.count + 1,
-                value: current.value + lead.price
-              });
-            }
-            break;
-
-          case 'origem':
-          case 'source':
-            metrics.tags.sources.set(
-              value,
-              (metrics.tags.sources.get(value) || 0) + 1
-            );
-            break;
-
-          case 'produto':
-          case 'product':
-            if (lead.price > 0) {
-              const current = metrics.sales.byProduct.get(value) || { count: 0, value: 0 };
-              metrics.sales.byProduct.set(value, {
-                count: current.count + 1,
-                value: current.value + lead.price
-              });
-            }
-            break;
-
-          case 'forma_pagamento':
-          case 'payment_method':
-            if (lead.price > 0) {
-              const current = metrics.sales.byPayment.get(value) || { count: 0, value: 0 };
-              metrics.sales.byPayment.set(value, {
-                count: current.count + 1,
-                value: current.value + lead.price
-              });
-            }
-            break;
-        }
-      });
-
-      // Add to total sales
-      if (lead.price > 0) {
-        metrics.sales.total += lead.price;
-      }
-
-      return metrics;
-    }, {
-      dailyLeads: { count: 0, value: 0 },
-      tags: {
-        sellers: new Map(),
-        personas: new Map(),
-        sources: new Map()
+    return [
+      {
+        title: "Today's Leads",
+        value: periodStats.totalLeads,
+        previousValue: 0,
+        icon: Users
       },
-      sales: {
-        total: 0,
-        byProduct: new Map(),
-        byPayment: new Map(),
-        byPersona: new Map()
+      {
+        title: "Purchases",
+        value: periodStats.purchases,
+        previousValue: 0,
+        icon: ShoppingBag
+      },
+      {
+        title: "Active Vendors",
+        value: Object.keys(data.kommo.analytics.vendorStats).length,
+        previousValue: 0,
+        icon: Users
+      },
+      {
+        title: "Personas",
+        value: Object.keys(data.kommo.analytics.personaStats).length,
+        previousValue: 0,
+        icon: Tags
       }
-    });
-  }, [kommoLeads]);
-
-  const stats = [
-    {
-      title: "Today's Leads",
-      value: kommoMetrics.dailyLeads.count,
-      previousValue: 0,
-      icon: Users
-    },
-    {
-      title: "Today's Lead Value",
-      value: kommoMetrics.dailyLeads.value,
-      previousValue: 0,
-      icon: DollarSign,
-      format: (value: number) => `$${value.toLocaleString()}`
-    },
-    {
-      title: "Active Tags",
-      value: kommoMetrics.tags.personas.size + kommoMetrics.tags.sources.size,
-      previousValue: 0,
-      icon: Tags
-    },
-    {
-      title: "Total Sales",
-      value: kommoMetrics.sales.total,
-      previousValue: 0,
-      icon: ShoppingBag,
-      format: (value: number) => `$${value.toLocaleString()}`
-    }
-  ];
+    ];
+  }, [data, selectedPeriod]);
 
   return (
     <div className="p-6 space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Sales Dashboard</h1>
-          <p className="text-gray-500">Real-time sales and performance metrics</p>
+          <h1 className="text-2xl font-bold text-gray-900">Dashboard Personal Prime</h1>
+          <p className="text-gray-500">Métricas de vendas e desempenho em tempo real</p>
         </div>
         <PeriodSelector value={selectedPeriod} onChange={setSelectedPeriod} />
       </div>
 
-      {/* Error alerts */}
-      {(error || kommoError) && (
+      {error && (
         <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 flex items-start">
           <AlertCircle className="h-5 w-5 text-yellow-600 mt-0.5 mr-3 flex-shrink-0" />
           <div className="flex-1">
             <h3 className="text-sm font-medium text-yellow-800">
-              Integration Status
+              Status da Integração
             </h3>
-            <p className="mt-1 text-sm text-yellow-700">
-              {error || kommoError}
-            </p>
+            <p className="mt-1 text-sm text-yellow-700">{error}</p>
           </div>
           <button
             onClick={refresh}
@@ -218,7 +90,7 @@ export default function Dashboard() {
             <StatCard
               key={index}
               title={stat.title}
-              value={stat.format ? stat.format(stat.value) : stat.value.toString()}
+              value={stat.value.toString()}
               change={`${((stat.value - (stat.previousValue || 0)) / (stat.previousValue || 1) * 100).toFixed(1)}%`}
               icon={stat.icon}
             />
@@ -226,29 +98,48 @@ export default function Dashboard() {
         )}
       </div>
 
-      {/* Charts and Analytics */}
-      {isKommoConnected && (
+      {data?.kommo?.analytics && (
         <>
           {/* Daily Leads Chart */}
           <div className="bg-white rounded-xl shadow-sm p-6">
             <h2 className="text-lg font-semibold text-gray-900 mb-4">Lead Trends</h2>
-            <DailyLeadsChart data={kommoLeads} period={selectedPeriod} />
+            <DailyLeadsChart 
+              data={Object.entries(data.kommo.analytics.dailyStats).map(([date, stats]) => ({
+                date,
+                leads: stats.total,
+                value: stats.leads.reduce((sum, lead) => sum + (lead.price || 0), 0)
+              }))}
+              period={selectedPeriod}
+            />
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Vendor Performance */}
-            <VendorStats data={Array.from(kommoMetrics.tags.sellers.entries())} />
+            <VendorStats 
+              data={Object.entries(data.kommo.analytics.vendorStats).map(([name, stats]) => [
+                name,
+                stats.total
+              ])} 
+            />
 
             {/* Persona Distribution */}
-            <PersonaStats data={Array.from(kommoMetrics.tags.personas.entries())} />
+            <PersonaStats 
+              data={Object.entries(data.kommo.analytics.personaStats).map(([name, stats]) => [
+                name,
+                stats.count
+              ])}
+            />
           </div>
 
           {/* Purchase Analytics */}
           <PurchaseStats
-            total={kommoMetrics.sales.total}
-            byProduct={Array.from(kommoMetrics.sales.byProduct.entries())}
-            byPayment={Array.from(kommoMetrics.sales.byPayment.entries())}
-            byPersona={Array.from(kommoMetrics.sales.byPersona.entries())}
+            total={data.kommo.analytics.purchaseStats.reduce((sum, purchase) => sum + purchase.total, 0)}
+            byProduct={[]}
+            byPayment={[]}
+            byPersona={Object.entries(data.kommo.analytics.personaStats).map(([name, stats]) => [
+              name,
+              { count: stats.count, value: 0 }
+            ])}
           />
         </>
       )}

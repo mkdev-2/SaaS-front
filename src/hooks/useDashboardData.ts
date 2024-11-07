@@ -1,25 +1,68 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import api from '../lib/api';
 import { ApiResponse } from '../types/api';
-import { DashboardStats } from '../types/dashboard';
 import socketService from '../lib/socket';
 import useAuthStore from '../store/authStore';
 
-const POLLING_INTERVAL = 30000; // 30 seconds
-const MIN_POLLING_INTERVAL = 5000; // 5 seconds minimum between polls
+export interface DashboardData {
+  projects: {
+    total: number;
+    recent: any[];
+  };
+  kommo: {
+    isConnected: boolean;
+    accountDomain: string;
+    connectedAt: string;
+    automationRules: number;
+    analytics: {
+      dailyStats: Record<string, {
+        total: number;
+        sources: Record<string, any>;
+        leads: Array<{
+          id: number;
+          name: string;
+          contacts: any[];
+          tags: any[];
+          created_at: number;
+        }>;
+      }>;
+      vendorStats: Record<string, {
+        active: number;
+        total: number;
+        leads: any[];
+      }>;
+      personaStats: Record<string, {
+        count: number;
+        leads: any[];
+      }>;
+      purchaseStats: Array<{
+        id: number;
+        customer: string;
+        products: any[];
+        total: number;
+        purchaseDate: string;
+        tags: any[];
+      }>;
+      periodStats: {
+        day: PeriodStats;
+        week: PeriodStats;
+        fortnight: PeriodStats;
+      };
+    };
+  };
+  recentRules: any[];
+}
 
-const fallbackStats: DashboardStats = {
-  totalIntegrations: 0,
-  activeWorkflows: 0,
-  apiCalls: 0,
-  totalUsers: 0,
-  recentWorkflows: [],
-  integrationHealth: []
-};
+interface PeriodStats {
+  totalLeads: number;
+  purchases: number;
+  byVendor: Record<string, number>;
+  byPersona: Record<string, number>;
+}
 
 export function useDashboardData() {
   const { isAuthenticated, user } = useAuthStore();
-  const [data, setData] = useState<DashboardStats>(fallbackStats);
+  const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isConnected, setIsConnected] = useState(false);
@@ -37,13 +80,13 @@ export function useDashboardData() {
     }
 
     const now = Date.now();
-    if (!force && now - lastFetchTime.current < MIN_POLLING_INTERVAL) {
+    if (!force && now - lastFetchTime.current < 5000) {
       return;
     }
 
     try {
       setLoading(true);
-      const { data: response } = await api.get<ApiResponse<DashboardStats>>('/dashboard/stats');
+      const { data: response } = await api.get<ApiResponse<DashboardData>>('/dashboard/stats');
       
       if (!isMounted.current) return;
 
@@ -59,9 +102,8 @@ export function useDashboardData() {
       
       setError(err.message || 'Failed to connect to the server');
       
-      // Don't automatically logout, just use fallback data for 401
       if (err.response?.status === 401) {
-        setData(fallbackStats);
+        setData(null);
       }
     } finally {
       if (isMounted.current) {
@@ -75,7 +117,7 @@ export function useDashboardData() {
   useEffect(() => {
     if (!isAuthenticated || !user) {
       socketService.disconnect();
-      setData(fallbackStats);
+      setData(null);
       setLoading(false);
       return;
     }
@@ -101,24 +143,12 @@ export function useDashboardData() {
       lastFetchTime.current = Date.now();
     });
 
-    // Set up polling as fallback when socket is disconnected
-    const setupPolling = () => {
-      if (pollTimeoutRef.current) {
-        clearTimeout(pollTimeoutRef.current);
-      }
-
-      if (!isConnected && initialFetchDone.current) {
-        pollTimeoutRef.current = setTimeout(() => {
-          if (isMounted.current && !isConnected) {
-            fetchDashboardData();
-            setupPolling();
-          }
-        }, POLLING_INTERVAL);
-      }
-    };
-
     if (!isConnected && initialFetchDone.current) {
-      setupPolling();
+      pollTimeoutRef.current = setTimeout(() => {
+        if (isMounted.current && !isConnected) {
+          fetchDashboardData();
+        }
+      }, 30000);
     }
 
     return () => {
@@ -130,7 +160,6 @@ export function useDashboardData() {
     };
   }, [fetchDashboardData, isConnected, isAuthenticated, user]);
 
-  // Cleanup on unmount
   useEffect(() => {
     return () => {
       isMounted.current = false;
@@ -142,7 +171,7 @@ export function useDashboardData() {
   }, []);
 
   const refresh = useCallback(() => {
-    if (Date.now() - lastFetchTime.current >= MIN_POLLING_INTERVAL) {
+    if (Date.now() - lastFetchTime.current >= 5000) {
       fetchDashboardData(true);
     }
   }, [fetchDashboardData]);
