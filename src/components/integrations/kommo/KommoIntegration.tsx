@@ -77,7 +77,7 @@ export default function KommoIntegration() {
         throw new Error('Authentication URL not provided');
       }
 
-      // Open authentication window with correct parameters
+      // Open authentication window
       const width = 800;
       const height = 600;
       const left = window.screenX + (window.outerWidth - width) / 2;
