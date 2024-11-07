@@ -118,11 +118,17 @@ export function useKommoIntegration() {
         accountDomain: data.accountDomain
       });
 
-      if (response.status !== 'success') {
+      if (response.status !== 'success' || !response.data?.authUrl) {
         throw new Error(response.message || 'Falha ao iniciar autenticação');
       }
 
-      return response.data;
+      // Garantir que a URL use oauth2/authorize
+      const authUrl = new URL(response.data.authUrl);
+      authUrl.pathname = '/oauth2/authorize';
+
+      return {
+        authUrl: authUrl.toString()
+      };
     } catch (err: any) {
       console.error('Erro OAuth:', err);
       
