@@ -8,13 +8,20 @@ interface PurchaseStatsProps {
   byPersona: [string, { count: number; value: number }][];
 }
 
+const formatCurrency = (value: number) => {
+  return value.toLocaleString('pt-BR', {
+    style: 'currency',
+    currency: 'BRL'
+  });
+};
+
 export default function PurchaseStats({ total, byProduct, byPayment, byPersona }: PurchaseStatsProps) {
   return (
     <div className="bg-white rounded-xl shadow-sm p-6">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h2 className="text-lg font-semibold text-gray-900">Purchase Analytics</h2>
-          <p className="text-sm text-gray-500">Total Revenue: ${total.toLocaleString()}</p>
+          <h2 className="text-lg font-semibold text-gray-900">Análise de Vendas</h2>
+          <p className="text-sm text-gray-500">Receita Total: {formatCurrency(total)}</p>
         </div>
         <div className="p-2 bg-green-100 rounded-lg">
           <DollarSign className="h-5 w-5 text-green-600" />
@@ -26,7 +33,7 @@ export default function PurchaseStats({ total, byProduct, byPayment, byPersona }
         <div>
           <div className="flex items-center mb-4">
             <ShoppingBag className="h-5 w-5 text-gray-400 mr-2" />
-            <h3 className="text-sm font-medium text-gray-900">By Product</h3>
+            <h3 className="text-sm font-medium text-gray-900">Por Produto</h3>
           </div>
           <div className="space-y-3">
             {byProduct.map(([product, stats]) => (
@@ -36,7 +43,7 @@ export default function PurchaseStats({ total, byProduct, byPayment, byPersona }
                   <span className="text-sm text-gray-500">{stats.count}x</span>
                 </div>
                 <div className="mt-1 text-sm text-green-600 font-medium">
-                  ${stats.value.toLocaleString()}
+                  {formatCurrency(stats.value)}
                 </div>
               </div>
             ))}
@@ -47,17 +54,17 @@ export default function PurchaseStats({ total, byProduct, byPayment, byPersona }
         <div>
           <div className="flex items-center mb-4">
             <CreditCard className="h-5 w-5 text-gray-400 mr-2" />
-            <h3 className="text-sm font-medium text-gray-900">By Payment Method</h3>
+            <h3 className="text-sm font-medium text-gray-900">Por Forma de Pagamento</h3>
           </div>
           <div className="space-y-3">
             {byPayment.map(([method, stats]) => (
               <div key={method} className="p-3 bg-gray-50 rounded-lg">
                 <div className="flex justify-between items-center">
                   <span className="text-sm font-medium text-gray-900">{method}</span>
-                  <span className="text-sm text-gray-500">{stats.count} transactions</span>
+                  <span className="text-sm text-gray-500">{stats.count} transações</span>
                 </div>
                 <div className="mt-1 text-sm text-green-600 font-medium">
-                  ${stats.value.toLocaleString()}
+                  {formatCurrency(stats.value)}
                 </div>
               </div>
             ))}
@@ -68,17 +75,17 @@ export default function PurchaseStats({ total, byProduct, byPayment, byPersona }
         <div>
           <div className="flex items-center mb-4">
             <Users className="h-5 w-5 text-gray-400 mr-2" />
-            <h3 className="text-sm font-medium text-gray-900">By Persona</h3>
+            <h3 className="text-sm font-medium text-gray-900">Por Persona</h3>
           </div>
           <div className="space-y-3">
             {byPersona.map(([persona, stats]) => (
               <div key={persona} className="p-3 bg-gray-50 rounded-lg">
                 <div className="flex justify-between items-center">
                   <span className="text-sm font-medium text-gray-900">{persona}</span>
-                  <span className="text-sm text-gray-500">{stats.count} purchases</span>
+                  <span className="text-sm text-gray-500">{stats.count} vendas</span>
                 </div>
                 <div className="mt-1 text-sm text-green-600 font-medium">
-                  ${stats.value.toLocaleString()}
+                  {formatCurrency(stats.value)}
                 </div>
               </div>
             ))}

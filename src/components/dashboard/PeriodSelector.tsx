@@ -15,9 +15,9 @@ export default function PeriodSelector({ value, onChange }: PeriodSelectorProps)
         onChange={(e) => onChange(e.target.value)}
         className="form-select rounded-md border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500"
       >
-        <option value="today">Today</option>
-        <option value="week">Last 7 days</option>
-        <option value="fortnight">Last 14 days</option>
+        <option value="today">Hoje</option>
+        <option value="week">Últimos 7 dias</option>
+        <option value="fortnight">Últimos 14 dias</option>
       </select>
     </div>
   );

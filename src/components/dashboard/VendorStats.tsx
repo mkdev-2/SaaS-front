@@ -18,8 +18,8 @@ export default function VendorStats({ data }: VendorStatsProps) {
     <div className="bg-white rounded-xl shadow-sm p-6">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h2 className="text-lg font-semibold text-gray-900">Vendor Performance</h2>
-          <p className="text-sm text-gray-500">{totalLeads} total leads</p>
+          <h2 className="text-lg font-semibold text-gray-900">Desempenho dos Vendedores</h2>
+          <p className="text-sm text-gray-500">{totalLeads} leads no total</p>
         </div>
         <div className="p-2 bg-blue-100 rounded-lg">
           <Users className="h-5 w-5 text-blue-600" />

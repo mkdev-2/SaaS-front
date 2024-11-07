@@ -7,41 +7,48 @@ import PersonaStats from './dashboard/PersonaStats';
 import PurchaseStats from './dashboard/PurchaseStats';
 import PeriodSelector from './dashboard/PeriodSelector';
 
+const formatCurrency = (value: number) => {
+  return value.toLocaleString('pt-BR', {
+    style: 'currency',
+    currency: 'BRL'
+  });
+};
+
 export default function Dashboard() {
   const { data, loading, error, refresh } = useDashboardData();
   const [selectedPeriod, setSelectedPeriod] = useState('today');
 
   const stats = React.useMemo(() => {
-    if (!data?.kommo?.analytics) return [];
+    if (!data?.kommo?.analytics?.periodStats) return [];
 
     const periodStats = data.kommo.analytics.periodStats[
       selectedPeriod === 'today' ? 'day' : 
       selectedPeriod === 'week' ? 'week' : 
       'fortnight'
-    ];
+    ] || { totalLeads: 0, purchases: 0 };
 
     return [
       {
-        title: "Today's Leads",
+        title: "Leads de Hoje",
         value: periodStats.totalLeads,
         previousValue: 0,
         icon: Users
       },
       {
-        title: "Purchases",
+        title: "Vendas",
         value: periodStats.purchases,
         previousValue: 0,
         icon: ShoppingBag
       },
       {
-        title: "Active Vendors",
-        value: Object.keys(data.kommo.analytics.vendorStats).length,
+        title: "Vendedores Ativos",
+        value: Object.keys(data.kommo.analytics.vendorStats || {}).length,
         previousValue: 0,
         icon: Users
       },
       {
         title: "Personas",
-        value: Object.keys(data.kommo.analytics.personaStats).length,
+        value: Object.keys(data.kommo.analytics.personaStats || {}).length,
         previousValue: 0,
         icon: Tags
       }
@@ -52,7 +59,7 @@ export default function Dashboard() {
     <div className="p-6 space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Dashboard Personal Prime</h1>
+          <h1 className="text-2xl font-bold text-gray-900">Dashboard de Vendas</h1>
           <p className="text-gray-500">Métricas de vendas e desempenho em tempo real</p>
         </div>
         <PeriodSelector value={selectedPeriod} onChange={setSelectedPeriod} />
@@ -102,9 +109,9 @@ export default function Dashboard() {
         <>
           {/* Daily Leads Chart */}
           <div className="bg-white rounded-xl shadow-sm p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Lead Trends</h2>
+            <h2 className="text-lg font-semibold text-gray-900">Tendência de Leads</h2>
             <DailyLeadsChart 
-              data={Object.entries(data.kommo.analytics.dailyStats).map(([date, stats]) => ({
+              data={Object.entries(data.kommo.analytics.dailyStats || {}).map(([date, stats]) => ({
                 date,
                 leads: stats.total,
                 value: stats.leads.reduce((sum, lead) => sum + (lead.price || 0), 0)
@@ -116,7 +123,7 @@ export default function Dashboard() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Vendor Performance */}
             <VendorStats 
-              data={Object.entries(data.kommo.analytics.vendorStats).map(([name, stats]) => [
+              data={Object.entries(data.kommo.analytics.vendorStats || {}).map(([name, stats]) => [
                 name,
                 stats.total
               ])} 
@@ -124,7 +131,7 @@ export default function Dashboard() {
 
             {/* Persona Distribution */}
             <PersonaStats 
-              data={Object.entries(data.kommo.analytics.personaStats).map(([name, stats]) => [
+              data={Object.entries(data.kommo.analytics.personaStats || {}).map(([name, stats]) => [
                 name,
                 stats.count
               ])}
@@ -133,10 +140,10 @@ export default function Dashboard() {
 
           {/* Purchase Analytics */}
           <PurchaseStats
-            total={data.kommo.analytics.purchaseStats.reduce((sum, purchase) => sum + purchase.total, 0)}
+            total={data.kommo.analytics.purchaseStats?.reduce((sum, purchase) => sum + purchase.total, 0) || 0}
             byProduct={[]}
             byPayment={[]}
-            byPersona={Object.entries(data.kommo.analytics.personaStats).map(([name, stats]) => [
+            byPersona={Object.entries(data.kommo.analytics.personaStats || {}).map(([name, stats]) => [
               name,
               { count: stats.count, value: 0 }
             ])}
