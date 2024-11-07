@@ -100,7 +100,12 @@ export default function Dashboard() {
     ) || 0;
   }, [data]);
 
-  if (!data?.kommo?.isConnected) {
+  // Verificar se os dados do Kommo estão disponíveis
+  const hasKommoData = React.useMemo(() => {
+    return data?.kommo?.isConnected && data?.kommo?.analytics !== null;
+  }, [data]);
+
+  if (!hasKommoData) {
     return (
       <div className="p-6">
         <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
@@ -108,10 +113,10 @@ export default function Dashboard() {
             <AlertCircle className="h-5 w-5 text-yellow-400 mt-0.5 mr-3" />
             <div>
               <h3 className="text-sm font-medium text-yellow-800">
-                Integração não configurada
+                Aguardando dados
               </h3>
               <p className="mt-2 text-sm text-yellow-700">
-                Configure a integração com o Kommo CRM para visualizar as métricas do dashboard.
+                Aguarde enquanto carregamos os dados do Kommo CRM...
               </p>
             </div>
           </div>
@@ -174,7 +179,7 @@ export default function Dashboard() {
         <>
           {/* Daily Leads Chart */}
           <div className="bg-white rounded-xl shadow-sm p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Tendência de Leads</h2>
+            <h2 className="text-lg font-semibold text-gray-900">Tendência de Leads</h2>
             <DailyLeadsChart 
               data={chartData}
               period={selectedPeriod}
