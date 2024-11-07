@@ -122,9 +122,20 @@ export function useKommoIntegration() {
         throw new Error(response.message || 'Falha ao iniciar autenticação');
       }
 
-      // Garantir que a URL use oauth2/authorize
+      // Construir URL de autorização correta
       const authUrl = new URL(response.data.authUrl);
       authUrl.pathname = '/oauth2/authorize';
+      
+      // Adicionar parâmetros obrigatórios
+      const params = new URLSearchParams(authUrl.search);
+      params.set('response_type', 'code');
+      params.set('mode', 'popup');
+      
+      // Remover mode=post_message se existir
+      params.delete('post_message');
+      
+      // Atualizar a URL com os parâmetros corretos
+      authUrl.search = params.toString();
 
       return {
         authUrl: authUrl.toString()
