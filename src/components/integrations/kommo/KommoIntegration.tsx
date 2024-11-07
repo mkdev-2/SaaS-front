@@ -9,7 +9,7 @@ import KommoButton from './KommoButton';
 const KOMMO_CONFIG = {
   accountDomain: 'vendaspersonalprime.kommo.com',
   clientId: '6fc1e2d2-0e1d-4549-8efd-1b0b37d0bbb3',
-  redirectUri: 'https://saas-backend-production-8b94.up.railway.app/api/kommo/callback'
+  redirectUri: 'https://saas-backend-production-8b94.up.railway.app/api/integrations/kommo/callback'
 };
 
 export default function KommoIntegration() {
@@ -28,7 +28,6 @@ export default function KommoIntegration() {
 
   const [authError, setAuthError] = useState<string | null>(null);
 
-  // Handle OAuth callback
   useEffect(() => {
     const code = searchParams.get('code');
     const error = searchParams.get('error');
@@ -50,10 +49,8 @@ export default function KommoIntegration() {
     try {
       setAuthError(null);
 
-      // Save initial config before redirecting
       await initiateOAuth(KOMMO_CONFIG);
 
-      // Construct OAuth URL
       const params = new URLSearchParams({
         client_id: KOMMO_CONFIG.clientId,
         redirect_uri: KOMMO_CONFIG.redirectUri,
@@ -61,7 +58,6 @@ export default function KommoIntegration() {
         state: 'initial_auth'
       });
 
-      // Redirect to Kommo OAuth page
       window.location.href = `https://${KOMMO_CONFIG.accountDomain}/oauth2/authorize?${params.toString()}`;
     } catch (err: any) {
       console.error('OAuth error:', err);

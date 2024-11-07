@@ -3,7 +3,7 @@ import { ApiResponse } from '../types/api';
 import useAuthStore from '../store/authStore';
 
 const api = axios.create({
-  baseURL: 'https://saas-backend-production-8b94.up.railway.app/api',
+  baseURL: 'https://saas-backend-production-8b94.up.railway.app/api/integrations',
   headers: {
     'Content-Type': 'application/json',
   },
@@ -53,7 +53,6 @@ api.interceptors.response.use(
     }
 
     if (status === 401) {
-      // Don't logout if it's a Kommo API error
       if (!error.config?.url?.includes('/kommo/')) {
         localStorage.removeItem('auth_token');
         useAuthStore.getState().logout(false);
