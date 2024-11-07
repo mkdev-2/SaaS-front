@@ -6,6 +6,7 @@ import KommoLeadsList from './KommoLeadsList';
 import KommoConnectionStatus from './KommoConnectionStatus';
 import KommoButton from './KommoButton';
 
+// Configuration should match exactly what's registered in Kommo
 const KOMMO_CONFIG = {
   accountDomain: 'vendaspersonalprime.kommo.com',
   clientId: '6fc1e2d2-0e1d-4549-8efd-1b0b37d0bbb3',
@@ -31,6 +32,7 @@ export default function KommoIntegration() {
   useEffect(() => {
     const code = searchParams.get('code');
     const error = searchParams.get('error');
+    const state = searchParams.get('state');
 
     if (code) {
       initiateOAuth({
@@ -49,20 +51,24 @@ export default function KommoIntegration() {
     try {
       setAuthError(null);
 
-      // Create a form and submit it programmatically
+      // Save initial configuration before redirecting
+      await initiateOAuth(KOMMO_CONFIG);
+
+      // Create a form for POST request
       const form = document.createElement('form');
       form.method = 'POST';
       form.action = `https://${KOMMO_CONFIG.accountDomain}/oauth2/authorize`;
 
-      // Add the required OAuth parameters
+      // Add required OAuth parameters
       const params = {
         client_id: KOMMO_CONFIG.clientId,
         redirect_uri: KOMMO_CONFIG.redirectUri,
         response_type: 'code',
-        state: 'initial_auth'
+        state: 'initial_auth',
+        mode: 'post_message'
       };
 
-      // Create hidden inputs for each parameter
+      // Add hidden inputs for each parameter
       Object.entries(params).forEach(([key, value]) => {
         const input = document.createElement('input');
         input.type = 'hidden';
@@ -71,7 +77,7 @@ export default function KommoIntegration() {
         form.appendChild(input);
       });
 
-      // Add the form to the document and submit it
+      // Submit the form
       document.body.appendChild(form);
       form.submit();
       document.body.removeChild(form);
