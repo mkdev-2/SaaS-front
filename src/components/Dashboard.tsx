@@ -18,42 +18,84 @@ export default function Dashboard() {
   const { data, loading, error, refresh } = useDashboardData();
   const [selectedPeriod, setSelectedPeriod] = useState('today');
 
-  const stats = React.useMemo(() => {
-    if (!data?.kommo?.analytics?.periodStats) return [];
-
-    const periodStats = data.kommo.analytics.periodStats[
+  // Extrair dados do período selecionado
+  const periodStats = React.useMemo(() => {
+    if (!data?.kommo?.analytics?.periodStats) return null;
+    return data.kommo.analytics.periodStats[
       selectedPeriod === 'today' ? 'day' : 
       selectedPeriod === 'week' ? 'week' : 
       'fortnight'
-    ] || { totalLeads: 0, purchases: 0 };
+    ];
+  }, [data, selectedPeriod]);
+
+  // Calcular estatísticas
+  const stats = React.useMemo(() => {
+    if (!periodStats) return [];
 
     return [
       {
-        title: "Leads de Hoje",
-        value: periodStats.totalLeads,
+        title: "Leads do Período",
+        value: periodStats.totalLeads || 0,
         previousValue: 0,
         icon: Users
       },
       {
-        title: "Vendas",
-        value: periodStats.purchases,
+        title: "Vendas Realizadas",
+        value: periodStats.purchases || 0,
         previousValue: 0,
         icon: ShoppingBag
       },
       {
         title: "Vendedores Ativos",
-        value: Object.keys(data.kommo.analytics.vendorStats || {}).length,
+        value: Object.keys(data?.kommo?.analytics?.vendorStats || {}).length,
         previousValue: 0,
         icon: Users
       },
       {
-        title: "Personas",
-        value: Object.keys(data.kommo.analytics.personaStats || {}).length,
+        title: "Total de Personas",
+        value: Object.keys(data?.kommo?.analytics?.personaStats || {}).length,
         previousValue: 0,
         icon: Tags
       }
     ];
-  }, [data, selectedPeriod]);
+  }, [data, periodStats]);
+
+  // Preparar dados do gráfico
+  const chartData = React.useMemo(() => {
+    if (!data?.kommo?.analytics?.dailyStats) return [];
+
+    return Object.entries(data.kommo.analytics.dailyStats)
+      .map(([date, stats]) => ({
+        date,
+        leads: stats.total,
+        value: stats.leads.reduce((sum, lead) => sum + (lead.price || 0), 0)
+      }))
+      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+  }, [data]);
+
+  // Preparar dados dos vendedores
+  const vendorData = React.useMemo(() => {
+    if (!data?.kommo?.analytics?.vendorStats) return [];
+
+    return Object.entries(data.kommo.analytics.vendorStats)
+      .map(([name, stats]) => [name, stats.total] as [string, number]);
+  }, [data]);
+
+  // Preparar dados das personas
+  const personaData = React.useMemo(() => {
+    if (!data?.kommo?.analytics?.personaStats) return [];
+
+    return Object.entries(data.kommo.analytics.personaStats)
+      .map(([name, stats]) => [name, stats.count] as [string, number]);
+  }, [data]);
+
+  // Calcular total de vendas
+  const totalSales = React.useMemo(() => {
+    return data?.kommo?.analytics?.purchaseStats?.reduce(
+      (sum, purchase) => sum + (purchase.total || 0),
+      0
+    ) || 0;
+  }, [data]);
 
   return (
     <div className="p-6 space-y-6">
@@ -105,47 +147,33 @@ export default function Dashboard() {
         )}
       </div>
 
-      {data?.kommo?.analytics && (
+      {!loading && data?.kommo?.analytics && (
         <>
           {/* Daily Leads Chart */}
           <div className="bg-white rounded-xl shadow-sm p-6">
-            <h2 className="text-lg font-semibold text-gray-900">Tendência de Leads</h2>
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">Tendência de Leads</h2>
             <DailyLeadsChart 
-              data={Object.entries(data.kommo.analytics.dailyStats || {}).map(([date, stats]) => ({
-                date,
-                leads: stats.total,
-                value: stats.leads.reduce((sum, lead) => sum + (lead.price || 0), 0)
-              }))}
+              data={chartData}
               period={selectedPeriod}
             />
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Vendor Performance */}
-            <VendorStats 
-              data={Object.entries(data.kommo.analytics.vendorStats || {}).map(([name, stats]) => [
-                name,
-                stats.total
-              ])} 
-            />
+            <VendorStats data={vendorData} />
 
             {/* Persona Distribution */}
-            <PersonaStats 
-              data={Object.entries(data.kommo.analytics.personaStats || {}).map(([name, stats]) => [
-                name,
-                stats.count
-              ])}
-            />
+            <PersonaStats data={personaData} />
           </div>
 
           {/* Purchase Analytics */}
           <PurchaseStats
-            total={data.kommo.analytics.purchaseStats?.reduce((sum, purchase) => sum + purchase.total, 0) || 0}
+            total={totalSales}
             byProduct={[]}
             byPayment={[]}
-            byPersona={Object.entries(data.kommo.analytics.personaStats || {}).map(([name, stats]) => [
+            byPersona={personaData.map(([name, count]) => [
               name,
-              { count: stats.count, value: 0 }
+              { count, value: 0 }
             ])}
           />
         </>
