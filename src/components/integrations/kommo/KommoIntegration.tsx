@@ -35,7 +35,8 @@ export default function KommoIntegration() {
         }
 
         const code = event.data.code;
-        handleAuthCode(code);
+        const state = event.data.state;
+        handleAuthCode(code, state);
       }
 
       if (event.data?.type === 'KOMMO_AUTH_ERROR') {
@@ -52,11 +53,12 @@ export default function KommoIntegration() {
     return () => window.removeEventListener('message', handleMessage);
   }, [authWindow]);
 
-  const handleAuthCode = async (code: string) => {
+  const handleAuthCode = async (code: string, state: string) => {
     try {
       await initiateOAuth({
         accountDomain: KOMMO_DOMAIN,
-        code
+        code,
+        state
       });
       setAuthError(null);
     } catch (err: any) {
