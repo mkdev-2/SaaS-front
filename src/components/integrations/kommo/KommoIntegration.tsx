@@ -9,7 +9,6 @@ import KommoButton from './KommoButton';
 const KOMMO_CONFIG = {
   accountDomain: 'vendaspersonalprime.kommo.com',
   clientId: '6fc1e2d2-0e1d-4549-8efd-1b0b37d0bbb3',
-  clientSecret: 'O4QcVGEURJVwaCwXIa9ZAxAgpelDtgBnrWObukW6SBlTjYKkSCNJklmhVH5tpTVh',
   redirectUri: 'https://saas-backend-production-8b94.up.railway.app/api/kommo/callback'
 };
 
@@ -32,16 +31,24 @@ export default function KommoIntegration() {
     try {
       setAuthError(null);
       
-      // Construct OAuth URL directly
+      // Save initial configuration
+      await initiateOAuth({
+        accountDomain: KOMMO_CONFIG.accountDomain,
+        clientId: KOMMO_CONFIG.clientId,
+        redirectUri: KOMMO_CONFIG.redirectUri
+      });
+
+      // Construct OAuth URL
       const params = new URLSearchParams({
         client_id: KOMMO_CONFIG.clientId,
         redirect_uri: KOMMO_CONFIG.redirectUri,
         response_type: 'code',
-        state: 'test'
+        mode: 'post_message'
       });
 
       const authUrl = `https://${KOMMO_CONFIG.accountDomain}/oauth2/authorize?${params.toString()}`;
 
+      // Open popup for OAuth flow
       const width = 600;
       const height = 600;
       const left = window.screenX + (window.outerWidth - width) / 2;
@@ -57,14 +64,15 @@ export default function KommoIntegration() {
         throw new Error('Failed to open authorization window. Please allow popups for this site.');
       }
 
-      // Add message listener for the popup callback
+      // Handle OAuth callback
       const handleMessage = async (event: MessageEvent) => {
+        if (event.origin !== window.location.origin) return;
+
         if (event.data?.type === 'KOMMO_AUTH_CODE') {
           window.removeEventListener('message', handleMessage);
           popup?.close();
           
           try {
-            // Exchange code for token
             await initiateOAuth({
               ...KOMMO_CONFIG,
               code: event.data.code
@@ -114,11 +122,10 @@ export default function KommoIntegration() {
       <div className="flex items-start justify-between mb-6">
         <div className="flex items-center space-x-3">
           <div className="h-10 w-10 bg-indigo-100 rounded-lg flex items-center justify-center">
-            <img
-              src="https://www.google.com/s2/favicons?domain=kommo.com&sz=64"
-              alt="Kommo"
-              className="h-6 w-6"
-            />
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="text-indigo-600">
+              <path d="M12 2C6.48 2 2 6.48 2 12C2 17.52 6.48 22 12 22C17.52 22 22 17.52 22 12C22 6.48 17.52 2 12 2ZM12 20C7.59 20 4 16.41 4 12C4 7.59 7.59 4 12 4C16.41 4 20 7.59 20 12C20 16.41 16.41 20 12 20Z" fill="currentColor"/>
+              <path d="M12 17C14.7614 17 17 14.7614 17 12C17 9.23858 14.7614 7 12 7C9.23858 7 7 9.23858 7 12C7 14.7614 9.23858 17 12 17Z" fill="currentColor"/>
+            </svg>
           </div>
           <div>
             <h3 className="text-lg font-semibold text-gray-900">Kommo CRM</h3>
