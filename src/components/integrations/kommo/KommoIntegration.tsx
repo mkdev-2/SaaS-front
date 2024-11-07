@@ -9,7 +9,7 @@ import KommoButton from './KommoButton';
 const KOMMO_CONFIG = {
   accountDomain: 'vendaspersonalprime.kommo.com',
   clientId: '6fc1e2d2-0e1d-4549-8efd-1b0b37d0bbb3',
-  redirectUri: 'https://saas-backend-production-8b94.up.railway.app/api/kommo/callback'
+  redirectUri: 'https://saas-backend-production-8b94.up.railway.app/api/integrations/kommo/callback'
 };
 
 export default function KommoIntegration() {
@@ -94,14 +94,13 @@ export default function KommoIntegration() {
       <div className="flex items-start justify-between mb-6">
         <div className="flex items-center space-x-3">
           <div className="h-10 w-10 bg-[#0077FF] rounded-lg flex items-center justify-center">
-            <img
-              src="https://www.kommo.com/static/img/logo-light.svg"
-              alt="Kommo"
-              className="h-6 w-6"
-              onError={(e) => {
-                e.currentTarget.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0iI0ZGRiIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cGF0aCBkPSJNMTIgMkM2LjQ4IDIgMiA2LjQ4IDIgMTJDMiAxNy41MiA2LjQ4IDIyIDEyIDIyQzE3LjUyIDIyIDIyIDE3LjUyIDIyIDEyQzIyIDYuNDggMTcuNTIgMiAxMiAyWk0xMiAyMEM3LjU5IDIwIDQgMTYuNDEgNCAxMkM0IDcuNTkgNy41OSA0IDEyIDRDMTYuNDEgNCAyMCA3LjU5IDIwIDEyQzIwIDE2LjQxIDE2LjQxIDIwIDEyIDIwWiIvPjxwYXRoIGQ9Ik0xMiAxN0MxNC43NjE0IDE3IDE3IDE0Ljc2MTQgMTcgMTJDMTcgOS4yMzg1OCAxNC43NjE0IDcgMTIgN0M5LjIzODU4IDcgNyA5LjIzODU4IDcgMTJDNyAxNC43NjE0IDkuMjM4NTggMTcgMTIgMTdaIi8+PC9zdmc+';
-              }}
-            />
+            <svg 
+              viewBox="0 0 24 24" 
+              className="h-6 w-6 text-white"
+              fill="currentColor"
+            >
+              <path d="M12 2C6.48 2 2 6.48 2 12C2 17.52 6.48 22 12 22C17.52 22 22 17.52 22 12C22 6.48 17.52 2 12 2ZM12 20C7.59 20 4 16.41 4 12C4 7.59 7.59 4 12 4C16.41 4 20 7.59 20 12C20 16.41 16.41 20 12 20ZM12 17C14.76 17 17 14.76 17 12C17 9.24 14.76 7 12 7C9.24 7 7 9.24 7 12C7 14.76 9.24 17 12 17Z"/>
+            </svg>
           </div>
           <div>
             <h3 className="text-lg font-semibold text-gray-900">Kommo CRM</h3>

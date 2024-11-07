@@ -45,20 +45,17 @@ export function useKommoIntegration() {
     try {
       updateState({ isLoading: true, error: null });
       
-      // Get Kommo configuration and status in parallel
-      const [configResponse, statusResponse] = await Promise.all([
-        api.get<ApiResponse<KommoConfig>>('/kommo/config'),
-        api.get<ApiResponse<{ status: string; isConnected: boolean; error?: string }>>('/kommo/status')
-      ]);
+      // Get Kommo configuration
+      const { data: response } = await api.get<ApiResponse<KommoConfig>>('/integrations/kommo/config');
       
-      if (configResponse.data.status === 'success' && configResponse.data.data) {
+      if (response.status === 'success' && response.data) {
         updateState({
-          config: configResponse.data.data,
-          isConnected: statusResponse.data.data?.isConnected ?? false,
-          error: statusResponse.data.data?.error || null
+          config: response.data,
+          isConnected: response.data.isConnected,
+          error: null
         });
 
-        if (statusResponse.data.data?.isConnected) {
+        if (response.data.isConnected) {
           await loadLeads();
         }
       } else {
@@ -84,7 +81,7 @@ export function useKommoIntegration() {
     if (!state.isConnected) return;
 
     try {
-      const { data: response } = await api.get<ApiResponse<KommoLead[]>>('/kommo/leads');
+      const { data: response } = await api.get<ApiResponse<KommoLead[]>>('/integrations/kommo/leads');
       
       if (response.status === 'success' && response.data) {
         updateState({ leads: response.data, error: null });
@@ -107,7 +104,7 @@ export function useKommoIntegration() {
 
       // If we have a code, exchange it for a token
       if (data.code) {
-        const { data: response } = await api.post<ApiResponse<void>>('/kommo/auth/callback', {
+        const { data: response } = await api.post<ApiResponse<void>>('/integrations/kommo/auth/callback', {
           code: data.code,
           accountDomain: data.accountDomain,
           clientId: data.clientId,
@@ -123,7 +120,7 @@ export function useKommoIntegration() {
       }
 
       // Otherwise, just save the initial config
-      const { data: response } = await api.post<ApiResponse<void>>('/kommo/config', {
+      const { data: response } = await api.post<ApiResponse<void>>('/integrations/kommo/config', {
         accountDomain: data.accountDomain,
         clientId: data.clientId,
         redirectUri: data.redirectUri
@@ -146,17 +143,9 @@ export function useKommoIntegration() {
     try {
       updateState({ isLoading: true, error: null });
 
-      // First revoke the Kommo access token
-      const { data: revokeResponse } = await api.post<ApiResponse<void>>('/kommo/auth/revoke');
+      const { data: response } = await api.delete<ApiResponse<void>>('/integrations/kommo/config');
       
-      if (revokeResponse.status !== 'success') {
-        throw new Error(revokeResponse.message || 'Failed to revoke Kommo access');
-      }
-
-      // Then delete the configuration from our database
-      const { data: deleteResponse } = await api.delete<ApiResponse<void>>('/kommo/config');
-      
-      if (deleteResponse.status === 'success') {
+      if (response.status === 'success') {
         updateState({
           isConnected: false,
           config: null,
@@ -164,7 +153,7 @@ export function useKommoIntegration() {
           error: null
         });
       } else {
-        throw new Error(deleteResponse.message || 'Failed to remove configuration');
+        throw new Error(response.message || 'Failed to disconnect');
       }
     } catch (err: any) {
       console.error('Error disconnecting:', err);
