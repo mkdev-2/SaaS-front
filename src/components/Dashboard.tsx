@@ -7,7 +7,6 @@ import PersonaStats from './dashboard/PersonaStats';
 import PurchaseStats from './dashboard/PurchaseStats';
 import PeriodSelector from './dashboard/PeriodSelector';
 
-// Componente de esqueleto para usar enquanto os dados estão carregando
 const Skeleton = ({ className = "" }) => (
   <div className={`animate-pulse bg-gray-200 rounded ${className}`}></div>
 );
@@ -23,7 +22,6 @@ export default function Dashboard() {
     purchases: false,
   });
 
-  // Simular carregamento progressivo
   useEffect(() => {
     if (data) {
       const loadSequence = [
@@ -42,12 +40,11 @@ export default function Dashboard() {
     }
   }, [data]);
 
-  // Extrair dados do período selecionado
   const periodStats = React.useMemo(() => {
     if (!data?.kommo?.analytics?.periodStats) {
       return {
-        totalLeads: ,
-        purchases: ,
+        totalLeads: 0,
+        purchases: 0,
         byVendor: {},
         byPersona: {}
       };
@@ -58,42 +55,40 @@ export default function Dashboard() {
                      'fortnight';
 
     return data.kommo.analytics.periodStats[periodKey] || {
-      totalLeads: ,
-      purchases: ,
+      totalLeads: 0,
+      purchases: 0,
       byVendor: {},
       byPersona: {}
     };
   }, [data, selectedPeriod]);
 
-  // Calcular estatísticas
   const stats = React.useMemo(() => [
     {
       title: "Leads do Período",
-      value: periodStats?.totalLeads || ,
-      previousValue: ,
+      value: periodStats?.totalLeads || 0,
+      previousValue: 0,
       icon: Users
     },
     {
       title: "Vendas Realizadas",
-      value: periodStats?.purchases || ,
-      previousValue: ,
+      value: periodStats?.purchases || 0,
+      previousValue: 0,
       icon: ShoppingBag
     },
     {
       title: "Vendedores Ativos",
       value: Object.keys(data?.kommo?.analytics?.vendorStats || {}).length,
-      previousValue: ,
+      previousValue: 0,
       icon: Users
     },
     {
       title: "Total de Personas",
       value: Object.keys(data?.kommo?.analytics?.personaStats || {}).length,
-      previousValue: ,
+      previousValue: 0,
       icon: Tags
     }
   ], [data, periodStats]);
 
-  // Preparar dados do gráfico
   const chartData = React.useMemo(() => {
     if (!data?.kommo?.analytics?.dailyStats) return [];
 
@@ -101,12 +96,11 @@ export default function Dashboard() {
       .map(([date, stats]) => ({
         date,
         leads: stats.total,
-        value: stats.leads.reduce((sum, lead: any) => sum + (lead.price || ), )
+        value: stats.leads.reduce((sum, lead: any) => sum + (lead.price || 0), 0)
       }))
       .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
   }, [data]);
 
-  // Preparar dados dos vendedores
   const vendorData = React.useMemo(() => {
     if (!data?.kommo?.analytics?.vendorStats) return [];
 
@@ -114,7 +108,6 @@ export default function Dashboard() {
       .map(([name, stats]) => [name, stats.total] as [string, number]);
   }, [data]);
 
-  // Preparar dados das personas
   const personaData = React.useMemo(() => {
     if (!data?.kommo?.analytics?.personaStats) return [];
 
@@ -122,12 +115,11 @@ export default function Dashboard() {
       .map(([name, stats]) => [name, stats.count] as [string, number]);
   }, [data]);
 
-  // Calcular total de vendas
   const totalSales = React.useMemo(() => {
     return data?.kommo?.analytics?.purchaseStats?.reduce(
-      (sum, purchase) => sum + (purchase.total || ),
-      
-    ) || ;
+      (sum, purchase) => sum + (purchase.total || 0),
+      0
+    ) || 0;
   }, [data]);
 
   if (loading) {
@@ -155,7 +147,7 @@ export default function Dashboard() {
       <div className="p-6">
         <div className="bg-red-50 border border-red-200 rounded-lg p-4">
           <div className="flex">
-            <AlertCircle className="h-5 w-5 text-red-400 mt-.5 mr-3" />
+            <AlertCircle className="h-5 w-5 text-red-400 mt-0.5 mr-3" />
             <div>
               <h3 className="text-sm font-medium text-red-800">
                 Erro ao carregar dados
@@ -179,7 +171,7 @@ export default function Dashboard() {
       <div className="p-6">
         <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
           <div className="flex">
-            <AlertCircle className="h-5 w-5 text-yellow-400 mt-.5 mr-3" />
+            <AlertCircle className="h-5 w-5 text-yellow-400 mt-0.5 mr-3" />
             <div>
               <h3 className="text-sm font-medium text-yellow-800">
                 Dados não disponíveis
@@ -210,7 +202,6 @@ export default function Dashboard() {
         <PeriodSelector value={selectedPeriod} onChange={setSelectedPeriod} />
       </div>
 
-      {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {loadedSections.stats
           ? stats.map((stat, index) => (
@@ -218,17 +209,16 @@ export default function Dashboard() {
                 key={index}
                 title={stat.title}
                 value={stat.value.toString()}
-                change={`${((stat.value - (stat.previousValue || )) / (stat.previousValue || 1) * 100).toFixed(1)}%`}
+                change={`${((stat.value - (stat.previousValue || 0)) / (stat.previousValue || 1) * 100).toFixed(1)}%`}
                 icon={stat.icon}
               />
             ))
-          : Array(4).fill().map((_, i) => (
+          : Array(4).fill(null).map((_, i) => (
               <Skeleton key={i} className="h-32" />
             ))
         }
       </div>
 
-      {/* Daily Leads Chart */}
       <div className="bg-white rounded-xl shadow-sm p-6">
         <h2 className="text-lg font-semibold text-gray-900">Tendência de Leads</h2>
         {loadedSections.chart
@@ -238,20 +228,17 @@ export default function Dashboard() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Vendor Performance */}
         {loadedSections.vendors
           ? <VendorStats data={vendorData} />
           : <Skeleton className="h-64" />
         }
 
-        {/* Persona Distribution */}
         {loadedSections.personas
           ? <PersonaStats data={personaData} />
           : <Skeleton className="h-64" />
         }
       </div>
 
-      {/* Purchase Analytics */}
       {loadedSections.purchases
         ? <PurchaseStats
             total={totalSales}
@@ -259,7 +246,7 @@ export default function Dashboard() {
             byPayment={[]}
             byPersona={personaData.map(([name, count]) => [
               name,
-              { count, value:  }
+              { count, value: 0 }
             ])}
           />
         : <Skeleton className="h-64" />
