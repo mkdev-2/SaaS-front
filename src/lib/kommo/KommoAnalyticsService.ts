@@ -3,21 +3,21 @@ import { KommoAnalytics, KommoLead } from './types';
 import { logger } from '../logger';
 
 export class KommoAnalyticsService {
-  constructor(private client: AxiosInstance) {}
+  private client: AxiosInstance;
+
+  constructor(client: AxiosInstance) {
+    this.client = client;
+  }
 
   async getAnalytics(startDate: Date, endDate: Date): Promise<KommoAnalytics> {
     try {
-      const [leads, tags, customFields] = await Promise.all([
+      const [leads, customFields] = await Promise.all([
         this.getLeadsInDateRange(startDate, endDate),
-        this.getTags(),
         this.getCustomFields()
       ]);
 
-      return {
-        dailyLeads: this.analyzeDailyLeads(leads),
-        tags: this.analyzeLeadTags(leads, tags),
-        purchases: await this.analyzePurchases(leads, customFields)
-      };
+      const analytics = this.processLeadsData(leads, customFields);
+      return analytics;
     } catch (error) {
       logger.error('Analytics error:', error);
       throw new Error('Failed to fetch analytics');
@@ -25,134 +25,117 @@ export class KommoAnalyticsService {
   }
 
   private async getLeadsInDateRange(startDate: Date, endDate: Date) {
-    const response = await this.client.get('/leads', {
-      params: {
-        filter: {
-          created_at: {
-            from: Math.floor(startDate.getTime() / 1000),
-            to: Math.floor(endDate.getTime() / 1000)
-          }
-        },
-        with: ['contacts', 'catalog_elements', 'custom_fields_values']
-      }
-    });
-    return response.data._embedded.leads;
-  }
-
-  private async getTags() {
-    const response = await this.client.get('/leads/tags');
-    return response.data._embedded.tags;
+    try {
+      const response = await this.client.get('/leads', {
+        params: {
+          filter: {
+            created_at: {
+              from: Math.floor(startDate.getTime() / 1000),
+              to: Math.floor(endDate.getTime() / 1000)
+            }
+          },
+          with: ['contacts', 'catalog_elements', 'custom_fields_values']
+        }
+      });
+      return response.data._embedded?.leads || [];
+    } catch (error) {
+      logger.error('Error fetching leads:', error);
+      throw error;
+    }
   }
 
   private async getCustomFields() {
-    const response = await this.client.get('/leads/custom_fields');
-    return response.data._embedded.custom_fields;
+    try {
+      const response = await this.client.get('/leads/custom_fields');
+      return response.data._embedded?.custom_fields || [];
+    } catch (error) {
+      logger.error('Error fetching custom fields:', error);
+      throw error;
+    }
   }
 
-  private analyzeDailyLeads(leads: KommoLead[]) {
-    return leads.reduce((acc, lead) => {
-      const date = new Date(lead.created_at * 1000).toISOString().split('T')[0];
-      acc[date] = (acc[date] || 0) + 1;
-      return acc;
-    }, {} as Record<string, number>);
-  }
-
-  private analyzeLeadTags(leads: KommoLead[], tags: any[]) {
-    const tagTypes = {
-      vendedor: new Set(['vendedor', 'responsável', 'atendente']),
-      persona: new Set(['persona', 'perfil', 'tipo-cliente']),
-      origem: new Set(['origem', 'source', 'canal'])
-    };
-
-    const analytics = {
+  private processLeadsData(leads: KommoLead[], customFields: any[]): KommoAnalytics {
+    const dailyLeads: Record<string, number> = {};
+    const tags = {
       vendedor: {} as Record<string, number>,
       persona: {} as Record<string, number>,
       origem: {} as Record<string, number>
     };
+    const purchases: KommoAnalytics['purchases'] = [];
 
     leads.forEach(lead => {
-      if (!lead.tags) return;
+      // Process daily leads
+      const date = new Date(lead.created_at * 1000).toISOString().split('T')[0];
+      dailyLeads[date] = (dailyLeads[date] || 0) + 1;
 
-      lead.tags.forEach(leadTag => {
-        const tag = tags.find(t => t.id === leadTag.id);
-        if (!tag) return;
+      // Process custom fields
+      lead.custom_fields_values?.forEach(field => {
+        const customField = customFields.find(cf => cf.id === field.field_id);
+        if (!customField) return;
 
-        const tagName = tag.name.toLowerCase();
-        Object.entries(tagTypes).forEach(([type, keywords]) => {
-          if ([...keywords].some(keyword => tagName.includes(keyword))) {
-            analytics[type as keyof typeof analytics][tag.name] = 
-              (analytics[type as keyof typeof analytics][tag.name] || 0) + 1;
-          }
-        });
+        const value = field.values[0]?.value;
+        if (!value) return;
+
+        const fieldName = customField.name.toLowerCase();
+        if (fieldName.includes('vendedor')) {
+          tags.vendedor[value] = (tags.vendedor[value] || 0) + 1;
+        } else if (fieldName.includes('persona')) {
+          tags.persona[value] = (tags.persona[value] || 0) + 1;
+        } else if (fieldName.includes('origem')) {
+          tags.origem[value] = (tags.origem[value] || 0) + 1;
+        }
       });
+
+      // Process purchases
+      if (lead.status_id === 142) { // Won/Closed status
+        const persona = this.getLeadPersona(lead, customFields);
+        const products = this.getLeadProducts(lead);
+        const paymentMethod = this.getLeadPaymentMethod(lead, customFields);
+
+        purchases.push({
+          leadId: lead.id,
+          persona,
+          products,
+          paymentMethod,
+          purchaseDate: new Date(lead.closed_at * 1000).toISOString(),
+          totalAmount: products.reduce((sum, product) => sum + (product.price * product.quantity), 0)
+        });
+      }
     });
 
-    return analytics;
+    return { dailyLeads, tags, purchases };
   }
 
-  private async analyzePurchases(leads: KommoLead[], customFields: any[]) {
-    const purchaseStatusId = await this.getPurchaseStatusId();
-    const paymentFieldId = this.findPaymentFieldId(customFields);
+  private getLeadPersona(lead: KommoLead, customFields: any[]): string {
+    const personaField = customFields.find(cf => 
+      cf.name.toLowerCase().includes('persona')
+    );
+    if (!personaField) return 'Não definida';
 
-    return leads
-      .filter(lead => lead.status_id === purchaseStatusId)
-      .map(lead => ({
-        leadId: lead.id,
-        persona: this.getPersonaFromTags(lead.tags),
-        products: this.getProducts(lead),
-        paymentMethod: this.getPaymentMethod(lead, paymentFieldId),
-        purchaseDate: new Date(lead.closed_at * 1000).toISOString(),
-        totalAmount: this.calculateTotalAmount(lead)
-      }));
+    const fieldValue = lead.custom_fields_values?.find(field => 
+      field.field_id === personaField.id
+    );
+    return fieldValue?.values[0]?.value || 'Não definida';
   }
 
-  private async getPurchaseStatusId() {
-    try {
-      const response = await this.client.get('/leads/pipelines');
-      const statuses = response.data._embedded.pipelines[0]._embedded.statuses;
-      return statuses.find((status: any) => 
-        status.name.toLowerCase().includes('ganho') || 
-        status.name.toLowerCase().includes('won'))?.id || null;
-    } catch (error) {
-      logger.error('Error getting purchase status:', error);
-      return null;
-    }
-  }
-
-  private findPaymentFieldId(customFields: any[]) {
-    return customFields.find(field => 
-      field.name.toLowerCase().includes('pagamento') || 
-      field.name.toLowerCase().includes('payment'))?.id;
-  }
-
-  private getPaymentMethod(lead: KommoLead, paymentFieldId: number) {
-    if (!paymentFieldId) return 'Não informado';
-    
-    const paymentField = lead.custom_fields_values?.find(field => 
-      field.field_id === paymentFieldId);
-    
-    return paymentField?.values[0]?.value || 'Não informado';
-  }
-
-  private getPersonaFromTags(tags: any[]) {
-    if (!tags) return 'Não definida';
-    
-    const personaTag = tags.find(tag => 
-      tag.name.toLowerCase().includes('persona'));
-    
-    return personaTag?.name || 'Não definida';
-  }
-
-  private getProducts(lead: KommoLead) {
+  private getLeadProducts(lead: KommoLead): Array<{name: string; price: number; quantity: number}> {
     return lead.catalog_elements?.map(item => ({
       name: item.name,
-      price: parseFloat(item.price),
+      price: parseFloat(item.price || '0'),
       quantity: parseInt(item.quantity || '1', 10)
     })) || [];
   }
 
-  private calculateTotalAmount(lead: KommoLead) {
-    const products = this.getProducts(lead);
-    return products.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+  private getLeadPaymentMethod(lead: KommoLead, customFields: any[]): string {
+    const paymentField = customFields.find(cf => 
+      cf.name.toLowerCase().includes('pagamento') || 
+      cf.name.toLowerCase().includes('payment')
+    );
+    if (!paymentField) return 'Não informado';
+
+    const fieldValue = lead.custom_fields_values?.find(field => 
+      field.field_id === paymentField.id
+    );
+    return fieldValue?.values[0]?.value || 'Não informado';
   }
 }

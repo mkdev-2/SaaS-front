@@ -48,7 +48,7 @@ export interface DashboardData {
         week: PeriodStats;
         fortnight: PeriodStats;
       };
-    };
+    } | null;
   };
   recentRules: any[];
 }
@@ -70,7 +70,6 @@ export function useDashboardData() {
   const isMounted = useRef(true);
   const lastFetchTime = useRef<number>(0);
   const pollTimeoutRef = useRef<NodeJS.Timeout>();
-  const initialFetchDone = useRef(false);
 
   const fetchDashboardData = useCallback(async (force = false) => {
     if (!isAuthenticated || !user) {
@@ -99,17 +98,12 @@ export function useDashboardData() {
     } catch (err: any) {
       if (!isMounted.current) return;
       console.error('Dashboard fetch error:', err);
-      
       setError(err.message || 'Failed to connect to the server');
-      
-      if (err.response?.status === 401) {
-        setData(null);
-      }
+      setData(null);
     } finally {
       if (isMounted.current) {
         setLoading(false);
         lastFetchTime.current = Date.now();
-        initialFetchDone.current = true;
       }
     }
   }, [isAuthenticated, user]);
@@ -122,10 +116,7 @@ export function useDashboardData() {
       return;
     }
 
-    if (!initialFetchDone.current) {
-      fetchDashboardData(true);
-    }
-
+    fetchDashboardData(true);
     socketService.connect();
 
     const unsubscribeConnection = socketService.onConnectionChange((status) => {
@@ -138,12 +129,15 @@ export function useDashboardData() {
 
     const unsubscribeUpdates = socketService.onDashboardUpdate((newData) => {
       if (!isMounted.current) return;
-      setData(newData);
+      setData(prevData => ({
+        ...prevData,
+        ...newData
+      }));
       setError(null);
       lastFetchTime.current = Date.now();
     });
 
-    if (!isConnected && initialFetchDone.current) {
+    if (!isConnected) {
       pollTimeoutRef.current = setTimeout(() => {
         if (isMounted.current && !isConnected) {
           fetchDashboardData();
@@ -152,23 +146,15 @@ export function useDashboardData() {
     }
 
     return () => {
+      isMounted.current = false;
       if (pollTimeoutRef.current) {
         clearTimeout(pollTimeoutRef.current);
       }
       unsubscribeConnection();
       unsubscribeUpdates();
-    };
-  }, [fetchDashboardData, isConnected, isAuthenticated, user]);
-
-  useEffect(() => {
-    return () => {
-      isMounted.current = false;
-      if (pollTimeoutRef.current) {
-        clearTimeout(pollTimeoutRef.current);
-      }
       socketService.disconnect();
     };
-  }, []);
+  }, [fetchDashboardData, isConnected, isAuthenticated, user]);
 
   const refresh = useCallback(() => {
     if (Date.now() - lastFetchTime.current >= 5000) {
