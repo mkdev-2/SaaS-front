@@ -28,76 +28,42 @@ export default function KommoTestingPage() {
       // First test - Configuration
       const configResult: TestResult = {
         name: 'Configuration Check',
-        status: 'success',
-        message: 'Configuration is valid and token is present',
+        status: config ? 'success' : 'error',
+        message: config 
+          ? 'Configuration is valid and token is present'
+          : 'Configuration is missing or invalid',
         duration: 0,
         details: {
-          accountDomain: config?.accountDomain,
-          hasClientId: !!config?.clientId,
+          accountDomain: config?.accountDomain || 'Not configured',
+          clientId: config?.clientId || 'Not configured',
           isConnected: isConnected,
-          lastConnected: config?.connectedAt || 'Never'
+          lastConnected: config?.connectedAt 
+            ? new Date(config.connectedAt).toLocaleString()
+            : 'Never'
         }
       };
 
-      // Second test - API Connection
-      let connectionResult: TestResult;
-      try {
-        const startTime = Date.now();
-        const { data: response } = await api.get('/kommo/verify');
-        const duration = Date.now() - startTime;
-
-        connectionResult = {
-          name: 'API Connection',
-          status: response.status === 'success' ? 'success' : 'error',
-          message: response.status === 'success' 
-            ? 'Successfully verified Kommo API connection'
-            : response.message || 'Failed to verify connection',
-          duration,
-          details: {
-            responseTime: duration,
-            status: response.status,
-            data: response.data
-          }
-        };
-      } catch (error: any) {
-        connectionResult = {
-          name: 'API Connection',
-          status: 'error',
-          message: error.response?.data?.message || 'Failed to verify Kommo API connection',
-          duration: 0,
-          details: {
-            error: error.message,
-            status: error.response?.status,
-            data: error.response?.data
-          }
-        };
-      }
-
-      // Third test - Today's Leads
+      // Second test - Today's Leads
       let leadsResult: TestResult;
       try {
         const today = new Date();
         today.setHours(0, 0, 0, 0);
 
         const startTime = Date.now();
-        const { data: response } = await api.get('/kommo/leads', {
-          params: {
-            created_at_from: Math.floor(today.getTime() / 1000)
-          }
-        });
+        const { data: response } = await api.get('/kommo/leads/today');
         const duration = Date.now() - startTime;
-
-        const leads = response.data || [];
 
         leadsResult = {
           name: "Today's Leads",
-          status: 'success',
-          message: `Found ${leads.length} leads created today`,
+          status: response.status === 'success' ? 'success' : 'error',
+          message: response.status === 'success'
+            ? `Found ${response.data?.length || 0} leads created today`
+            : response.message || 'Failed to fetch leads',
           duration,
           details: {
             responseTime: duration,
-            count: leads.length,
-            leads: Array.isArray(leads) ? leads.map(lead => ({
+            count: response.data?.length || 0,
+            leads: Array.isArray(response.data) ? response.data.map(lead => ({
               id: lead.id,
               name: lead.name,
               created_at: new Date(lead.created_at * 1000).toLocaleString(),
@@ -120,7 +86,7 @@ export default function KommoTestingPage() {
         };
       }
 
-      // Fourth test - Integration Status
+      // Third test - Integration Status
       let integrationResult: TestResult;
       try {
         const startTime = Date.now();
@@ -156,10 +122,44 @@ export default function KommoTestingPage() {
         };
       }
 
+      // Fourth test - API Health Check
+      let healthResult: TestResult;
+      try {
+        const startTime = Date.now();
+        const { data: response } = await api.get('/kommo/health');
+        const duration = Date.now() - startTime;
+
+        healthResult = {
+          name: 'API Health Check',
+          status: response.status === 'success' ? 'success' : 'error',
+          message: response.status === 'success'
+            ? 'API is healthy and responding'
+            : response.message || 'API health check failed',
+          duration,
+          details: {
+            responseTime: duration,
+            status: response.status,
+            data: response.data
+          }
+        };
+      } catch (error: any) {
+        healthResult = {
+          name: 'API Health Check',
+          status: 'error',
+          message: error.response?.data?.message || 'API health check failed',
+          duration: 0,
+          details: {
+            error: error.message,
+            status: error.response?.status,
+            data: error.response?.data
+          }
+        };
+      }
+
       const totalDuration = Date.now() - startTime;
       configResult.duration = totalDuration;
 
-      setResults([configResult, connectionResult, leadsResult, integrationResult]);
+      setResults([configResult, healthResult, leadsResult, integrationResult]);
     } catch (error: any) {
       console.error('Test execution error:', error);
       setResults([{
@@ -236,7 +236,7 @@ export default function KommoTestingPage() {
           </div>
           <div>
             <p className="text-sm text-gray-500">Client ID</p>
-            <p className="font-mono text-sm">{config.clientId}</p>
+            <p className="font-mono text-sm">{config.clientId || 'Not configured'}</p>
           </div>
           <div>
             <p className="text-sm text-gray-500">Connection Status</p>
