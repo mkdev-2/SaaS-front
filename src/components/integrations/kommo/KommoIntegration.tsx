@@ -6,11 +6,10 @@ import KommoLeadsList from './KommoLeadsList';
 import KommoConnectionStatus from './KommoConnectionStatus';
 import KommoButton from './KommoButton';
 
-// Configuração do Kommo - deve corresponder exatamente ao registrado no Kommo
+// Configuração do Kommo - apenas informações não sensíveis
 const KOMMO_CONFIG = {
   accountDomain: 'vendaspersonalprime.kommo.com',
   clientId: '6fc1e2d2-0e1d-4549-8efd-1b0b37d0bbb3',
-  clientSecret: 'O4QcVGEURJVwaCwXIa9ZAxAgpelDtgBnrWObukW6SBlTjYKkSCNJklmhVH5tpTVh',
   redirectUri: 'https://saas-backend-production-8b94.up.railway.app/api/integrations/kommo/callback'
 };
 
@@ -102,6 +101,7 @@ export default function KommoIntegration() {
       <div className="bg-white rounded-xl shadow-sm p-6">
         <div className="flex items-center justify-center h-48">
           <RefreshCw className="w-6 h-6 animate-spin text-gray-400" />
+          <span>Carregando...</span>
         </div>
       </div>
     );
@@ -109,49 +109,23 @@ export default function KommoIntegration() {
 
   return (
     <div className="bg-white rounded-xl shadow-sm p-6">
-      <div className="flex items-start justify-between mb-6">
-        <div className="flex items-center space-x-3">
-          <div className="h-10 w-10 bg-[#0077FF] rounded-lg flex items-center justify-center">
-            <svg 
-              viewBox="0 0 24 24" 
-              className="h-6 w-6 text-white"
-              fill="currentColor"
-            >
-              <path d="M12 2C6.48 2 2 6.48 2 12C2 17.52 6.48 22 12 22C17.52 22 22 17.52 22 12C22 6.48 17.52 2 12 2ZM12 20C7.59 20 4 16.41 4 12C4 7.59 7.59 4 12 4C16.41 4 20 7.59 20 12C20 16.41 16.41 20 12 20ZM12 17C14.76 17 17 14.76 17 12C17 9.24 14.76 7 12 7C9.24 7 7 9.24 7 12C7 14.76 9.24 17 12 17Z"/>
-            </svg>
-          </div>
-          <div>
-            <h3 className="text-lg font-semibold text-gray-900">Kommo CRM</h3>
-            <p className="text-sm text-gray-500">Conecte sua conta do Kommo CRM</p>
-          </div>
-        </div>
-      </div>
-
-      <KommoConnectionStatus
-        isConnected={isConnected}
-        config={config}
-        error={authError || error}
-      />
-
-      {!isConnected && (
-        <KommoButton 
-          onClick={handleKommoAuth}
-          disabled={isLoading}
-          isLoading={isLoading}
-        />
-      )}
-
-      {isConnected && (
-        <button
-          onClick={handleDisconnect}
-          className="mt-4 w-full px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-red-600 bg-red-50 hover:bg-red-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
-        >
-          Desconectar
-        </button>
-      )}
-
-      {isConnected && leads?.length > 0 && (
-        <KommoLeadsList leads={leads} onRefresh={refresh} />
+      {authError && <p className="text-red-500">{authError}</p>}
+      {isConnected ? (
+        <>
+          <KommoConnectionStatus status="Conectado ao Kommo" />
+          <KommoLeadsList leads={leads} />
+          <button onClick={refresh} className="bg-blue-500 text-white py-2 px-4 rounded mt-4">
+            Atualizar Leads
+          </button>
+          <button onClick={handleDisconnect} className="bg-red-500 text-white py-2 px-4 rounded mt-4">
+            Desconectar
+          </button>
+        </>
+      ) : (
+        <>
+          <KommoConnectionStatus status="Não conectado" />
+          <KommoButton onClick={handleKommoAuth}>Conectar ao Kommo</KommoButton>
+        </>
       )}
     </div>
   );

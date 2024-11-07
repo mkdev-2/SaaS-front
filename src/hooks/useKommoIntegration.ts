@@ -15,7 +15,6 @@ interface KommoState {
 interface InitiateOAuthData {
   accountDomain: string;
   clientId: string;
-  clientSecret: string;
   redirectUri: string;
   code?: string;
 }
@@ -105,7 +104,6 @@ export function useKommoIntegration() {
           code: data.code,
           accountDomain: data.accountDomain,
           clientId: data.clientId,
-          clientSecret: data.clientSecret,
           redirectUri: data.redirectUri
         });
 
@@ -121,7 +119,6 @@ export function useKommoIntegration() {
       const { data: response } = await api.post<ApiResponse<void>>('/integrations/kommo/config', {
         accountDomain: data.accountDomain,
         clientId: data.clientId,
-        clientSecret: data.clientSecret,
         redirectUri: data.redirectUri
       });
 
