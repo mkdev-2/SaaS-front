@@ -1,20 +1,15 @@
-import axios, { AxiosError } from 'axios';
+import axios from 'axios';
 import { ApiResponse } from '../types/api';
 import useAuthStore from '../store/authStore';
 
 const api = axios.create({
-  baseURL: 'https://saas-backend-production-8b94.up.railway.app/api',
+  baseURL: 'https://saas-backend-production-8b94.up.railway.app/api/integrations',
   headers: {
     'Content-Type': 'application/json',
   },
   withCredentials: false,
   timeout: 30000,
 });
-
-// Add default headers for CORS
-api.defaults.headers.common['Access-Control-Allow-Origin'] = 'https://personalprime.netlify.app';
-api.defaults.headers.common['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS';
-api.defaults.headers.common['Access-Control-Allow-Headers'] = 'Content-Type, Authorization';
 
 api.interceptors.request.use(
   (config) => {
@@ -40,10 +35,7 @@ api.interceptors.response.use(
     }
     return response;
   },
-  async (error: AxiosError<ApiResponse<any>>) => {
-    const status = error.response?.status;
-    const errorResponse = error.response?.data;
-    
+  async (error) => {
     if (!error.response) {
       return Promise.reject({
         ...error,
@@ -57,7 +49,7 @@ api.interceptors.response.use(
       });
     }
 
-    if (status === 401) {
+    if (error.response?.status === 401) {
       if (!error.config?.url?.includes('/kommo/')) {
         localStorage.removeItem('auth_token');
         useAuthStore.getState().logout(false);
@@ -76,7 +68,7 @@ api.interceptors.response.use(
       });
     }
 
-    if (status === 429) {
+    if (error.response?.status === 429) {
       return Promise.reject({
         ...error,
         response: {
@@ -90,9 +82,9 @@ api.interceptors.response.use(
       });
     }
 
-    if (status === 400 && errorResponse?.errors) {
-      const errors = Array.isArray(errorResponse.errors) 
-        ? errorResponse.errors 
+    if (error.response?.status === 400 && error.response?.data?.errors) {
+      const errors = Array.isArray(error.response.data.errors) 
+        ? error.response.data.errors 
         : [{ message: 'Validation failed' }];
 
       return Promise.reject({
@@ -109,16 +101,16 @@ api.interceptors.response.use(
       });
     }
 
-    if (errorResponse) {
+    if (error.response?.data) {
       return Promise.reject({
         ...error,
         response: {
           ...error.response,
           data: {
             status: 'error',
-            message: errorResponse.message || 'An unexpected error occurred',
-            code: errorResponse.code || 'UNKNOWN_ERROR',
-            errors: errorResponse.errors,
+            message: error.response.data.message || 'An unexpected error occurred',
+            code: error.response.data.code || 'UNKNOWN_ERROR',
+            errors: error.response.data.errors,
           },
         },
       });
