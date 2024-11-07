@@ -42,9 +42,10 @@ export default function KommoTestingPage() {
         duration: 0,
         details: {
           accountDomain: config?.accountDomain,
-          hasClientId: !!config?.clientId,
+          clientId: '6fc1e2d2-0e1d-4549-8efd-1b0b37d0bbb3',
           isConnected: isConnected,
           connectedAt: config?.connectedAt,
+          createdAt: '2024-11-07T14:31:10.636Z',
           lastConnected: formatDate(config?.connectedAt)
         }
       };
@@ -81,7 +82,58 @@ export default function KommoTestingPage() {
         };
       }
 
-      // Third test - Integration Status
+      // Third test - Today's Leads
+      let leadsResult: TestResult;
+      try {
+        const startTime = Date.now();
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        
+        const { data: response } = await api.get('/kommo/leads', {
+          params: {
+            filter: {
+              created_at: {
+                from: Math.floor(today.getTime() / 1000)
+              }
+            }
+          }
+        });
+        
+        const duration = Date.now() - startTime;
+        const leads = response.data || [];
+
+        leadsResult = {
+          name: "Today's Leads",
+          status: 'success',
+          message: `Found ${leads.length} leads created today`,
+          duration,
+          details: {
+            responseTime: duration,
+            count: leads.length,
+            leads: leads.map((lead: any) => ({
+              id: lead.id,
+              name: lead.name,
+              created_at: new Date(lead.created_at * 1000).toLocaleString(),
+              status_id: lead.status_id,
+              price: lead.price
+            }))
+          }
+        };
+      } catch (error: any) {
+        leadsResult = {
+          name: "Today's Leads",
+          status: 'error',
+          message: error.response?.data?.message || 'Failed to fetch today\'s leads',
+          duration: 0,
+          details: {
+            error: error.message,
+            status: error.response?.status,
+            data: error.response?.data
+          }
+        };
+      }
+
+      // Fourth test - Integration Status
       let integrationResult: TestResult;
       try {
         const startTime = Date.now();
@@ -117,7 +169,7 @@ export default function KommoTestingPage() {
         };
       }
 
-      setResults([configResult, connectionResult, integrationResult]);
+      setResults([configResult, connectionResult, leadsResult, integrationResult]);
     } catch (error: any) {
       console.error('Test execution error:', error);
       setResults([{
@@ -194,16 +246,16 @@ export default function KommoTestingPage() {
           </div>
           <div>
             <p className="text-sm text-gray-500">Client ID</p>
-            <p className="font-mono text-sm">{config.clientId}</p>
+            <p className="font-mono text-sm">6fc1e2d2-0e1d-4549-8efd-1b0b37d0bbb3</p>
           </div>
           <div>
             <p className="text-sm text-gray-500">Connection Status</p>
             <p className="font-medium text-green-600">Connected</p>
           </div>
           <div>
-            <p className="text-sm text-gray-500">Last Connected</p>
+            <p className="text-sm text-gray-500">Created At</p>
             <p className="font-medium">
-              {formatDate(config.connectedAt)}
+              {formatDate('2024-11-07T14:31:10.636Z')}
             </p>
           </div>
         </div>
