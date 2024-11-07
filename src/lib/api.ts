@@ -3,11 +3,11 @@ import { ApiResponse } from '../types/api';
 import useAuthStore from '../store/authStore';
 
 const api = axios.create({
-  baseURL: 'https://saas-backend-production-8b94.up.railway.app/api/integrations',
+  baseURL: 'https://saas-backend-production-8b94.up.railway.app/api',
   headers: {
     'Content-Type': 'application/json',
   },
-  withCredentials: true,
+  withCredentials: false, // Changed to false since we're using Bearer token
   timeout: 30000,
 });
 

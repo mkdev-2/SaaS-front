@@ -9,7 +9,7 @@ import KommoButton from './KommoButton';
 const KOMMO_CONFIG = {
   accountDomain: 'vendaspersonalprime.kommo.com',
   clientId: '6fc1e2d2-0e1d-4549-8efd-1b0b37d0bbb3',
-  redirectUri: 'https://saas-backend-production-8b94.up.railway.app/api/integrations/kommo/callback'
+  redirectUri: 'https://saas-backend-production-8b94.up.railway.app/api/kommo/callback'
 };
 
 export default function KommoIntegration() {
