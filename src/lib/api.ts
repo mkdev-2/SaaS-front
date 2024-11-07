@@ -3,7 +3,7 @@ import useAuthStore from '../store/authStore';
 import { ApiResponse } from '../types/api';
 
 const api = axios.create({
-  baseURL: 'https://saas-backend-production-8b94.up.railway.app/api/integrations',
+  baseURL: 'https://saas-backend-production-8b94.up.railway.app/api',
   headers: {
     'Content-Type': 'application/json',
   },
@@ -42,7 +42,7 @@ api.interceptors.response.use(
         response: {
           data: {
             status: 'error',
-            message: 'Network error. Please check your connection.',
+            message: 'Erro de conexão. Verifique sua internet.',
             code: 'NETWORK_ERROR',
           },
         },
@@ -61,7 +61,7 @@ api.interceptors.response.use(
           ...error.response,
           data: {
             status: 'error',
-            message: 'Session expired. Please login again.',
+            message: 'Sessão expirada. Por favor, faça login novamente.',
             code: 'AUTH_ERROR',
           },
         },
@@ -75,7 +75,7 @@ api.interceptors.response.use(
           ...error.response,
           data: {
             status: 'error',
-            message: 'Too many requests. Please try again later.',
+            message: 'Muitas requisições. Tente novamente em alguns minutos.',
             code: 'RATE_LIMIT_ERROR',
           },
         },
@@ -85,7 +85,7 @@ api.interceptors.response.use(
     if (error.response?.status === 400 && error.response?.data?.errors) {
       const errors = Array.isArray(error.response.data.errors) 
         ? error.response.data.errors 
-        : [{ message: 'Validation failed' }];
+        : [{ message: 'Validação falhou' }];
 
       return Promise.reject({
         ...error,
@@ -93,7 +93,7 @@ api.interceptors.response.use(
           ...error.response,
           data: {
             status: 'error',
-            message: 'Validation error',
+            message: 'Erro de validação',
             code: 'VALIDATION_ERROR',
             errors: errors,
           },
@@ -108,7 +108,7 @@ api.interceptors.response.use(
           ...error.response,
           data: {
             status: 'error',
-            message: error.response.data.message || 'An unexpected error occurred',
+            message: error.response.data.message || 'Ocorreu um erro inesperado',
             code: error.response.data.code || 'UNKNOWN_ERROR',
             errors: error.response.data.errors,
           },
@@ -122,7 +122,7 @@ api.interceptors.response.use(
         ...error.response,
         data: {
           status: 'error',
-          message: 'An unexpected error occurred',
+          message: 'Ocorreu um erro inesperado',
           code: 'UNKNOWN_ERROR',
         },
       },

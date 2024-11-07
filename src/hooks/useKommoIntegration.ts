@@ -15,7 +15,7 @@ interface KommoState {
 interface InitiateOAuthData {
   accountDomain: string;
   clientId: string;
-  clientSecret?: string;
+  clientSecret: string;
   redirectUri: string;
   code?: string;
 }
@@ -45,7 +45,6 @@ export function useKommoIntegration() {
     try {
       updateState({ isLoading: true, error: null });
       
-      // Get Kommo configuration
       const { data: response } = await api.get<ApiResponse<KommoConfig>>('/kommo/config');
       
       if (response.status === 'success' && response.data) {
@@ -66,11 +65,10 @@ export function useKommoIntegration() {
         });
       }
     } catch (err: any) {
-      console.error('Error loading Kommo config:', err);
       updateState({
         isConnected: false,
         config: null,
-        error: err.response?.status !== 404 ? (err.response?.data?.message || 'Failed to load configuration') : null
+        error: err.response?.status !== 404 ? (err.response?.data?.message || 'Falha ao carregar configuração') : null
       });
     } finally {
       updateState({ isLoading: false });
@@ -87,51 +85,62 @@ export function useKommoIntegration() {
         updateState({ leads: response.data, error: null });
       }
     } catch (err: any) {
-      console.error('Error loading leads:', err);
       updateState({
-        error: err.response?.data?.message || 'Failed to load leads'
+        error: err.response?.data?.message || 'Falha ao carregar leads'
       });
     }
   };
 
   const initiateOAuth = async (data: InitiateOAuthData) => {
     if (!user) {
-      throw new Error('You must be logged in to connect');
+      throw new Error('Você precisa estar logado para conectar');
     }
 
     try {
       updateState({ isLoading: true, error: null });
 
-      // If we have a code, exchange it for a token
+      // Se temos um código, trocar por token
       if (data.code) {
         const { data: response } = await api.post<ApiResponse<void>>('/kommo/auth/callback', {
           code: data.code,
           accountDomain: data.accountDomain,
           clientId: data.clientId,
+          clientSecret: data.clientSecret,
           redirectUri: data.redirectUri
         });
 
         if (response.status !== 'success') {
-          throw new Error(response.message || 'Failed to exchange code for token');
+          throw new Error(response.message || 'Falha ao trocar código por token');
         }
 
         await loadConfig();
         return;
       }
 
-      // Otherwise, just save the initial config
+      // Salvar configuração inicial
       const { data: response } = await api.post<ApiResponse<void>>('/kommo/config', {
         accountDomain: data.accountDomain,
         clientId: data.clientId,
+        clientSecret: data.clientSecret,
         redirectUri: data.redirectUri
       });
 
       if (response.status !== 'success') {
-        throw new Error(response.message || 'Failed to save configuration');
+        throw new Error(response.message || 'Falha ao salvar configuração');
       }
+
+      return true;
     } catch (err: any) {
-      console.error('OAuth error:', err);
-      throw err;
+      console.error('Erro OAuth:', err);
+      
+      if (err.response?.data?.errors) {
+        const errorMessages = err.response.data.errors
+          .map((error: any) => error.message)
+          .join(', ');
+        throw new Error(`Erro de validação: ${errorMessages}`);
+      }
+      
+      throw new Error(err.response?.data?.message || 'Falha ao conectar ao Kommo');
     } finally {
       updateState({ isLoading: false });
     }
@@ -153,12 +162,12 @@ export function useKommoIntegration() {
           error: null
         });
       } else {
-        throw new Error(response.message || 'Failed to disconnect');
+        throw new Error(response.message || 'Falha ao desconectar');
       }
     } catch (err: any) {
-      console.error('Error disconnecting:', err);
+      console.error('Erro ao desconectar:', err);
       updateState({
-        error: err.response?.data?.message || 'Failed to disconnect'
+        error: err.response?.data?.message || 'Falha ao desconectar'
       });
       throw err;
     } finally {
