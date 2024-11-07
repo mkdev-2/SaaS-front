@@ -30,67 +30,17 @@ export default function KommoIntegration() {
   const handleKommoAuth = async () => {
     try {
       setAuthError(null);
-      
-      // Save initial configuration
-      await initiateOAuth({
-        accountDomain: KOMMO_CONFIG.accountDomain,
-        clientId: KOMMO_CONFIG.clientId,
-        redirectUri: KOMMO_CONFIG.redirectUri
-      });
 
       // Construct OAuth URL
       const params = new URLSearchParams({
         client_id: KOMMO_CONFIG.clientId,
         redirect_uri: KOMMO_CONFIG.redirectUri,
         response_type: 'code',
-        mode: 'post_message'
+        state: 'initial_auth'
       });
 
-      const authUrl = `https://${KOMMO_CONFIG.accountDomain}/oauth2/authorize?${params.toString()}`;
-
-      // Open popup for OAuth flow
-      const width = 600;
-      const height = 600;
-      const left = window.screenX + (window.outerWidth - width) / 2;
-      const top = window.screenY + (window.outerHeight - height) / 2;
-
-      const popup = window.open(
-        authUrl,
-        'Kommo Authorization',
-        `width=${width},height=${height},left=${left},top=${top}`
-      );
-
-      if (!popup) {
-        throw new Error('Failed to open authorization window. Please allow popups for this site.');
-      }
-
-      // Handle OAuth callback
-      const handleMessage = async (event: MessageEvent) => {
-        if (event.origin !== window.location.origin) return;
-
-        if (event.data?.type === 'KOMMO_AUTH_CODE') {
-          window.removeEventListener('message', handleMessage);
-          popup?.close();
-          
-          try {
-            await initiateOAuth({
-              ...KOMMO_CONFIG,
-              code: event.data.code
-            });
-            
-            await refresh();
-            navigate('/integrations');
-          } catch (err: any) {
-            setAuthError(err.message || 'Failed to complete authentication');
-          }
-        } else if (event.data?.type === 'KOMMO_AUTH_ERROR') {
-          window.removeEventListener('message', handleMessage);
-          popup?.close();
-          setAuthError('Authentication failed. Please try again.');
-        }
-      };
-
-      window.addEventListener('message', handleMessage);
+      // Redirect to Kommo OAuth page
+      window.location.href = `https://${KOMMO_CONFIG.accountDomain}/oauth2/authorize?${params.toString()}`;
     } catch (err: any) {
       console.error('OAuth error:', err);
       setAuthError(err.message || 'Failed to initiate authentication');
@@ -122,10 +72,14 @@ export default function KommoIntegration() {
       <div className="flex items-start justify-between mb-6">
         <div className="flex items-center space-x-3">
           <div className="h-10 w-10 bg-indigo-100 rounded-lg flex items-center justify-center">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="text-indigo-600">
-              <path d="M12 2C6.48 2 2 6.48 2 12C2 17.52 6.48 22 12 22C17.52 22 22 17.52 22 12C22 6.48 17.52 2 12 2ZM12 20C7.59 20 4 16.41 4 12C4 7.59 7.59 4 12 4C16.41 4 20 7.59 20 12C20 16.41 16.41 20 12 20Z" fill="currentColor"/>
-              <path d="M12 17C14.7614 17 17 14.7614 17 12C17 9.23858 14.7614 7 12 7C9.23858 7 7 9.23858 7 12C7 14.7614 9.23858 17 12 17Z" fill="currentColor"/>
-            </svg>
+            <img
+              src="https://www.kommo.com/static/img/logo.svg"
+              alt="Kommo"
+              className="h-6 w-6"
+              onError={(e) => {
+                e.currentTarget.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cGF0aCBkPSJNMTIgMkM2LjQ4IDIgMiA2LjQ4IDIgMTJDMiAxNy41MiA2LjQ4IDIyIDEyIDIyQzE3LjUyIDIyIDIyIDE3LjUyIDIyIDEyQzIyIDYuNDggMTcuNTIgMiAxMiAyWk0xMiAyMEM3LjU5IDIwIDQgMTYuNDEgNCAxMkM0IDcuNTkgNy41OSA0IDEyIDRDMTYuNDEgNCAyMCA3LjU5IDIwIDEyQzIwIDE2LjQxIDE2LjQxIDIwIDEyIDIwWiIgZmlsbD0iY3VycmVudENvbG9yIi8+PHBhdGggZD0iTTEyIDE3QzE0Ljc2MTQgMTcgMTcgMTQuNzYxNCAxNyAxMkMxNyA5LjIzODU4IDE0Ljc2MTQgNyAxMiA3QzkuMjM4NTggNyA3IDkuMjM4NTggNyAxMkM3IDE0Ljc2MTQgOS4yMzg1OCAxNyAxMiAxN1oiIGZpbGw9ImN1cnJlbnRDb2xvciIvPjwvc3ZnPg==';
+              }}
+            />
           </div>
           <div>
             <h3 className="text-lg font-semibold text-gray-900">Kommo CRM</h3>
