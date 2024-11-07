@@ -8,6 +8,7 @@ import IntegrationsPage from './components/integrations/IntegrationsPage';
 import WorkflowsPage from './components/workflows/WorkflowsPage';
 import KommoTestingPage from './components/testing/KommoTestingPage';
 import KommoConnectionResult from './components/integrations/kommo/KommoConnectionResult';
+import KommoCallback from './components/integrations/kommo/KommoCallback';
 import Navbar from './components/Navbar';
 import Sidebar from './components/Sidebar';
 import useAuthStore from './store/authStore';
@@ -18,7 +19,6 @@ function AuthWrapper({ children }: { children: React.ReactNode }) {
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Only redirect from auth pages to dashboard if authenticated
     if (isAuthenticated && ['/login', '/register'].includes(location.pathname)) {
       navigate('/dashboard');
     }
@@ -58,6 +58,7 @@ export default function App() {
           {/* Public routes */}
           <Route path="/login" element={<LoginForm />} />
           <Route path="/register" element={<RegisterForm />} />
+          <Route path="/kommo/callback" element={<KommoCallback />} />
 
           {/* Protected routes */}
           <Route path="/dashboard" element={

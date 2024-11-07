@@ -26,7 +26,6 @@ export default function KommoIntegration() {
 
   useEffect(() => {
     function handleMessage(event: MessageEvent) {
-      // Verificar origem da mensagem
       if (event.origin !== window.location.origin) return;
 
       if (event.data?.type === 'KOMMO_AUTH_CODE') {
@@ -45,7 +44,7 @@ export default function KommoIntegration() {
           setAuthWindow(null);
         }
 
-        setAuthError('Falha na autenticação: ' + event.data.error);
+        setAuthError('Authentication failed: ' + event.data.error);
       }
     }
 
@@ -61,8 +60,8 @@ export default function KommoIntegration() {
       });
       setAuthError(null);
     } catch (err: any) {
-      console.error('Erro ao processar código de autenticação:', err);
-      setAuthError(err.message || 'Falha ao completar autenticação');
+      console.error('Error processing authentication code:', err);
+      setAuthError(err.message || 'Failed to complete authentication');
     }
   };
 
@@ -70,35 +69,45 @@ export default function KommoIntegration() {
     try {
       setAuthError(null);
 
-      // Iniciar processo de autenticação
       const response = await initiateOAuth({
         accountDomain: KOMMO_DOMAIN
       });
 
       if (!response?.authUrl) {
-        throw new Error('URL de autenticação não fornecida');
+        throw new Error('Authentication URL not provided');
       }
 
-      // Abrir janela de autenticação
-      const width = 600;
+      // Open authentication window with correct parameters
+      const width = 800;
       const height = 600;
       const left = window.screenX + (window.outerWidth - width) / 2;
       const top = window.screenY + (window.outerHeight - height) / 2;
 
-      const authWindow = window.open(
+      const newAuthWindow = window.open(
         response.authUrl,
         'KommoAuth',
-        `width=${width},height=${height},left=${left},top=${top}`
+        `width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=yes,status=yes,location=yes`
       );
 
-      if (!authWindow) {
-        throw new Error('Não foi possível abrir a janela de autenticação. Por favor, permita popups para este site.');
+      if (!newAuthWindow) {
+        throw new Error('Could not open authentication window. Please allow popups for this site.');
       }
 
-      setAuthWindow(authWindow);
+      setAuthWindow(newAuthWindow);
+
+      // Monitor window close
+      const checkWindow = setInterval(() => {
+        if (newAuthWindow.closed) {
+          clearInterval(checkWindow);
+          setAuthWindow(null);
+          // Check if we need to refresh the config
+          refresh();
+        }
+      }, 500);
+
     } catch (err: any) {
-      console.error('Erro ao iniciar autenticação:', err);
-      setAuthError(err.message || 'Ocorreu um erro inesperado');
+      console.error('Error initiating authentication:', err);
+      setAuthError(err.message || 'Failed to initiate authentication');
     }
   };
 
@@ -107,8 +116,8 @@ export default function KommoIntegration() {
       await disconnect();
       navigate('/integrations');
     } catch (err: any) {
-      console.error('Erro ao desconectar:', err);
-      setAuthError(err.message || 'Falha ao desconectar do Kommo');
+      console.error('Error disconnecting:', err);
+      setAuthError(err.message || 'Failed to disconnect from Kommo');
     }
   };
 
@@ -137,7 +146,7 @@ export default function KommoIntegration() {
           </div>
           <div>
             <h3 className="text-lg font-semibold text-gray-900">Kommo CRM</h3>
-            <p className="text-sm text-gray-500">Conecte sua conta do Kommo CRM</p>
+            <p className="text-sm text-gray-500">Connect your Kommo CRM account</p>
           </div>
         </div>
       </div>
@@ -161,7 +170,7 @@ export default function KommoIntegration() {
           onClick={handleDisconnect}
           className="mt-4 w-full px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-red-600 bg-red-50 hover:bg-red-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
         >
-          Desconectar
+          Disconnect
         </button>
       )}
 
