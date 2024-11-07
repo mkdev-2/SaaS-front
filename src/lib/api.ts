@@ -11,7 +11,6 @@ const api = axios.create({
   timeout: 30000,
 });
 
-// Request interceptor
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('auth_token');
@@ -26,7 +25,6 @@ api.interceptors.request.use(
   }
 );
 
-// Response interceptor
 api.interceptors.response.use(
   (response) => {
     if (!response.data.status) {
@@ -41,7 +39,6 @@ api.interceptors.response.use(
     const status = error.response?.status;
     const errorResponse = error.response?.data;
     
-    // Handle network errors
     if (!error.response) {
       return Promise.reject({
         ...error,
@@ -55,7 +52,6 @@ api.interceptors.response.use(
       });
     }
 
-    // Handle authentication errors
     if (status === 401) {
       // Don't logout if it's a Kommo API error
       if (!error.config?.url?.includes('/kommo/')) {
@@ -76,7 +72,6 @@ api.interceptors.response.use(
       });
     }
 
-    // Handle rate limiting
     if (status === 429) {
       return Promise.reject({
         ...error,
@@ -91,7 +86,6 @@ api.interceptors.response.use(
       });
     }
 
-    // Handle validation errors
     if (status === 400 && errorResponse?.errors) {
       const errors = Array.isArray(errorResponse.errors) 
         ? errorResponse.errors 
@@ -111,7 +105,6 @@ api.interceptors.response.use(
       });
     }
 
-    // Transform error response to match our ApiResponse format
     if (errorResponse) {
       return Promise.reject({
         ...error,
@@ -127,7 +120,6 @@ api.interceptors.response.use(
       });
     }
     
-    // Handle all other errors
     return Promise.reject({
       ...error,
       response: {
