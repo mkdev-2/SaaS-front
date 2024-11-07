@@ -15,7 +15,7 @@ interface KommoState {
 interface InitiateOAuthData {
   accountDomain: string;
   clientId: string;
-  clientSecret: string;
+  clientSecret?: string;
   redirectUri: string;
   code?: string;
 }
@@ -111,7 +111,6 @@ export function useKommoIntegration() {
           code: data.code,
           accountDomain: data.accountDomain,
           clientId: data.clientId,
-          clientSecret: data.clientSecret,
           redirectUri: data.redirectUri
         });
 
@@ -127,7 +126,6 @@ export function useKommoIntegration() {
       const { data: response } = await api.post<ApiResponse<void>>('/kommo/config', {
         accountDomain: data.accountDomain,
         clientId: data.clientId,
-        clientSecret: data.clientSecret,
         redirectUri: data.redirectUri
       });
 
@@ -148,9 +146,17 @@ export function useKommoIntegration() {
     try {
       updateState({ isLoading: true, error: null });
 
-      const { data: response } = await api.post<ApiResponse<void>>('/kommo/disconnect');
+      // First revoke the Kommo access token
+      const { data: revokeResponse } = await api.post<ApiResponse<void>>('/kommo/auth/revoke');
       
-      if (response.status === 'success') {
+      if (revokeResponse.status !== 'success') {
+        throw new Error(revokeResponse.message || 'Failed to revoke Kommo access');
+      }
+
+      // Then delete the configuration from our database
+      const { data: deleteResponse } = await api.delete<ApiResponse<void>>('/kommo/config');
+      
+      if (deleteResponse.status === 'success') {
         updateState({
           isConnected: false,
           config: null,
@@ -158,7 +164,7 @@ export function useKommoIntegration() {
           error: null
         });
       } else {
-        throw new Error(response.message || 'Failed to disconnect');
+        throw new Error(deleteResponse.message || 'Failed to remove configuration');
       }
     } catch (err: any) {
       console.error('Error disconnecting:', err);
