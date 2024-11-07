@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import api from '../lib/api';
 import { ApiResponse } from '../types/api';
-import { KommoConfig, KommoLead } from '../lib/kommo/types';
+import { KommoConfig, KommoLead, KommoStatus } from '../lib/kommo/types';
 import useAuthStore from '../store/authStore';
 
 interface KommoState {
@@ -10,6 +10,7 @@ interface KommoState {
   error: string | null;
   leads: KommoLead[];
   config: KommoConfig | null;
+  status: KommoStatus | null;
 }
 
 interface InitiateOAuthData {
@@ -24,6 +25,7 @@ const initialState: KommoState = {
   error: null,
   leads: [],
   config: null,
+  status: null
 };
 
 export function useKommoIntegration() {
@@ -43,22 +45,30 @@ export function useKommoIntegration() {
     try {
       updateState({ isLoading: true, error: null });
       
-      const { data: response } = await api.get<ApiResponse<KommoConfig>>('/kommo/config');
+      const [configResponse, statusResponse] = await Promise.all([
+        api.get<ApiResponse<KommoConfig>>('/kommo/config'),
+        api.get<ApiResponse<KommoStatus>>('/kommo/status')
+      ]);
       
-      if (response.status === 'success' && response.data) {
+      if (configResponse.data.status === 'success' && configResponse.data.data) {
+        const config = configResponse.data.data;
+        const status = statusResponse.data.status === 'success' ? statusResponse.data.data : null;
+        
         updateState({
-          config: response.data,
-          isConnected: response.data.isConnected,
+          config,
+          status,
+          isConnected: config.isConnected && status?.isConnected,
           error: null
         });
 
-        if (response.data.isConnected) {
+        if (config.isConnected && status?.isConnected) {
           await loadLeads();
         }
       } else {
         updateState({
           isConnected: false,
           config: null,
+          status: null,
           error: null
         });
       }
@@ -67,6 +77,7 @@ export function useKommoIntegration() {
       updateState({
         isConnected: false,
         config: null,
+        status: null,
         error: err.response?.status !== 404 ? (err.response?.data?.message || 'Failed to load configuration') : null
       });
     } finally {
@@ -156,6 +167,7 @@ export function useKommoIntegration() {
         updateState({
           isConnected: false,
           config: null,
+          status: null,
           leads: [],
           error: null
         });

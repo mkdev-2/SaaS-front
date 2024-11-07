@@ -32,7 +32,8 @@ export default function KommoTestingPage() {
         details: {
           accountDomain: config?.accountDomain,
           hasClientId: !!config?.clientId,
-          isConnected: isConnected
+          isConnected: isConnected,
+          connectedAt: config?.connectedAt
         }
       };
 
@@ -40,7 +41,7 @@ export default function KommoTestingPage() {
       let connectionResult: TestResult;
       try {
         const startTime = Date.now();
-        const { data: response } = await api.get('/integrations/kommo/verify');
+        const { data: response } = await api.get('/kommo/test');
         const duration = Date.now() - startTime;
 
         connectionResult = {
@@ -50,7 +51,8 @@ export default function KommoTestingPage() {
           duration,
           details: {
             responseTime: duration,
-            status: response.status
+            status: response.status,
+            data: response.data
           }
         };
       } catch (error: any) {
@@ -61,7 +63,8 @@ export default function KommoTestingPage() {
           duration: 0,
           details: {
             error: error.message,
-            status: error.response?.status
+            status: error.response?.status,
+            data: error.response?.data
           }
         };
       }
@@ -70,18 +73,21 @@ export default function KommoTestingPage() {
       let integrationResult: TestResult;
       try {
         const startTime = Date.now();
-        const { data: response } = await api.get('/integrations/kommo/status');
+        const { data: response } = await api.get('/kommo/status');
         const duration = Date.now() - startTime;
 
         integrationResult = {
           name: 'Integration Status',
-          status: 'success',
-          message: 'Successfully retrieved integration status',
+          status: response.data?.isConnected ? 'success' : 'warning',
+          message: response.data?.isConnected 
+            ? 'Integration is active and connected' 
+            : 'Integration is configured but not connected',
           duration,
           details: {
             responseTime: duration,
             isConnected: response.data?.isConnected,
-            lastSync: response.data?.lastSync
+            lastSync: response.data?.lastSync,
+            status: response.data?.status
           }
         };
       } catch (error: any) {
@@ -92,7 +98,8 @@ export default function KommoTestingPage() {
           duration: 0,
           details: {
             error: error.message,
-            status: error.response?.status
+            status: error.response?.status,
+            data: error.response?.data
           }
         };
       }
@@ -183,7 +190,7 @@ export default function KommoTestingPage() {
           <div>
             <p className="text-sm text-gray-500">Last Connected</p>
             <p className="font-medium">
-              {new Date(config.connectedAt).toLocaleString()}
+              {config.connectedAt ? new Date(config.connectedAt).toLocaleString() : 'Never'}
             </p>
           </div>
         </div>

@@ -97,3 +97,21 @@ export interface DiagnosticResults {
     details?: any;
   } | null;
 }
+
+export interface KommoStatus {
+  isConnected: boolean;
+  lastSync?: string;
+  status: 'active' | 'inactive' | 'error';
+  error?: string;
+}
+
+export interface KommoTestResult {
+  success: boolean;
+  message: string;
+  details?: {
+    accountDomain?: string;
+    isConnected?: boolean;
+    lastSync?: string;
+    error?: string;
+  };
+}
