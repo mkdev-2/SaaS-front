@@ -1,165 +1,194 @@
-import React, { useState } from 'react';
-import { RefreshCw } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
-import { useKommoIntegration } from '../../../hooks/useKommoIntegration';
-import KommoLeadsList from './KommoLeadsList';
-import KommoConnectionStatus from './KommoConnectionStatus';
-import KommoButton from './KommoButton';
+import { useState, useEffect } from 'react';
+import api from '../lib/api';
+import { ApiResponse } from '../types/api';
+import { KommoConfig, KommoLead } from '../lib/kommo/types';
+import useAuthStore from '../store/authStore';
 
-const KOMMO_CONFIG = {
-  accountDomain: 'vendaspersonalprime.kommo.com',
-  clientId: '6fc1e2d2-0e1d-4549-8efd-1b0b37d0bbb3',
-  redirectUri: 'https://saas-backend-production-8b94.up.railway.app/api/kommo/callback'
+interface KommoState {
+  isConnected: boolean;
+  isLoading: boolean;
+  error: string | null;
+  leads: KommoLead[];
+  config: KommoConfig | null;
+}
+
+interface InitiateOAuthData {
+  accountDomain: string;
+  clientId: string;
+  clientSecret?: string;
+  redirectUri: string;
+  code?: string;
+}
+
+const initialState: KommoState = {
+  isConnected: false,
+  isLoading: true,
+  error: null,
+  leads: [],
+  config: null,
 };
 
-export default function KommoIntegration() {
-  const navigate = useNavigate();
-  const {
-    isConnected,
-    isLoading,
-    error,
-    leads,
-    config,
-    initiateOAuth,
-    disconnect,
-    refresh
-  } = useKommoIntegration();
+export function useKommoIntegration() {
+  const [state, setState] = useState<KommoState>(initialState);
+  const { user } = useAuthStore();
 
-  const [authError, setAuthError] = useState<string | null>(null);
+  const updateState = (newState: Partial<KommoState>) => {
+    setState(prev => ({ ...prev, ...newState }));
+  };
 
-  const handleKommoAuth = async () => {
+  const loadConfig = async () => {
+    if (!user) {
+      updateState({ isLoading: false });
+      return;
+    }
+
     try {
-      setAuthError(null);
+      updateState({ isLoading: true, error: null });
       
-      // Save initial configuration
-      await initiateOAuth({
-        accountDomain: KOMMO_CONFIG.accountDomain,
-        clientId: KOMMO_CONFIG.clientId,
-        redirectUri: KOMMO_CONFIG.redirectUri
+      // Get Kommo configuration and status in parallel
+      const [configResponse, statusResponse] = await Promise.all([
+        api.get<ApiResponse<KommoConfig>>('/kommo/config'),
+        api.get<ApiResponse<{ status: string; isConnected: boolean; error?: string }>>('/kommo/status')
+      ]);
+      
+      if (configResponse.data.status === 'success' && configResponse.data.data) {
+        updateState({
+          config: configResponse.data.data,
+          isConnected: statusResponse.data.data?.isConnected ?? false,
+          error: statusResponse.data.data?.error || null
+        });
+
+        if (statusResponse.data.data?.isConnected) {
+          await loadLeads();
+        }
+      } else {
+        updateState({
+          isConnected: false,
+          config: null,
+          error: null
+        });
+      }
+    } catch (err: any) {
+      console.error('Error loading Kommo config:', err);
+      updateState({
+        isConnected: false,
+        config: null,
+        error: err.response?.status !== 404 ? (err.response?.data?.message || 'Failed to load configuration') : null
       });
+    } finally {
+      updateState({ isLoading: false });
+    }
+  };
 
-      // Construct OAuth URL
-      const params = new URLSearchParams({
-        client_id: KOMMO_CONFIG.clientId,
-        redirect_uri: KOMMO_CONFIG.redirectUri,
-        response_type: 'code',
-        mode: 'post_message'
+  const loadLeads = async () => {
+    if (!state.isConnected) return;
+
+    try {
+      const { data: response } = await api.get<ApiResponse<KommoLead[]>>('/kommo/leads');
+      
+      if (response.status === 'success' && response.data) {
+        updateState({ leads: response.data, error: null });
+      }
+    } catch (err: any) {
+      console.error('Error loading leads:', err);
+      updateState({
+        error: err.response?.data?.message || 'Failed to load leads'
       });
+    }
+  };
 
-      const authUrl = `https://${KOMMO_CONFIG.accountDomain}/oauth2/authorize?${params.toString()}`;
+  const initiateOAuth = async (data: InitiateOAuthData) => {
+    if (!user) {
+      throw new Error('You must be logged in to connect');
+    }
 
-      // Open popup for OAuth flow
-      const width = 600;
-      const height = 600;
-      const left = window.screenX + (window.outerWidth - width) / 2;
-      const top = window.screenY + (window.outerHeight - height) / 2;
+    try {
+      updateState({ isLoading: true, error: null });
 
-      const popup = window.open(
-        authUrl,
-        'Kommo Authorization',
-        `width=${width},height=${height},left=${left},top=${top}`
-      );
+      // If we have a code, exchange it for a token
+      if (data.code) {
+        const { data: response } = await api.post<ApiResponse<void>>('/kommo/auth/callback', {
+          code: data.code,
+          accountDomain: data.accountDomain,
+          clientId: data.clientId,
+          redirectUri: data.redirectUri
+        });
 
-      if (!popup) {
-        throw new Error('Failed to open authorization window. Please allow popups for this site.');
+        if (response.status !== 'success') {
+          throw new Error(response.message || 'Failed to exchange code for token');
+        }
+
+        await loadConfig();
+        return;
       }
 
-      // Handle OAuth callback
-      const handleMessage = async (event: MessageEvent) => {
-        if (event.origin !== window.location.origin) return;
+      // Otherwise, just save the initial config
+      const { data: response } = await api.post<ApiResponse<void>>('/kommo/config', {
+        accountDomain: data.accountDomain,
+        clientId: data.clientId,
+        redirectUri: data.redirectUri
+      });
 
-        if (event.data?.type === 'KOMMO_AUTH_CODE') {
-          window.removeEventListener('message', handleMessage);
-          popup?.close();
-          
-          try {
-            await initiateOAuth({
-              ...KOMMO_CONFIG,
-              code: event.data.code
-            });
-            
-            await refresh();
-            navigate('/integrations');
-          } catch (err: any) {
-            setAuthError(err.message || 'Failed to complete authentication');
-          }
-        } else if (event.data?.type === 'KOMMO_AUTH_ERROR') {
-          window.removeEventListener('message', handleMessage);
-          popup?.close();
-          setAuthError('Authentication failed. Please try again.');
-        }
-      };
-
-      window.addEventListener('message', handleMessage);
+      if (response.status !== 'success') {
+        throw new Error(response.message || 'Failed to save configuration');
+      }
     } catch (err: any) {
       console.error('OAuth error:', err);
-      setAuthError(err.message || 'Failed to initiate authentication');
+      throw err;
+    } finally {
+      updateState({ isLoading: false });
     }
   };
 
-  const handleDisconnect = async () => {
+  const disconnect = async () => {
+    if (!user) return;
+
     try {
-      await disconnect();
-      navigate('/integrations');
+      updateState({ isLoading: true, error: null });
+
+      // First revoke the Kommo access token
+      const { data: revokeResponse } = await api.post<ApiResponse<void>>('/kommo/auth/revoke');
+      
+      if (revokeResponse.status !== 'success') {
+        throw new Error(revokeResponse.message || 'Failed to revoke Kommo access');
+      }
+
+      // Then delete the configuration from our database
+      const { data: deleteResponse } = await api.delete<ApiResponse<void>>('/kommo/config');
+      
+      if (deleteResponse.status === 'success') {
+        updateState({
+          isConnected: false,
+          config: null,
+          leads: [],
+          error: null
+        });
+      } else {
+        throw new Error(deleteResponse.message || 'Failed to remove configuration');
+      }
     } catch (err: any) {
-      console.error('Disconnect error:', err);
-      setAuthError(err.message || 'Failed to disconnect from Kommo');
+      console.error('Error disconnecting:', err);
+      updateState({
+        error: err.response?.data?.message || 'Failed to disconnect'
+      });
+      throw err;
+    } finally {
+      updateState({ isLoading: false });
     }
   };
 
-  if (isLoading) {
-    return (
-      <div className="bg-white rounded-xl shadow-sm p-6">
-        <div className="flex items-center justify-center h-48">
-          <RefreshCw className="w-6 h-6 animate-spin text-gray-400" />
-        </div>
-      </div>
-    );
-  }
+  useEffect(() => {
+    if (user) {
+      loadConfig();
+    } else {
+      updateState(initialState);
+    }
+  }, [user]);
 
-  return (
-    <div className="bg-white rounded-xl shadow-sm p-6">
-      <div className="flex items-start justify-between mb-6">
-        <div className="flex items-center space-x-3">
-          <div className="h-10 w-10 bg-indigo-100 rounded-lg flex items-center justify-center">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="text-indigo-600">
-              <path d="M12 2C6.48 2 2 6.48 2 12C2 17.52 6.48 22 12 22C17.52 22 22 17.52 22 12C22 6.48 17.52 2 12 2ZM12 20C7.59 20 4 16.41 4 12C4 7.59 7.59 4 12 4C16.41 4 20 7.59 20 12C20 16.41 16.41 20 12 20Z" fill="currentColor"/>
-              <path d="M12 17C14.7614 17 17 14.7614 17 12C17 9.23858 14.7614 7 12 7C9.23858 7 7 9.23858 7 12C7 14.7614 9.23858 17 12 17Z" fill="currentColor"/>
-            </svg>
-          </div>
-          <div>
-            <h3 className="text-lg font-semibold text-gray-900">Kommo CRM</h3>
-            <p className="text-sm text-gray-500">Connect your Kommo CRM account</p>
-          </div>
-        </div>
-      </div>
-
-      <KommoConnectionStatus
-        isConnected={isConnected}
-        config={config}
-        error={authError || error}
-      />
-
-      {!isConnected && (
-        <KommoButton 
-          onClick={handleKommoAuth}
-          disabled={isLoading}
-          isLoading={isLoading}
-        />
-      )}
-
-      {isConnected && (
-        <button
-          onClick={handleDisconnect}
-          className="mt-4 w-full px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-red-600 bg-red-50 hover:bg-red-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
-        >
-          Disconnect
-        </button>
-      )}
-
-      {isConnected && leads?.length > 0 && (
-        <KommoLeadsList leads={leads} onRefresh={refresh} />
-      )}
-    </div>
-  );
+  return {
+    ...state,
+    initiateOAuth,
+    disconnect,
+    refresh: loadConfig,
+  };
 }
