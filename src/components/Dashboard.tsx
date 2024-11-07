@@ -1,7 +1,12 @@
-import React, { useMemo } from 'react';
+import React, { useState } from 'react';
 import { ArrowUpRight, ArrowDownRight, Activity, Users, Box, Zap, RefreshCw, AlertCircle, Tags, ShoppingBag, DollarSign } from 'lucide-react';
 import { useDashboardData } from '../hooks/useDashboardData';
 import { useKommoIntegration } from '../hooks/useKommoIntegration';
+import DailyLeadsChart from './dashboard/DailyLeadsChart';
+import VendorStats from './dashboard/VendorStats';
+import PersonaStats from './dashboard/PersonaStats';
+import PurchaseStats from './dashboard/PurchaseStats';
+import PeriodSelector from './dashboard/PeriodSelector';
 
 interface KommoMetrics {
   dailyLeads: {
@@ -24,9 +29,10 @@ interface KommoMetrics {
 export default function Dashboard() {
   const { data, loading, error, refresh } = useDashboardData();
   const { isConnected: isKommoConnected, leads: kommoLeads, error: kommoError } = useKommoIntegration();
+  const [selectedPeriod, setSelectedPeriod] = useState('today');
 
   // Calculate Kommo metrics
-  const kommoMetrics = useMemo((): KommoMetrics => {
+  const kommoMetrics = React.useMemo((): KommoMetrics => {
     if (!kommoLeads?.length) {
       return {
         dailyLeads: { count: 0, value: 0 },
@@ -169,6 +175,14 @@ export default function Dashboard() {
 
   return (
     <div className="p-6 space-y-6">
+      <div className="flex justify-between items-center">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Sales Dashboard</h1>
+          <p className="text-gray-500">Real-time sales and performance metrics</p>
+        </div>
+        <PeriodSelector value={selectedPeriod} onChange={setSelectedPeriod} />
+      </div>
+
       {/* Error alerts */}
       {(error || kommoError) && (
         <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 flex items-start">
@@ -212,103 +226,31 @@ export default function Dashboard() {
         )}
       </div>
 
-      {/* Sales Analysis */}
+      {/* Charts and Analytics */}
       {isKommoConnected && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Sales by Persona */}
+        <>
+          {/* Daily Leads Chart */}
           <div className="bg-white rounded-xl shadow-sm p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Sales by Persona</h2>
-            <div className="space-y-4">
-              {Array.from(kommoMetrics.sales.byPersona.entries())
-                .sort(([, a], [, b]) => b.value - a.value)
-                .map(([persona, stats]) => (
-                  <div key={persona} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                    <div>
-                      <span className="font-medium">{persona}</span>
-                      <p className="text-xs text-gray-500 mt-1">
-                        {stats.count} {stats.count === 1 ? 'sale' : 'sales'}
-                      </p>
-                    </div>
-                    <span className="text-sm font-medium text-gray-900">
-                      ${stats.value.toLocaleString()}
-                    </span>
-                  </div>
-                ))}
-            </div>
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">Lead Trends</h2>
+            <DailyLeadsChart data={kommoLeads} period={selectedPeriod} />
           </div>
 
-          {/* Sales by Payment Method */}
-          <div className="bg-white rounded-xl shadow-sm p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Sales by Payment Method</h2>
-            <div className="space-y-4">
-              {Array.from(kommoMetrics.sales.byPayment.entries())
-                .sort(([, a], [, b]) => b.value - a.value)
-                .map(([method, stats]) => (
-                  <div key={method} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                    <div>
-                      <span className="font-medium">{method}</span>
-                      <p className="text-xs text-gray-500 mt-1">
-                        {stats.count} {stats.count === 1 ? 'transaction' : 'transactions'}
-                      </p>
-                    </div>
-                    <span className="text-sm font-medium text-gray-900">
-                      ${stats.value.toLocaleString()}
-                    </span>
-                  </div>
-                ))}
-            </div>
-          </div>
-        </div>
-      )}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Vendor Performance */}
+            <VendorStats data={Array.from(kommoMetrics.tags.sellers.entries())} />
 
-      {/* Tag Distribution */}
-      {isKommoConnected && (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Personas */}
-          <div className="bg-white rounded-xl shadow-sm p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Lead Distribution by Persona</h2>
-            <div className="space-y-2">
-              {Array.from(kommoMetrics.tags.personas.entries())
-                .sort(([, a], [, b]) => b - a)
-                .map(([persona, count]) => (
-                  <div key={persona} className="flex justify-between items-center px-3 py-2 bg-indigo-50 text-indigo-700 rounded-lg">
-                    <span>{persona}</span>
-                    <span className="font-medium">{count}</span>
-                  </div>
-                ))}
-            </div>
+            {/* Persona Distribution */}
+            <PersonaStats data={Array.from(kommoMetrics.tags.personas.entries())} />
           </div>
 
-          {/* Lead Sources */}
-          <div className="bg-white rounded-xl shadow-sm p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Lead Sources</h2>
-            <div className="space-y-2">
-              {Array.from(kommoMetrics.tags.sources.entries())
-                .sort(([, a], [, b]) => b - a)
-                .map(([source, count]) => (
-                  <div key={source} className="flex justify-between items-center px-3 py-2 bg-green-50 text-green-700 rounded-lg">
-                    <span>{source}</span>
-                    <span className="font-medium">{count}</span>
-                  </div>
-                ))}
-            </div>
-          </div>
-
-          {/* Seller Performance */}
-          <div className="bg-white rounded-xl shadow-sm p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Seller Performance</h2>
-            <div className="space-y-2">
-              {Array.from(kommoMetrics.tags.sellers.entries())
-                .sort(([, a], [, b]) => b - a)
-                .map(([seller, count]) => (
-                  <div key={seller} className="flex justify-between items-center px-3 py-2 bg-blue-50 text-blue-700 rounded-lg">
-                    <span>{seller}</span>
-                    <span className="font-medium">{count} leads</span>
-                  </div>
-                ))}
-            </div>
-          </div>
-        </div>
+          {/* Purchase Analytics */}
+          <PurchaseStats
+            total={kommoMetrics.sales.total}
+            byProduct={Array.from(kommoMetrics.sales.byProduct.entries())}
+            byPayment={Array.from(kommoMetrics.sales.byPayment.entries())}
+            byPersona={Array.from(kommoMetrics.sales.byPersona.entries())}
+          />
+        </>
       )}
     </div>
   );
