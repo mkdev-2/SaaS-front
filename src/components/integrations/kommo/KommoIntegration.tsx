@@ -10,6 +10,7 @@ import KommoButton from './KommoButton';
 const KOMMO_CONFIG = {
   accountDomain: 'vendaspersonalprime.kommo.com',
   clientId: '6fc1e2d2-0e1d-4549-8efd-1b0b37d0bbb3',
+  clientSecret: 'O4QcVGEURJVwaCwXIa9ZAxAgpelDtgBnrWObukW6SBlTjYKkSCNJklmhVH5tpTVh',
   redirectUri: 'https://saas-backend-production-8b94.up.railway.app/api/kommo/callback'
 };
 
@@ -32,7 +33,6 @@ export default function KommoIntegration() {
   useEffect(() => {
     const code = searchParams.get('code');
     const error = searchParams.get('error');
-    const state = searchParams.get('state');
 
     if (code) {
       initiateOAuth({
