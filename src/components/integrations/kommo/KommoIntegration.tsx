@@ -43,13 +43,11 @@ export default function KommoIntegration() {
     } else if (error) {
       setAuthError(`Authentication failed: ${error}`);
     }
-  }, [searchParams]);
+  }, [searchParams, initiateOAuth]);
 
   const handleKommoAuth = async () => {
     try {
       setAuthError(null);
-
-      await initiateOAuth(KOMMO_CONFIG);
 
       const params = new URLSearchParams({
         client_id: KOMMO_CONFIG.clientId,

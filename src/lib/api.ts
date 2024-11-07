@@ -7,9 +7,14 @@ const api = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
-  withCredentials: false, // Changed to false since we're using Bearer token
+  withCredentials: false,
   timeout: 30000,
 });
+
+// Add default headers for CORS
+api.defaults.headers.common['Access-Control-Allow-Origin'] = 'https://personalprime.netlify.app';
+api.defaults.headers.common['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS';
+api.defaults.headers.common['Access-Control-Allow-Headers'] = 'Content-Type, Authorization';
 
 api.interceptors.request.use(
   (config) => {
