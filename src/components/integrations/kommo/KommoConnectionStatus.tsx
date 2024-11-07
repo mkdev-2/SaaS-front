@@ -22,9 +22,17 @@ export default function KommoConnectionStatus({ isConnected, config, error }: Ko
   };
 
   const getStatusText = () => {
-    if (error) return 'Connection Error';
-    if (isConnected) return 'Connected';
-    return 'Not Connected';
+    if (error) return 'Erro de Conexão';
+    if (isConnected) return 'Conectado';
+    if (config) return 'Reconexão Necessária';
+    return 'Não Conectado';
+  };
+
+  const getStatusMessage = () => {
+    if (error) return error;
+    if (!config) return 'Por favor, conecte sua conta Kommo';
+    if (!isConnected) return 'Sua conexão precisa ser atualizada. Por favor, reconecte.';
+    return null;
   };
 
   return (
@@ -33,18 +41,20 @@ export default function KommoConnectionStatus({ isConnected, config, error }: Ko
         {getStatusIcon()}
         <span className="text-sm font-medium">{getStatusText()}</span>
       </div>
+      
       {config && (
         <div className="mt-2 text-xs text-gray-500">
-          <p>Account: {config.accountDomain}</p>
+          <p>Conta: {config.accountDomain}</p>
           {config.connectedAt && (
-            <p>Last connected: {new Date(config.connectedAt).toLocaleString()}</p>
+            <p>Última conexão: {new Date(config.connectedAt).toLocaleString()}</p>
           )}
         </div>
       )}
-      {error && (
+
+      {getStatusMessage() && (
         <div className="mt-2 p-2 bg-red-50 rounded-lg">
           <p className="text-xs text-red-600">
-            {error}
+            {getStatusMessage()}
           </p>
         </div>
       )}

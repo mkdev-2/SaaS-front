@@ -1,6 +1,6 @@
 import axios from 'axios';
-import { ApiResponse } from '../types/api';
 import useAuthStore from '../store/authStore';
+import { ApiResponse } from '../types/api';
 
 const api = axios.create({
   baseURL: 'https://saas-backend-production-8b94.up.railway.app/api/integrations',
@@ -115,7 +115,7 @@ api.interceptors.response.use(
         },
       });
     }
-    
+
     return Promise.reject({
       ...error,
       response: {
