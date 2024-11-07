@@ -28,11 +28,17 @@ export default function Dashboard() {
         byPersona: {}
       };
     }
-    return data.kommo.analytics.periodStats[
-      selectedPeriod === 'today' ? 'day' : 
-      selectedPeriod === 'week' ? 'week' : 
-      'fortnight'
-    ];
+
+    const periodKey = selectedPeriod === 'today' ? 'day' : 
+                     selectedPeriod === 'week' ? 'week' : 
+                     'fortnight';
+
+    return data.kommo.analytics.periodStats[periodKey] || {
+      totalLeads: 0,
+      purchases: 0,
+      byVendor: {},
+      byPersona: {}
+    };
   }, [data, selectedPeriod]);
 
   // Calcular estatísticas
@@ -71,7 +77,7 @@ export default function Dashboard() {
       .map(([date, stats]) => ({
         date,
         leads: stats.total,
-        value: stats.leads.reduce((sum, lead) => sum + (lead.price || 0), 0)
+        value: stats.leads.reduce((sum, lead: any) => sum + (lead.price || 0), 0)
       }))
       .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
   }, [data]);
@@ -100,12 +106,51 @@ export default function Dashboard() {
     ) || 0;
   }, [data]);
 
-  // Verificar se os dados do Kommo estão disponíveis
-  const hasKommoData = React.useMemo(() => {
-    return data?.kommo?.isConnected && data?.kommo?.analytics !== null;
-  }, [data]);
+  if (loading) {
+    return (
+      <div className="p-6">
+        <div className="bg-white border border-gray-200 rounded-lg p-4">
+          <div className="flex items-center">
+            <RefreshCw className="h-5 w-5 text-indigo-600 animate-spin mr-3" />
+            <div>
+              <h3 className="text-sm font-medium text-gray-900">
+                Carregando dados
+              </h3>
+              <p className="mt-1 text-sm text-gray-500">
+                Aguarde enquanto carregamos as métricas do dashboard...
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
-  if (!hasKommoData) {
+  if (error) {
+    return (
+      <div className="p-6">
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+          <div className="flex">
+            <AlertCircle className="h-5 w-5 text-red-400 mt-0.5 mr-3" />
+            <div>
+              <h3 className="text-sm font-medium text-red-800">
+                Erro ao carregar dados
+              </h3>
+              <p className="mt-2 text-sm text-red-700">{error}</p>
+              <button
+                onClick={refresh}
+                className="mt-3 text-sm font-medium text-red-600 hover:text-red-500"
+              >
+                Tentar novamente
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!data?.kommo?.analytics) {
     return (
       <div className="p-6">
         <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
@@ -113,11 +158,17 @@ export default function Dashboard() {
             <AlertCircle className="h-5 w-5 text-yellow-400 mt-0.5 mr-3" />
             <div>
               <h3 className="text-sm font-medium text-yellow-800">
-                Aguardando dados
+                Dados não disponíveis
               </h3>
               <p className="mt-2 text-sm text-yellow-700">
-                Aguarde enquanto carregamos os dados do Kommo CRM...
+                Não foi possível carregar os dados do Kommo CRM. Verifique sua conexão e tente novamente.
               </p>
+              <button
+                onClick={refresh}
+                className="mt-3 text-sm font-medium text-yellow-600 hover:text-yellow-500"
+              >
+                Tentar novamente
+              </button>
             </div>
           </div>
         </div>
@@ -135,77 +186,46 @@ export default function Dashboard() {
         <PeriodSelector value={selectedPeriod} onChange={setSelectedPeriod} />
       </div>
 
-      {error && (
-        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 flex items-start">
-          <AlertCircle className="h-5 w-5 text-yellow-600 mt-0.5 mr-3 flex-shrink-0" />
-          <div className="flex-1">
-            <h3 className="text-sm font-medium text-yellow-800">
-              Status da Integração
-            </h3>
-            <p className="mt-1 text-sm text-yellow-700">{error}</p>
-          </div>
-          <button
-            onClick={refresh}
-            className="ml-3 bg-yellow-100 p-2 rounded-full text-yellow-600 hover:bg-yellow-200"
-          >
-            <RefreshCw className="h-4 w-4" />
-          </button>
-        </div>
-      )}
-
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {loading ? (
-          [...Array(4)].map((_, i) => (
-            <div key={i} className="bg-white rounded-xl shadow-sm p-6 animate-pulse">
-              <div className="h-8 bg-gray-200 rounded w-1/3 mb-4"></div>
-              <div className="h-6 bg-gray-200 rounded w-1/2"></div>
-            </div>
-          ))
-        ) : (
-          stats.map((stat, index) => (
-            <StatCard
-              key={index}
-              title={stat.title}
-              value={stat.value.toString()}
-              change={`${((stat.value - (stat.previousValue || 0)) / (stat.previousValue || 1) * 100).toFixed(1)}%`}
-              icon={stat.icon}
-            />
-          ))
-        )}
+        {stats.map((stat, index) => (
+          <StatCard
+            key={index}
+            title={stat.title}
+            value={stat.value.toString()}
+            change={`${((stat.value - (stat.previousValue || 0)) / (stat.previousValue || 1) * 100).toFixed(1)}%`}
+            icon={stat.icon}
+          />
+        ))}
       </div>
 
-      {!loading && (
-        <>
-          {/* Daily Leads Chart */}
-          <div className="bg-white rounded-xl shadow-sm p-6">
-            <h2 className="text-lg font-semibold text-gray-900">Tendência de Leads</h2>
-            <DailyLeadsChart 
-              data={chartData}
-              period={selectedPeriod}
-            />
-          </div>
+      {/* Daily Leads Chart */}
+      <div className="bg-white rounded-xl shadow-sm p-6">
+        <h2 className="text-lg font-semibold text-gray-900">Tendência de Leads</h2>
+        <DailyLeadsChart 
+          data={chartData}
+          period={selectedPeriod}
+        />
+      </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Vendor Performance */}
-            <VendorStats data={vendorData} />
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Vendor Performance */}
+        <VendorStats data={vendorData} />
 
-            {/* Persona Distribution */}
-            <PersonaStats data={personaData} />
-          </div>
+        {/* Persona Distribution */}
+        <PersonaStats data={personaData} />
+      </div>
 
-          {/* Purchase Analytics */}
-          <PurchaseStats
-            total={totalSales}
-            byProduct={[]}
-            byPayment={[]}
-            byPersona={personaData.map(([name, count]) => [
-              name,
-              { count, value: 0 }
-            ])}
-          />
-        </>
-      )}
+      {/* Purchase Analytics */}
+      <PurchaseStats
+        total={totalSales}
+        byProduct={[]}
+        byPayment={[]}
+        byPersona={personaData.map(([name, count]) => [
+          name,
+          { count, value: 0 }
+        ])}
+      />
     </div>
   );
 }
