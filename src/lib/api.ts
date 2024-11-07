@@ -8,7 +8,7 @@ const api = axios.create({
     'Content-Type': 'application/json',
   },
   withCredentials: true,
-  timeout: 30000, // 30 second timeout
+  timeout: 30000,
 });
 
 // Request interceptor
@@ -29,7 +29,6 @@ api.interceptors.request.use(
 // Response interceptor
 api.interceptors.response.use(
   (response) => {
-    // Ensure response data follows ApiResponse format
     if (!response.data.status) {
       response.data = {
         status: 'success',
@@ -61,7 +60,7 @@ api.interceptors.response.use(
       // Don't logout if it's a Kommo API error
       if (!error.config?.url?.includes('/kommo/')) {
         localStorage.removeItem('auth_token');
-        useAuthStore.getState().logout(false); // Pass false to prevent API call
+        useAuthStore.getState().logout(false);
       }
       
       return Promise.reject({

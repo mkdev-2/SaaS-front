@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { RefreshCw } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useKommoIntegration } from '../../../hooks/useKommoIntegration';
 import KommoLeadsList from './KommoLeadsList';
 import KommoConnectionStatus from './KommoConnectionStatus';
@@ -14,6 +14,7 @@ const KOMMO_CONFIG = {
 
 export default function KommoIntegration() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const {
     isConnected,
     isLoading,
@@ -27,9 +28,30 @@ export default function KommoIntegration() {
 
   const [authError, setAuthError] = useState<string | null>(null);
 
+  // Handle OAuth callback
+  useEffect(() => {
+    const code = searchParams.get('code');
+    const error = searchParams.get('error');
+
+    if (code) {
+      initiateOAuth({
+        ...KOMMO_CONFIG,
+        code
+      }).catch(err => {
+        console.error('OAuth callback error:', err);
+        setAuthError(err.message || 'Failed to complete authentication');
+      });
+    } else if (error) {
+      setAuthError(`Authentication failed: ${error}`);
+    }
+  }, [searchParams]);
+
   const handleKommoAuth = async () => {
     try {
       setAuthError(null);
+
+      // Save initial config
+      await initiateOAuth(KOMMO_CONFIG);
 
       // Construct OAuth URL
       const params = new URLSearchParams({
@@ -71,13 +93,13 @@ export default function KommoIntegration() {
     <div className="bg-white rounded-xl shadow-sm p-6">
       <div className="flex items-start justify-between mb-6">
         <div className="flex items-center space-x-3">
-          <div className="h-10 w-10 bg-indigo-100 rounded-lg flex items-center justify-center">
+          <div className="h-10 w-10 bg-[#0077FF] rounded-lg flex items-center justify-center">
             <img
-              src="https://www.kommo.com/static/img/logo.svg"
+              src="https://www.kommo.com/static/img/logo-light.svg"
               alt="Kommo"
               className="h-6 w-6"
               onError={(e) => {
-                e.currentTarget.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cGF0aCBkPSJNMTIgMkM2LjQ4IDIgMiA2LjQ4IDIgMTJDMiAxNy41MiA2LjQ4IDIyIDEyIDIyQzE3LjUyIDIyIDIyIDE3LjUyIDIyIDEyQzIyIDYuNDggMTcuNTIgMiAxMiAyWk0xMiAyMEM3LjU5IDIwIDQgMTYuNDEgNCAxMkM0IDcuNTkgNy41OSA0IDEyIDRDMTYuNDEgNCAyMCA3LjU5IDIwIDEyQzIwIDE2LjQxIDE2LjQxIDIwIDEyIDIwWiIgZmlsbD0iY3VycmVudENvbG9yIi8+PHBhdGggZD0iTTEyIDE3QzE0Ljc2MTQgMTcgMTcgMTQuNzYxNCAxNyAxMkMxNyA5LjIzODU4IDE0Ljc2MTQgNyAxMiA3QzkuMjM4NTggNyA3IDkuMjM4NTggNyAxMkM3IDE0Ljc2MTQgOS4yMzg1OCAxNyAxMiAxN1oiIGZpbGw9ImN1cnJlbnRDb2xvciIvPjwvc3ZnPg==';
+                e.currentTarget.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0iI0ZGRiIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cGF0aCBkPSJNMTIgMkM2LjQ4IDIgMiA2LjQ4IDIgMTJDMiAxNy41MiA2LjQ4IDIyIDEyIDIyQzE3LjUyIDIyIDIyIDE3LjUyIDIyIDEyQzIyIDYuNDggMTcuNTIgMiAxMiAyWk0xMiAyMEM3LjU5IDIwIDQgMTYuNDEgNCAxMkM0IDcuNTkgNy41OSA0IDEyIDRDMTYuNDEgNCAyMCA3LjU5IDIwIDEyQzIwIDE2LjQxIDE2LjQxIDIwIDEyIDIwWiIvPjxwYXRoIGQ9Ik0xMiAxN0MxNC43NjE0IDE3IDE3IDE0Ljc2MTQgMTcgMTJDMTcgOS4yMzg1OCAxNC43NjE0IDcgMTIgN0M5LjIzODU4IDcgNyA5LjIzODU4IDcgMTJDNyAxNC43NjE0IDkuMjM4NTggMTcgMTIgMTdaIi8+PC9zdmc+';
               }}
             />
           </div>
