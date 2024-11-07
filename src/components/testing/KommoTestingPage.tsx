@@ -40,7 +40,7 @@ export default function KommoTestingPage() {
       let connectionResult: TestResult;
       try {
         const startTime = Date.now();
-        const { data: response } = await api.get('/kommo/config/verify');
+        const { data: response } = await api.get('/integrations/kommo/verify');
         const duration = Date.now() - startTime;
 
         connectionResult = {
@@ -70,7 +70,7 @@ export default function KommoTestingPage() {
       let integrationResult: TestResult;
       try {
         const startTime = Date.now();
-        const { data: response } = await api.get('/kommo/status');
+        const { data: response } = await api.get('/integrations/kommo/status');
         const duration = Date.now() - startTime;
 
         integrationResult = {

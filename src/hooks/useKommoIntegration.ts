@@ -45,7 +45,7 @@ export function useKommoIntegration() {
     try {
       updateState({ isLoading: true, error: null });
       
-      const { data: response } = await api.get<ApiResponse<KommoConfig>>('/kommo/config');
+      const { data: response } = await api.get<ApiResponse<KommoConfig>>('/integrations/kommo/config');
       
       if (response.status === 'success' && response.data) {
         updateState({
@@ -79,7 +79,7 @@ export function useKommoIntegration() {
     if (!state.isConnected) return;
 
     try {
-      const { data: response } = await api.get<ApiResponse<KommoLead[]>>('/kommo/leads');
+      const { data: response } = await api.get<ApiResponse<KommoLead[]>>('/integrations/kommo/leads');
       
       if (response.status === 'success' && response.data) {
         updateState({ leads: response.data, error: null });
@@ -101,7 +101,7 @@ export function useKommoIntegration() {
 
       // Se temos um código, trocar por token
       if (data.code) {
-        const { data: response } = await api.post<ApiResponse<void>>('/kommo/auth/callback', {
+        const { data: response } = await api.post<ApiResponse<void>>('/integrations/kommo/auth/callback', {
           code: data.code,
           accountDomain: data.accountDomain,
           clientId: data.clientId,
@@ -118,7 +118,7 @@ export function useKommoIntegration() {
       }
 
       // Salvar configuração inicial
-      const { data: response } = await api.post<ApiResponse<void>>('/kommo/config', {
+      const { data: response } = await api.post<ApiResponse<void>>('/integrations/kommo/config', {
         accountDomain: data.accountDomain,
         clientId: data.clientId,
         clientSecret: data.clientSecret,
@@ -152,7 +152,7 @@ export function useKommoIntegration() {
     try {
       updateState({ isLoading: true, error: null });
 
-      const { data: response } = await api.delete<ApiResponse<void>>('/kommo/config');
+      const { data: response } = await api.delete<ApiResponse<void>>('/integrations/kommo/config');
       
       if (response.status === 'success') {
         updateState({
