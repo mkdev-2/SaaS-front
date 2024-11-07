@@ -12,21 +12,10 @@ interface TestResult {
 }
 
 export default function KommoTestingPage() {
-  const { isConnected, config, error: integrationError } = useKommoIntegration();
+  const { isConnected, config, status, error: integrationError } = useKommoIntegration();
   const [results, setResults] = useState<TestResult[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [expandedResult, setExpandedResult] = useState<number | null>(null);
-
-  const formatDate = (dateString: string | undefined | null) => {
-    if (!dateString) return 'Never';
-    try {
-      const date = new Date(dateString);
-      if (isNaN(date.getTime())) return 'Invalid Date';
-      return date.toLocaleString();
-    } catch (e) {
-      return 'Invalid Date';
-    }
-  };
 
   const runTests = async () => {
     setIsLoading(true);
@@ -34,6 +23,8 @@ export default function KommoTestingPage() {
     setExpandedResult(null);
 
     try {
+      const startTime = Date.now();
+
       // First test - Configuration
       const configResult: TestResult = {
         name: 'Configuration Check',
@@ -42,11 +33,9 @@ export default function KommoTestingPage() {
         duration: 0,
         details: {
           accountDomain: config?.accountDomain,
-          clientId: '6fc1e2d2-0e1d-4549-8efd-1b0b37d0bbb3',
+          hasClientId: !!config?.clientId,
           isConnected: isConnected,
-          connectedAt: config?.connectedAt,
-          createdAt: '2024-11-07T14:31:10.636Z',
-          lastConnected: formatDate(config?.connectedAt)
+          lastConnected: config?.connectedAt || 'Never'
         }
       };
 
@@ -54,13 +43,15 @@ export default function KommoTestingPage() {
       let connectionResult: TestResult;
       try {
         const startTime = Date.now();
-        const { data: response } = await api.get('/kommo/test');
+        const { data: response } = await api.get('/kommo/verify');
         const duration = Date.now() - startTime;
 
         connectionResult = {
           name: 'API Connection',
-          status: 'success',
-          message: 'Successfully verified Kommo API connection',
+          status: response.status === 'success' ? 'success' : 'error',
+          message: response.status === 'success' 
+            ? 'Successfully verified Kommo API connection'
+            : response.message || 'Failed to verify connection',
           duration,
           details: {
             responseTime: duration,
@@ -85,21 +76,17 @@ export default function KommoTestingPage() {
       // Third test - Today's Leads
       let leadsResult: TestResult;
       try {
-        const startTime = Date.now();
         const today = new Date();
         today.setHours(0, 0, 0, 0);
-        
+
+        const startTime = Date.now();
         const { data: response } = await api.get('/kommo/leads', {
           params: {
-            filter: {
-              created_at: {
-                from: Math.floor(today.getTime() / 1000)
-              }
-            }
+            created_at_from: Math.floor(today.getTime() / 1000)
           }
         });
-        
         const duration = Date.now() - startTime;
+
         const leads = response.data || [];
 
         leadsResult = {
@@ -110,13 +97,13 @@ export default function KommoTestingPage() {
           details: {
             responseTime: duration,
             count: leads.length,
-            leads: leads.map((lead: any) => ({
+            leads: Array.isArray(leads) ? leads.map(lead => ({
               id: lead.id,
               name: lead.name,
               created_at: new Date(lead.created_at * 1000).toLocaleString(),
               status_id: lead.status_id,
               price: lead.price
-            }))
+            })) : []
           }
         };
       } catch (error: any) {
@@ -142,17 +129,17 @@ export default function KommoTestingPage() {
 
         integrationResult = {
           name: 'Integration Status',
-          status: response.data?.isConnected ? 'success' : 'warning',
-          message: response.data?.isConnected 
-            ? 'Integration is active and connected' 
-            : 'Integration is configured but not connected',
+          status: response.status === 'success' ? 'success' : 'error',
+          message: response.status === 'success'
+            ? `Integration is ${response.data?.status || 'unknown'}`
+            : response.message || 'Failed to check integration status',
           duration,
           details: {
             responseTime: duration,
+            status: response.data?.status,
             isConnected: response.data?.isConnected,
             lastSync: response.data?.lastSync,
-            status: response.data?.status,
-            connectedAt: formatDate(response.data?.connectedAt)
+            error: response.data?.error
           }
         };
       } catch (error: any) {
@@ -168,6 +155,9 @@ export default function KommoTestingPage() {
           }
         };
       }
+
+      const totalDuration = Date.now() - startTime;
+      configResult.duration = totalDuration;
 
       setResults([configResult, connectionResult, leadsResult, integrationResult]);
     } catch (error: any) {
@@ -246,16 +236,18 @@ export default function KommoTestingPage() {
           </div>
           <div>
             <p className="text-sm text-gray-500">Client ID</p>
-            <p className="font-mono text-sm">6fc1e2d2-0e1d-4549-8efd-1b0b37d0bbb3</p>
+            <p className="font-mono text-sm">{config.clientId}</p>
           </div>
           <div>
             <p className="text-sm text-gray-500">Connection Status</p>
-            <p className="font-medium text-green-600">Connected</p>
+            <p className="font-medium text-green-600">
+              {status?.status || (isConnected ? 'Connected' : 'Not Connected')}
+            </p>
           </div>
           <div>
-            <p className="text-sm text-gray-500">Created At</p>
+            <p className="text-sm text-gray-500">Last Connected</p>
             <p className="font-medium">
-              {formatDate('2024-11-07T14:31:10.636Z')}
+              {config.connectedAt ? new Date(config.connectedAt).toLocaleString() : 'Never'}
             </p>
           </div>
         </div>
