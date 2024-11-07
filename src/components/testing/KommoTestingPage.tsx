@@ -17,6 +17,17 @@ export default function KommoTestingPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [expandedResult, setExpandedResult] = useState<number | null>(null);
 
+  const formatDate = (dateString: string | undefined | null) => {
+    if (!dateString) return 'Never';
+    try {
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) return 'Invalid Date';
+      return date.toLocaleString();
+    } catch (e) {
+      return 'Invalid Date';
+    }
+  };
+
   const runTests = async () => {
     setIsLoading(true);
     setResults([]);
@@ -33,7 +44,8 @@ export default function KommoTestingPage() {
           accountDomain: config?.accountDomain,
           hasClientId: !!config?.clientId,
           isConnected: isConnected,
-          connectedAt: config?.connectedAt
+          connectedAt: config?.connectedAt,
+          lastConnected: formatDate(config?.connectedAt)
         }
       };
 
@@ -87,7 +99,8 @@ export default function KommoTestingPage() {
             responseTime: duration,
             isConnected: response.data?.isConnected,
             lastSync: response.data?.lastSync,
-            status: response.data?.status
+            status: response.data?.status,
+            connectedAt: formatDate(response.data?.connectedAt)
           }
         };
       } catch (error: any) {
@@ -190,7 +203,7 @@ export default function KommoTestingPage() {
           <div>
             <p className="text-sm text-gray-500">Last Connected</p>
             <p className="font-medium">
-              {config.connectedAt ? new Date(config.connectedAt).toLocaleString() : 'Never'}
+              {formatDate(config.connectedAt)}
             </p>
           </div>
         </div>

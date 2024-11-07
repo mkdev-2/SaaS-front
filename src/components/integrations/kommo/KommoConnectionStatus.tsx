@@ -35,10 +35,12 @@ export default function KommoConnectionStatus({ isConnected, config, error }: Ko
     return null;
   };
 
-  const formatDate = (dateString: string | undefined) => {
+  const formatDate = (dateString: string | undefined | null) => {
     if (!dateString) return 'Never';
     try {
-      return new Date(dateString).toLocaleString();
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) return 'Invalid Date';
+      return date.toLocaleString();
     } catch (e) {
       return 'Invalid Date';
     }
