@@ -1,158 +1,193 @@
-import React, { useState, useEffect } from 'react';
-import { RefreshCw } from 'lucide-react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
-import { useKommoIntegration } from '../../../hooks/useKommoIntegration';
-import KommoLeadsList from './KommoLeadsList';
-import KommoConnectionStatus from './KommoConnectionStatus';
-import KommoButton from './KommoButton';
+import { useState, useEffect } from 'react';
+import api from '../lib/api';
+import { ApiResponse } from '../types/api';
+import { KommoConfig, KommoLead } from '../lib/kommo/types';
+import useAuthStore from '../store/authStore';
 
-// Configuration should match exactly what's registered in Kommo
-const KOMMO_CONFIG = {
-  accountDomain: 'vendaspersonalprime.kommo.com',
-  clientId: '6fc1e2d2-0e1d-4549-8efd-1b0b37d0bbb3',
-  clientSecret: 'O4QcVGEURJVwaCwXIa9ZAxAgpelDtgBnrWObukW6SBlTjYKkSCNJklmhVH5tpTVh',
-  redirectUri: 'https://saas-backend-production-8b94.up.railway.app/api/kommo/callback'
+interface KommoState {
+  isConnected: boolean;
+  isLoading: boolean;
+  error: string | null;
+  leads: KommoLead[];
+  config: KommoConfig | null;
+}
+
+interface InitiateOAuthData {
+  accountDomain: string;
+  clientId: string;
+  clientSecret: string;
+  redirectUri: string;
+  code?: string;
+}
+
+const initialState: KommoState = {
+  isConnected: false,
+  isLoading: true,
+  error: null,
+  leads: [],
+  config: null,
 };
 
-export default function KommoIntegration() {
-  const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
-  const {
-    isConnected,
-    isLoading,
-    error,
-    leads,
-    config,
-    initiateOAuth,
-    disconnect,
-    refresh
-  } = useKommoIntegration();
+export function useKommoIntegration() {
+  const [state, setState] = useState<KommoState>(initialState);
+  const { user } = useAuthStore();
 
-  const [authError, setAuthError] = useState<string | null>(null);
+  const updateState = (newState: Partial<KommoState>) => {
+    setState(prev => ({ ...prev, ...newState }));
+  };
 
-  useEffect(() => {
-    const code = searchParams.get('code');
-    const error = searchParams.get('error');
-
-    if (code) {
-      initiateOAuth({
-        ...KOMMO_CONFIG,
-        code
-      }).catch(err => {
-        console.error('OAuth callback error:', err);
-        setAuthError(err.message || 'Failed to complete authentication');
-      });
-    } else if (error) {
-      setAuthError(`Authentication failed: ${error}`);
+  const loadConfig = async () => {
+    if (!user) {
+      updateState({ isLoading: false });
+      return;
     }
-  }, [searchParams, initiateOAuth]);
 
-  const handleKommoAuth = async () => {
     try {
-      setAuthError(null);
+      updateState({ isLoading: true, error: null });
+      
+      // Get Kommo configuration
+      const { data: response } = await api.get<ApiResponse<KommoConfig>>('/kommo/config');
+      
+      if (response.status === 'success' && response.data) {
+        updateState({
+          config: response.data,
+          isConnected: response.data.isConnected,
+          error: null
+        });
 
-      // Save initial configuration before redirecting
-      await initiateOAuth(KOMMO_CONFIG);
+        if (response.data.isConnected) {
+          await loadLeads();
+        }
+      } else {
+        updateState({
+          isConnected: false,
+          config: null,
+          error: null
+        });
+      }
+    } catch (err: any) {
+      console.error('Error loading Kommo config:', err);
+      updateState({
+        isConnected: false,
+        config: null,
+        error: err.response?.status !== 404 ? (err.response?.data?.message || 'Failed to load configuration') : null
+      });
+    } finally {
+      updateState({ isLoading: false });
+    }
+  };
 
-      // Create a form for POST request
-      const form = document.createElement('form');
-      form.method = 'POST';
-      form.action = `https://${KOMMO_CONFIG.accountDomain}/oauth2/authorize`;
+  const loadLeads = async () => {
+    if (!state.isConnected) return;
 
-      // Add required OAuth parameters
-      const params = {
-        client_id: KOMMO_CONFIG.clientId,
-        redirect_uri: KOMMO_CONFIG.redirectUri,
-        response_type: 'code',
-        state: 'initial_auth',
-        mode: 'post_message'
-      };
+    try {
+      const { data: response } = await api.get<ApiResponse<KommoLead[]>>('/kommo/leads');
+      
+      if (response.status === 'success' && response.data) {
+        updateState({ leads: response.data, error: null });
+      }
+    } catch (err: any) {
+      console.error('Error loading leads:', err);
+      updateState({
+        error: err.response?.data?.message || 'Failed to load leads'
+      });
+    }
+  };
 
-      // Add hidden inputs for each parameter
-      Object.entries(params).forEach(([key, value]) => {
-        const input = document.createElement('input');
-        input.type = 'hidden';
-        input.name = key;
-        input.value = value;
-        form.appendChild(input);
+  const initiateOAuth = async (data: InitiateOAuthData) => {
+    if (!user) {
+      throw new Error('You must be logged in to connect');
+    }
+
+    try {
+      updateState({ isLoading: true, error: null });
+
+      // If we have a code, exchange it for a token
+      if (data.code) {
+        const { data: response } = await api.post<ApiResponse<void>>('/kommo/auth/callback', {
+          code: data.code,
+          accountDomain: data.accountDomain,
+          clientId: data.clientId,
+          clientSecret: data.clientSecret,
+          redirectUri: data.redirectUri
+        });
+
+        if (response.status !== 'success') {
+          throw new Error(response.message || 'Failed to exchange code for token');
+        }
+
+        await loadConfig();
+        return;
+      }
+
+      // Save initial configuration
+      const { data: response } = await api.post<ApiResponse<void>>('/kommo/config', {
+        accountDomain: data.accountDomain,
+        clientId: data.clientId,
+        clientSecret: data.clientSecret,
+        redirectUri: data.redirectUri
       });
 
-      // Submit the form
-      document.body.appendChild(form);
-      form.submit();
-      document.body.removeChild(form);
+      if (response.status !== 'success') {
+        throw new Error(response.message || 'Failed to save configuration');
+      }
     } catch (err: any) {
       console.error('OAuth error:', err);
-      setAuthError(err.message || 'Failed to initiate authentication');
+      
+      if (err.response?.data?.errors) {
+        const errorMessages = err.response.data.errors
+          .map((error: any) => error.message)
+          .join(', ');
+        throw new Error(`Validation error: ${errorMessages}`);
+      }
+      
+      throw new Error(err.response?.data?.message || 'Failed to connect to Kommo');
+    } finally {
+      updateState({ isLoading: false });
     }
   };
 
-  const handleDisconnect = async () => {
+  const disconnect = async () => {
+    if (!user) return;
+
     try {
-      await disconnect();
-      navigate('/integrations');
+      updateState({ isLoading: true, error: null });
+
+      const { data: response } = await api.delete<ApiResponse<void>>('/kommo/config');
+      
+      if (response.status === 'success') {
+        updateState({
+          isConnected: false,
+          config: null,
+          leads: [],
+          error: null
+        });
+      } else {
+        throw new Error(response.message || 'Failed to disconnect');
+      }
     } catch (err: any) {
-      console.error('Disconnect error:', err);
-      setAuthError(err.message || 'Failed to disconnect from Kommo');
+      console.error('Error disconnecting:', err);
+      updateState({
+        error: err.response?.data?.message || 'Failed to disconnect'
+      });
+      throw err;
+    } finally {
+      updateState({ isLoading: false });
     }
   };
 
-  if (isLoading) {
-    return (
-      <div className="bg-white rounded-xl shadow-sm p-6">
-        <div className="flex items-center justify-center h-48">
-          <RefreshCw className="w-6 h-6 animate-spin text-gray-400" />
-        </div>
-      </div>
-    );
-  }
+  useEffect(() => {
+    if (user) {
+      loadConfig();
+    } else {
+      updateState(initialState);
+    }
+  }, [user]);
 
-  return (
-    <div className="bg-white rounded-xl shadow-sm p-6">
-      <div className="flex items-start justify-between mb-6">
-        <div className="flex items-center space-x-3">
-          <div className="h-10 w-10 bg-[#0077FF] rounded-lg flex items-center justify-center">
-            <svg 
-              viewBox="0 0 24 24" 
-              className="h-6 w-6 text-white"
-              fill="currentColor"
-            >
-              <path d="M12 2C6.48 2 2 6.48 2 12C2 17.52 6.48 22 12 22C17.52 22 22 17.52 22 12C22 6.48 17.52 2 12 2ZM12 20C7.59 20 4 16.41 4 12C4 7.59 7.59 4 12 4C16.41 4 20 7.59 20 12C20 16.41 16.41 20 12 20ZM12 17C14.76 17 17 14.76 17 12C17 9.24 14.76 7 12 7C9.24 7 7 9.24 7 12C7 14.76 9.24 17 12 17Z"/>
-            </svg>
-          </div>
-          <div>
-            <h3 className="text-lg font-semibold text-gray-900">Kommo CRM</h3>
-            <p className="text-sm text-gray-500">Connect your Kommo CRM account</p>
-          </div>
-        </div>
-      </div>
-
-      <KommoConnectionStatus
-        isConnected={isConnected}
-        config={config}
-        error={authError || error}
-      />
-
-      {!isConnected && (
-        <KommoButton 
-          onClick={handleKommoAuth}
-          disabled={isLoading}
-          isLoading={isLoading}
-        />
-      )}
-
-      {isConnected && (
-        <button
-          onClick={handleDisconnect}
-          className="mt-4 w-full px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-red-600 bg-red-50 hover:bg-red-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
-        >
-          Disconnect
-        </button>
-      )}
-
-      {isConnected && leads?.length > 0 && (
-        <KommoLeadsList leads={leads} onRefresh={refresh} />
-      )}
-    </div>
-  );
+  return {
+    ...state,
+    initiateOAuth,
+    disconnect,
+    refresh: loadConfig,
+  };
 }
