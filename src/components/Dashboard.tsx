@@ -20,7 +20,14 @@ export default function Dashboard() {
 
   // Extrair dados do período selecionado
   const periodStats = React.useMemo(() => {
-    if (!data?.kommo?.analytics?.periodStats) return null;
+    if (!data?.kommo?.analytics?.periodStats) {
+      return {
+        totalLeads: 0,
+        purchases: 0,
+        byVendor: {},
+        byPersona: {}
+      };
+    }
     return data.kommo.analytics.periodStats[
       selectedPeriod === 'today' ? 'day' : 
       selectedPeriod === 'week' ? 'week' : 
@@ -29,36 +36,32 @@ export default function Dashboard() {
   }, [data, selectedPeriod]);
 
   // Calcular estatísticas
-  const stats = React.useMemo(() => {
-    if (!periodStats) return [];
-
-    return [
-      {
-        title: "Leads do Período",
-        value: periodStats.totalLeads || 0,
-        previousValue: 0,
-        icon: Users
-      },
-      {
-        title: "Vendas Realizadas",
-        value: periodStats.purchases || 0,
-        previousValue: 0,
-        icon: ShoppingBag
-      },
-      {
-        title: "Vendedores Ativos",
-        value: Object.keys(data?.kommo?.analytics?.vendorStats || {}).length,
-        previousValue: 0,
-        icon: Users
-      },
-      {
-        title: "Total de Personas",
-        value: Object.keys(data?.kommo?.analytics?.personaStats || {}).length,
-        previousValue: 0,
-        icon: Tags
-      }
-    ];
-  }, [data, periodStats]);
+  const stats = React.useMemo(() => [
+    {
+      title: "Leads do Período",
+      value: periodStats?.totalLeads || 0,
+      previousValue: 0,
+      icon: Users
+    },
+    {
+      title: "Vendas Realizadas",
+      value: periodStats?.purchases || 0,
+      previousValue: 0,
+      icon: ShoppingBag
+    },
+    {
+      title: "Vendedores Ativos",
+      value: Object.keys(data?.kommo?.analytics?.vendorStats || {}).length,
+      previousValue: 0,
+      icon: Users
+    },
+    {
+      title: "Total de Personas",
+      value: Object.keys(data?.kommo?.analytics?.personaStats || {}).length,
+      previousValue: 0,
+      icon: Tags
+    }
+  ], [data, periodStats]);
 
   // Preparar dados do gráfico
   const chartData = React.useMemo(() => {
@@ -96,6 +99,26 @@ export default function Dashboard() {
       0
     ) || 0;
   }, [data]);
+
+  if (!data?.kommo?.isConnected) {
+    return (
+      <div className="p-6">
+        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+          <div className="flex">
+            <AlertCircle className="h-5 w-5 text-yellow-400 mt-0.5 mr-3" />
+            <div>
+              <h3 className="text-sm font-medium text-yellow-800">
+                Integração não configurada
+              </h3>
+              <p className="mt-2 text-sm text-yellow-700">
+                Configure a integração com o Kommo CRM para visualizar as métricas do dashboard.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-6 space-y-6">
@@ -147,7 +170,7 @@ export default function Dashboard() {
         )}
       </div>
 
-      {!loading && data?.kommo?.analytics && (
+      {!loading && (
         <>
           {/* Daily Leads Chart */}
           <div className="bg-white rounded-xl shadow-sm p-6">

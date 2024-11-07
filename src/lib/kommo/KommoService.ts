@@ -1,5 +1,5 @@
 import axios, { AxiosInstance } from 'axios';
-import { KommoConfig, KommoLead, KommoAnalytics, DiagnosticResults } from './types';
+import { KommoConfig, KommoLead, KommoAnalytics, DiagnosticResults, KommoStatus } from './types';
 import { KommoAuthService } from './KommoAuthService';
 import { KommoLeadService } from './KommoLeadService';
 import { KommoAnalyticsService } from './KommoAnalyticsService';
@@ -56,6 +56,24 @@ export class KommoService {
     this.client.defaults.headers['Authorization'] = `Bearer ${tokens.accessToken}`;
   }
 
+  async getStatus(): Promise<KommoStatus> {
+    try {
+      const response = await this.client.get('/account');
+      return {
+        isConnected: true,
+        status: 'active',
+        lastSync: new Date().toISOString()
+      };
+    } catch (error) {
+      logger.error('Status check failed:', error);
+      return {
+        isConnected: false,
+        status: 'error',
+        error: error.message
+      };
+    }
+  }
+
   async testConnection(): Promise<boolean> {
     try {
       const diagnostics = await this.runDiagnostics();
@@ -64,6 +82,19 @@ export class KommoService {
       logger.error('Connection test failed:', error);
       return false;
     }
+  }
+
+  async getTodayLeads(): Promise<KommoLead[]> {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    return this.leadService.getLeads({
+      filter: {
+        created_at: {
+          from: Math.floor(today.getTime() / 1000)
+        }
+      }
+    });
   }
 
   async runDiagnostics(): Promise<DiagnosticResults> {
@@ -119,8 +150,8 @@ export class KommoService {
       hasRefreshToken: !!this.config.refreshToken,
       tokenExpired: this.config.expiresAt ? new Date(this.config.expiresAt) < new Date() : true,
       accountDomain: this.config.accountDomain,
-      clientId: this.config.clientId ? '[PRESENT]' : '[MISSING]',
-      clientSecret: this.config.clientSecret ? '[PRESENT]' : '[MISSING]'
+      clientId: this.config.clientId,
+      clientSecret: this.config.clientSecret || '[MISSING]'
     };
   }
 
