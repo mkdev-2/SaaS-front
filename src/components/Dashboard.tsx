@@ -1,11 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, Suspense } from 'react';
 import { ArrowUpRight, ArrowDownRight, Activity, Users, Box, Zap, RefreshCw, AlertCircle, Tags, ShoppingBag, DollarSign } from 'lucide-react';
 import { useDashboardData } from '../hooks/useDashboardData';
-import DailyLeadsChart from './dashboard/DailyLeadsChart';
-import VendorStats from './dashboard/VendorStats';
-import PersonaStats from './dashboard/PersonaStats';
-import PurchaseStats from './dashboard/PurchaseStats';
-import PeriodSelector from './dashboard/PeriodSelector';
+
+// Lazy load components
+const DailyLeadsChart = React.lazy(() => import('./dashboard/DailyLeadsChart'));
+const VendorStats = React.lazy(() => import('./dashboard/VendorStats'));
+const PersonaStats = React.lazy(() => import('./dashboard/PersonaStats'));
+const PurchaseStats = React.lazy(() => import('./dashboard/PurchaseStats'));
+const PeriodSelector = React.lazy(() => import('./dashboard/PeriodSelector'));
 
 const formatCurrency = (value: number) => {
   return value.toLocaleString('pt-BR', {
@@ -14,113 +16,61 @@ const formatCurrency = (value: number) => {
   });
 };
 
+function LoadingCard() {
+  return (
+    <div className="bg-white rounded-xl shadow-sm p-6 animate-pulse">
+      <div className="h-4 bg-gray-200 rounded w-1/4 mb-4"></div>
+      <div className="h-8 bg-gray-200 rounded w-1/2"></div>
+    </div>
+  );
+}
+
+function LoadingChart() {
+  return (
+    <div className="bg-white rounded-xl shadow-sm p-6">
+      <div className="h-64 flex items-center justify-center">
+        <RefreshCw className="h-8 w-8 text-gray-400 animate-spin" />
+      </div>
+    </div>
+  );
+}
+
 export default function Dashboard() {
   const { data, loading, error, refresh } = useDashboardData();
   const [selectedPeriod, setSelectedPeriod] = useState('today');
 
-  // Extrair dados do período selecionado
-  const periodStats = React.useMemo(() => {
-    if (!data?.kommo?.analytics?.periodStats) {
-      return {
-        totalLeads: 0,
-        purchases: 0,
-        byVendor: {},
-        byPersona: {}
-      };
-    }
+  // Calcular estatísticas básicas primeiro
+  const stats = React.useMemo(() => {
+    if (!data?.kommo?.analytics) return [];
 
-    const periodKey = selectedPeriod === 'today' ? 'day' : 
-                     selectedPeriod === 'week' ? 'week' : 
-                     'fortnight';
+    const periodStats = data.kommo.analytics.periodStats?.[
+      selectedPeriod === 'today' ? 'day' : 
+      selectedPeriod === 'week' ? 'week' : 
+      'fortnight'
+    ] || { totalLeads: 0, purchases: 0 };
 
-    return data.kommo.analytics.periodStats[periodKey] || {
-      totalLeads: 0,
-      purchases: 0,
-      byVendor: {},
-      byPersona: {}
-    };
+    return [
+      {
+        title: "Leads do Período",
+        value: periodStats.totalLeads || 0,
+        previousValue: 0,
+        icon: Users
+      },
+      {
+        title: "Vendas Realizadas",
+        value: periodStats.purchases || 0,
+        previousValue: 0,
+        icon: ShoppingBag
+      }
+    ];
   }, [data, selectedPeriod]);
-
-  // Calcular estatísticas
-  const stats = React.useMemo(() => [
-    {
-      title: "Leads do Período",
-      value: periodStats?.totalLeads || 0,
-      previousValue: 0,
-      icon: Users
-    },
-    {
-      title: "Vendas Realizadas",
-      value: periodStats?.purchases || 0,
-      previousValue: 0,
-      icon: ShoppingBag
-    },
-    {
-      title: "Vendedores Ativos",
-      value: Object.keys(data?.kommo?.analytics?.vendorStats || {}).length,
-      previousValue: 0,
-      icon: Users
-    },
-    {
-      title: "Total de Personas",
-      value: Object.keys(data?.kommo?.analytics?.personaStats || {}).length,
-      previousValue: 0,
-      icon: Tags
-    }
-  ], [data, periodStats]);
-
-  // Preparar dados do gráfico
-  const chartData = React.useMemo(() => {
-    if (!data?.kommo?.analytics?.dailyStats) return [];
-
-    return Object.entries(data.kommo.analytics.dailyStats)
-      .map(([date, stats]) => ({
-        date,
-        leads: stats.total,
-        value: stats.leads.reduce((sum, lead: any) => sum + (lead.price || 0), 0)
-      }))
-      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-  }, [data]);
-
-  // Preparar dados dos vendedores
-  const vendorData = React.useMemo(() => {
-    if (!data?.kommo?.analytics?.vendorStats) return [];
-
-    return Object.entries(data.kommo.analytics.vendorStats)
-      .map(([name, stats]) => [name, stats.total] as [string, number]);
-  }, [data]);
-
-  // Preparar dados das personas
-  const personaData = React.useMemo(() => {
-    if (!data?.kommo?.analytics?.personaStats) return [];
-
-    return Object.entries(data.kommo.analytics.personaStats)
-      .map(([name, stats]) => [name, stats.count] as [string, number]);
-  }, [data]);
-
-  // Calcular total de vendas
-  const totalSales = React.useMemo(() => {
-    return data?.kommo?.analytics?.purchaseStats?.reduce(
-      (sum, purchase) => sum + (purchase.total || 0),
-      0
-    ) || 0;
-  }, [data]);
 
   if (loading) {
     return (
-      <div className="p-6">
-        <div className="bg-white border border-gray-200 rounded-lg p-4">
-          <div className="flex items-center">
-            <RefreshCw className="h-5 w-5 text-indigo-600 animate-spin mr-3" />
-            <div>
-              <h3 className="text-sm font-medium text-gray-900">
-                Carregando dados
-              </h3>
-              <p className="mt-1 text-sm text-gray-500">
-                Aguarde enquanto carregamos as métricas do dashboard...
-              </p>
-            </div>
-          </div>
+      <div className="p-6 space-y-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <LoadingCard />
+          <LoadingCard />
         </div>
       </div>
     );
@@ -183,11 +133,13 @@ export default function Dashboard() {
           <h1 className="text-2xl font-bold text-gray-900">Dashboard de Vendas</h1>
           <p className="text-gray-500">Métricas de vendas e desempenho em tempo real</p>
         </div>
-        <PeriodSelector value={selectedPeriod} onChange={setSelectedPeriod} />
+        <Suspense fallback={null}>
+          <PeriodSelector value={selectedPeriod} onChange={setSelectedPeriod} />
+        </Suspense>
       </div>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {stats.map((stat, index) => (
           <StatCard
             key={index}
@@ -199,33 +151,31 @@ export default function Dashboard() {
         ))}
       </div>
 
-      {/* Daily Leads Chart */}
-      <div className="bg-white rounded-xl shadow-sm p-6">
-        <h2 className="text-lg font-semibold text-gray-900">Tendência de Leads</h2>
+      {/* Charts and detailed stats - loaded progressively */}
+      <Suspense fallback={<LoadingChart />}>
         <DailyLeadsChart 
-          data={chartData}
+          data={Object.entries(data.kommo.analytics.dailyStats || {}).map(([date, stats]) => ({
+            date,
+            leads: stats.total,
+            value: stats.leads.reduce((sum: number, lead: any) => sum + (lead.price || 0), 0)
+          }))}
           period={selectedPeriod}
         />
-      </div>
+      </Suspense>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Vendor Performance */}
-        <VendorStats data={vendorData} />
+        <Suspense fallback={<LoadingCard />}>
+          <VendorStats 
+            data={Object.entries(data.kommo.analytics.vendorStats || {})} 
+          />
+        </Suspense>
 
-        {/* Persona Distribution */}
-        <PersonaStats data={personaData} />
+        <Suspense fallback={<LoadingCard />}>
+          <PersonaStats 
+            data={Object.entries(data.kommo.analytics.personaStats || {})}
+          />
+        </Suspense>
       </div>
-
-      {/* Purchase Analytics */}
-      <PurchaseStats
-        total={totalSales}
-        byProduct={[]}
-        byPayment={[]}
-        byPersona={personaData.map(([name, count]) => [
-          name,
-          { count, value: 0 }
-        ])}
-      />
     </div>
   );
 }
