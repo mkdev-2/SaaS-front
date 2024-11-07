@@ -71,7 +71,7 @@ export default function KommoIntegration() {
       setAuthError(null);
 
       // Iniciar processo de autenticação
-      const { data: response } = await initiateOAuth({
+      const response = await initiateOAuth({
         accountDomain: KOMMO_DOMAIN
       });
 

@@ -118,8 +118,8 @@ export function useKommoIntegration() {
         accountDomain: data.accountDomain
       });
 
-      if (response.status !== 'success' || !response.data?.authUrl) {
-        throw new Error(response.message || 'URL de autenticação não fornecida');
+      if (response.status !== 'success') {
+        throw new Error(response.message || 'Falha ao iniciar autenticação');
       }
 
       return response.data;
