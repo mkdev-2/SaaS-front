@@ -3,11 +3,7 @@ import { KommoAnalytics, KommoLead } from './types';
 import { logger } from '../logger';
 
 export class KommoAnalyticsService {
-  private client: AxiosInstance;
-
-  constructor(client: AxiosInstance) {
-    this.client = client;
-  }
+  constructor(private client: AxiosInstance) {}
 
   async getAnalytics(startDate: Date, endDate: Date): Promise<KommoAnalytics> {
     try {
@@ -24,7 +20,7 @@ export class KommoAnalyticsService {
     }
   }
 
-  private async getLeadsInDateRange(startDate: Date, endDate: Date) {
+  async getLeadsInDateRange(startDate: Date, endDate: Date): Promise<KommoLead[]> {
     try {
       const response = await this.client.get('/leads', {
         params: {
@@ -37,21 +33,40 @@ export class KommoAnalyticsService {
           with: ['contacts', 'catalog_elements', 'custom_fields_values']
         }
       });
-      return response.data._embedded?.leads || [];
+
+      if (!response.data?._embedded?.leads) {
+        logger.error('Invalid leads response:', response.data);
+        return [];
+      }
+
+      return response.data._embedded.leads;
     } catch (error) {
       logger.error('Error fetching leads:', error);
-      throw error;
+      return [];
     }
   }
 
-  private async getCustomFields() {
+  async getCustomFields(): Promise<any[]> {
     try {
       const response = await this.client.get('/leads/custom_fields');
-      return response.data._embedded?.custom_fields || [];
+      
+      if (!response.data?._embedded?.custom_fields) {
+        logger.error('Invalid custom fields response:', response.data);
+        return [];
+      }
+
+      return response.data._embedded.custom_fields;
     } catch (error) {
       logger.error('Error fetching custom fields:', error);
-      throw error;
+      return [];
     }
+  }
+
+  async getTodayLeads(): Promise<KommoLead[]> {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    return this.getLeadsInDateRange(today, new Date());
   }
 
   private processLeadsData(leads: KommoLead[], customFields: any[]): KommoAnalytics {
@@ -137,5 +152,21 @@ export class KommoAnalyticsService {
       field.field_id === paymentField.id
     );
     return fieldValue?.values[0]?.value || 'Não informado';
+  }
+
+  formatCurrency(value: number): string {
+    return value.toLocaleString('pt-BR', {
+      style: 'currency',
+      currency: 'BRL'
+    });
+  }
+
+  formatDate(timestamp: number): string {
+    return new Date(timestamp * 1000).toLocaleString('pt-BR');
+  }
+
+  formatPercentage(value: number, total: number): string {
+    if (total === 0) return '0%';
+    return `${((value / total) * 100).toFixed(1)}%`;
   }
 }
