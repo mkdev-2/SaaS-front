@@ -7,9 +7,17 @@ interface StatCardProps {
   change?: string;
   icon: React.ElementType;
   color?: string;
+  subtitle?: string;
 }
 
-export default function StatCard({ title, value, change, icon: Icon, color = 'indigo' }: StatCardProps) {
+export default function StatCard({ 
+  title, 
+  value, 
+  change, 
+  icon: Icon, 
+  color = 'indigo',
+  subtitle 
+}: StatCardProps) {
   const isPositive = change ? !change.startsWith('-') : true;
   
   return (
@@ -33,6 +41,9 @@ export default function StatCard({ title, value, change, icon: Icon, color = 'in
       </div>
       <h3 className="text-2xl font-bold mt-4">{value}</h3>
       <p className="text-gray-600 text-sm">{title}</p>
+      {subtitle && (
+        <p className="text-gray-500 text-xs mt-1">{subtitle}</p>
+      )}
     </div>
   );
 }

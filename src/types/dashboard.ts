@@ -1,6 +1,42 @@
+export interface VendorPerformance {
+  totalAtendimentos: number;
+  propostas: number;
+  vendas: number;
+  valorVendas: string;
+  taxaConversao: string;
+  taxaPropostas: string;
+}
+
+export interface LeadInteraction {
+  id: number;
+  name: string;
+  value: string;
+  created_at: string;
+  updated_at: string;
+  status: string;
+  statusColor: string;
+  tipo: 'novo' | 'interacao';
+  vendedor: string;
+}
+
+export interface DailyMetrics {
+  total: number;
+  novosLeads: number;
+  interacoes: number;
+  propostas: number;
+  vendas: number;
+  valorVendas: string;
+  taxaInteracao: string;
+  taxaVendas: string;
+  taxaPropostas: string;
+  leads: LeadInteraction[];
+}
+
 export interface PeriodStats {
   totalLeads: number;
-  purchases: number;
+  vendas: number;
+  valorVendas: string;
+  taxaConversao: string;
 }
 
 export interface BasicStats {
@@ -12,29 +48,8 @@ export interface BasicStats {
 }
 
 export interface DetailedStats {
-  dailyStats: Record<string, {
-    total: number;
-    newLeads: number;
-    proposalsSent: number;
-    purchases: number;
-    purchaseValue: string;
-    purchaseRate: string;
-    proposalRate: string;
-    leads: Array<{
-      id: number;
-      name: string;
-      value: string;
-      created_at: string;
-      status: string;
-      statusColor: string;
-    }>;
-  }>;
-  vendorStats: Record<string, {
-    totalLeads: number;
-    activeLeads: number;
-    totalPurchaseValue: string;
-    activeRate: string;
-  }>;
+  dailyStats: Record<string, DailyMetrics>;
+  vendorStats: Record<string, VendorPerformance>;
   personaStats: Record<string, {
     quantity: number;
     totalValue: string;

@@ -3,10 +3,12 @@ import { Users, TrendingUp, TrendingDown } from 'lucide-react';
 
 interface VendorData {
   name: string;
-  leads: number;
-  active: number;
-  value: string;
-  rate: string;
+  atendimentos: number;
+  propostas: number;
+  vendas: number;
+  valor: string;
+  taxaConversao: string;
+  taxaPropostas: string;
 }
 
 interface VendorStatsProps {
@@ -15,11 +17,11 @@ interface VendorStatsProps {
 
 export default function VendorStats({ data }: VendorStatsProps) {
   const sortedData = React.useMemo(() => {
-    return [...data].sort((a, b) => b.leads - a.leads);
+    return [...data].sort((a, b) => b.vendas - a.vendas);
   }, [data]);
 
-  const totalLeads = React.useMemo(() => {
-    return data.reduce((sum, vendor) => sum + vendor.leads, 0);
+  const totalAtendimentos = React.useMemo(() => {
+    return data.reduce((sum, vendor) => sum + vendor.atendimentos, 0);
   }, [data]);
 
   return (
@@ -27,7 +29,7 @@ export default function VendorStats({ data }: VendorStatsProps) {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h2 className="text-lg font-semibold text-gray-900">Desempenho dos Vendedores</h2>
-          <p className="text-sm text-gray-500">{totalLeads} leads no total</p>
+          <p className="text-sm text-gray-500">{totalAtendimentos} atendimentos no total</p>
         </div>
         <div className="p-2 bg-blue-100 rounded-lg">
           <Users className="h-5 w-5 text-blue-600" />
@@ -36,7 +38,7 @@ export default function VendorStats({ data }: VendorStatsProps) {
 
       <div className="space-y-4">
         {sortedData.map((vendor) => {
-          const isHighPerformer = parseFloat(vendor.rate.replace('%', '')) > 50;
+          const isHighPerformer = parseFloat(vendor.taxaConversao.replace('%', '')) > 30;
 
           return (
             <div key={vendor.name} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
@@ -50,18 +52,23 @@ export default function VendorStats({ data }: VendorStatsProps) {
                   )}
                 </div>
                 <div className="text-sm text-gray-500 mt-1">
-                  <span>{vendor.leads} leads</span>
+                  <span>{vendor.atendimentos} atendimentos</span>
                   <span className="mx-2">•</span>
-                  <span>{vendor.active} ativos</span>
+                  <span>{vendor.propostas} propostas</span>
                   <span className="mx-2">•</span>
-                  <span>{vendor.value}</span>
+                  <span>{vendor.vendas} vendas</span>
+                </div>
+                <div className="text-sm text-gray-500 mt-1">
+                  <span>Valor: {vendor.valor}</span>
+                  <span className="mx-2">•</span>
+                  <span>Prop: {vendor.taxaPropostas}</span>
                 </div>
               </div>
               <div className="text-right">
                 <span className={`text-sm font-medium ${
                   isHighPerformer ? 'text-green-600' : 'text-gray-600'
                 }`}>
-                  {vendor.rate}
+                  {vendor.taxaConversao}
                 </span>
               </div>
             </div>

@@ -1,10 +1,9 @@
 import React, { useState, Suspense } from 'react';
-import { Users, Box, RefreshCw, AlertCircle, FileText, CheckCircle } from 'lucide-react';
+import { Users, Box, RefreshCw, AlertCircle, FileText, CheckCircle, TrendingUp } from 'lucide-react';
 import { useDashboardData } from '../hooks/useDashboardData';
 import { DashboardData } from '../types/dashboard';
 import StatCard from './dashboard/StatCard';
 
-// Lazy load components
 const DailyLeadsChart = React.lazy(() => import('./dashboard/DailyLeadsChart'));
 const VendorStats = React.lazy(() => import('./dashboard/VendorStats'));
 const PersonaStats = React.lazy(() => import('./dashboard/PersonaStats'));
@@ -71,54 +70,59 @@ function getStats(data: DashboardData | null, selectedPeriod: string) {
   const analytics = data?.kommoAnalytics;
   if (!analytics) return [];
 
-  // Handle undefined analytics or missing periodStats
   const periodStats = analytics.periodStats || {
-    day: { totalLeads: 0, purchases: 0 },
-    week: { totalLeads: 0, purchases: 0 },
-    fortnight: { totalLeads: 0, purchases: 0 }
+    day: { totalLeads: 0, vendas: 0, valorVendas: 'R$ 0,00', taxaConversao: '0%' },
+    week: { totalLeads: 0, vendas: 0, valorVendas: 'R$ 0,00', taxaConversao: '0%' },
+    fortnight: { totalLeads: 0, vendas: 0, valorVendas: 'R$ 0,00', taxaConversao: '0%' }
   };
 
   const currentPeriodStats = periodStats[
     selectedPeriod === 'today' ? 'day' : 
     selectedPeriod === 'week' ? 'week' : 
     'fortnight'
-  ] || { totalLeads: 0, purchases: 0 };
+  ];
 
   const today = new Date().toLocaleDateString('pt-BR');
   const todayStats = analytics.dailyStats?.[today] || {
     total: 0,
-    newLeads: 0,
-    proposalsSent: 0,
-    purchases: 0,
-    purchaseValue: 'R$ 0,00',
-    purchaseRate: '0%',
-    proposalRate: '0%'
+    novosLeads: 0,
+    interacoes: 0,
+    propostas: 0,
+    vendas: 0,
+    valorVendas: 'R$ 0,00',
+    taxaInteracao: '0%',
+    taxaVendas: '0%',
+    taxaPropostas: '0%'
   };
 
   return [
     {
       title: "Leads do Período",
       value: currentPeriodStats.totalLeads,
+      subtitle: `${todayStats.novosLeads} novos hoje`,
       icon: Users,
       color: 'indigo'
     },
     {
-      title: "Propostas Enviadas",
-      value: todayStats.proposalsSent,
-      icon: FileText,
+      title: "Interações",
+      value: todayStats.interacoes,
+      subtitle: `Taxa: ${todayStats.taxaInteracao}`,
+      icon: TrendingUp,
       color: 'blue'
     },
     {
-      title: "Taxa de Conversão",
-      value: todayStats.purchaseRate,
-      icon: CheckCircle,
-      color: 'green'
+      title: "Propostas Enviadas",
+      value: todayStats.propostas,
+      subtitle: `Taxa: ${todayStats.taxaPropostas}`,
+      icon: FileText,
+      color: 'amber'
     },
     {
-      title: "Valor Total",
-      value: todayStats.purchaseValue,
-      icon: Box,
-      color: 'purple'
+      title: "Vendas Realizadas",
+      value: todayStats.vendas,
+      subtitle: `${todayStats.valorVendas} • ${todayStats.taxaVendas}`,
+      icon: CheckCircle,
+      color: 'green'
     }
   ];
 }
@@ -161,6 +165,7 @@ export default function Dashboard() {
             value={stat.value}
             icon={stat.icon}
             color={stat.color}
+            subtitle={stat.subtitle}
           />
         ))}
       </div>
@@ -191,10 +196,12 @@ export default function Dashboard() {
             <VendorStats 
               data={Object.entries(data.kommoAnalytics.vendorStats).map(([name, stats]) => ({
                 name,
-                leads: stats.totalLeads,
-                active: stats.activeLeads,
-                value: stats.totalPurchaseValue,
-                rate: stats.activeRate
+                atendimentos: stats.totalAtendimentos,
+                propostas: stats.propostas,
+                vendas: stats.vendas,
+                valor: stats.valorVendas,
+                taxaConversao: stats.taxaConversao,
+                taxaPropostas: stats.taxaPropostas
               }))}
             />
           </Suspense>

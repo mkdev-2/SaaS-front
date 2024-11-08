@@ -9,15 +9,15 @@ interface DailyLeadsChartProps {
 
 interface ChartDataPoint {
   date: string;
-  leads: number;
-  value: number;
-  proposals: number;
-  purchases: number;
+  novosLeads: number;
+  interacoes: number;
+  propostas: number;
+  vendas: number;
+  valor: number;
 }
 
 const formatCurrency = (value: string | undefined): number => {
   if (!value) return 0;
-  // Remove 'R$ ' prefix and convert to number
   return parseFloat(value.replace('R$ ', '').replace('.', '').replace(',', '.'));
 };
 
@@ -51,12 +51,11 @@ export default function DailyLeadsChart({ data, period }: DailyLeadsChartProps) 
     return Object.entries(data)
       .map(([date, stats]): ChartDataPoint => ({
         date,
-        leads: stats.total || 0,
-        value: stats.leads.reduce((sum, lead) => 
-          sum + (lead.value ? formatCurrency(lead.value) : 0), 0
-        ),
-        proposals: stats.proposalsSent || 0,
-        purchases: stats.purchases || 0
+        novosLeads: stats.novosLeads || 0,
+        interacoes: stats.interacoes || 0,
+        propostas: stats.propostas || 0,
+        vendas: stats.vendas || 0,
+        valor: formatCurrency(stats.valorVendas)
       }))
       .filter(item => {
         try {
@@ -77,7 +76,7 @@ export default function DailyLeadsChart({ data, period }: DailyLeadsChartProps) 
   if (!chartData.length) {
     return (
       <div className="bg-white rounded-xl shadow-sm p-6">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">Leads e Propostas por Dia</h2>
+        <h2 className="text-lg font-semibold text-gray-900 mb-4">Leads e Interações por Dia</h2>
         <div className="h-64 flex items-center justify-center text-gray-500">
           Nenhum dado disponível para o período selecionado
         </div>
@@ -87,7 +86,7 @@ export default function DailyLeadsChart({ data, period }: DailyLeadsChartProps) 
 
   return (
     <div className="bg-white rounded-xl shadow-sm p-6">
-      <h2 className="text-lg font-semibold text-gray-900 mb-4">Leads e Propostas por Dia</h2>
+      <h2 className="text-lg font-semibold text-gray-900 mb-4">Leads e Interações por Dia</h2>
       <div className="h-64">
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={chartData}>
@@ -102,23 +101,26 @@ export default function DailyLeadsChart({ data, period }: DailyLeadsChartProps) 
               labelFormatter={formatDate}
               formatter={(value: number, name: string) => {
                 switch (name) {
-                  case 'leads':
-                    return [value, 'Leads'];
-                  case 'proposals':
+                  case 'novosLeads':
+                    return [value, 'Novos Leads'];
+                  case 'interacoes':
+                    return [value, 'Interações'];
+                  case 'propostas':
                     return [value, 'Propostas'];
-                  case 'value':
-                    return [`R$ ${value.toFixed(2)}`, 'Valor'];
-                  case 'purchases':
+                  case 'vendas':
                     return [value, 'Vendas'];
+                  case 'valor':
+                    return [`R$ ${value.toFixed(2)}`, 'Valor'];
                   default:
                     return [value, name];
                 }
               }}
             />
-            <Bar yAxisId="left" dataKey="leads" fill="#4F46E5" name="Leads" />
-            <Bar yAxisId="left" dataKey="proposals" fill="#F59E0B" name="Propostas" />
-            <Bar yAxisId="right" dataKey="value" fill="#10B981" name="Valor" />
-            <Bar yAxisId="left" dataKey="purchases" fill="#EF4444" name="Vendas" />
+            <Bar yAxisId="left" dataKey="novosLeads" fill="#4F46E5" name="Novos Leads" />
+            <Bar yAxisId="left" dataKey="interacoes" fill="#8B5CF6" name="Interações" />
+            <Bar yAxisId="left" dataKey="propostas" fill="#F59E0B" name="Propostas" />
+            <Bar yAxisId="left" dataKey="vendas" fill="#10B981" name="Vendas" />
+            <Bar yAxisId="right" dataKey="valor" fill="#6366F1" name="Valor" />
           </BarChart>
         </ResponsiveContainer>
       </div>
