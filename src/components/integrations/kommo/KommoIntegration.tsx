@@ -46,7 +46,7 @@ export default function KommoIntegration() {
           setAuthWindow(null);
         }
 
-        setAuthError('Authentication failed: ' + event.data.error);
+        setAuthError('Autenticação falhou: ' + event.data.error);
       }
     }
 
@@ -60,7 +60,7 @@ export default function KommoIntegration() {
         accountDomain: KOMMO_DOMAIN,
         code,
         state,
-        redirectUri: `${BACKEND_URL}/kommo/callback`
+        redirectUri: `${BACKEND_URL}/api/kommo/callback`
       });
       setAuthError(null);
     } catch (err: any) {
@@ -75,14 +75,13 @@ export default function KommoIntegration() {
 
       const response = await initiateOAuth({
         accountDomain: KOMMO_DOMAIN,
-        redirectUri: `${BACKEND_URL}/kommo/callback`
+        redirectUri: `${BACKEND_URL}/api/kommo/callback`
       });
 
       if (!response?.authUrl) {
-        throw new Error('Authentication URL not provided');
+        throw new Error('URL de autenticação não fornecida');
       }
 
-      // Open authentication window
       const width = 800;
       const height = 600;
       const left = window.screenX + (window.outerWidth - width) / 2;
@@ -95,24 +94,22 @@ export default function KommoIntegration() {
       );
 
       if (!newAuthWindow) {
-        throw new Error('Could not open authentication window. Please allow popups for this site.');
+        throw new Error('Não foi possível abrir a janela de autenticação. Por favor, permita pop-ups para este site.');
       }
 
       setAuthWindow(newAuthWindow);
 
-      // Monitor window close
       const checkWindow = setInterval(() => {
         if (newAuthWindow.closed) {
           clearInterval(checkWindow);
           setAuthWindow(null);
-          // Check if we need to refresh the config
           refresh();
         }
       }, 500);
 
     } catch (err: any) {
-      console.error('Error initiating authentication:', err);
-      setAuthError(err.message || 'Failed to initiate authentication');
+      console.error('Erro ao iniciar a autenticação:', err);
+      setAuthError(err.message || 'Falha ao iniciar autenticação');
     }
   };
 
@@ -121,8 +118,8 @@ export default function KommoIntegration() {
       await disconnect();
       navigate('/integrations');
     } catch (err: any) {
-      console.error('Error disconnecting:', err);
-      setAuthError(err.message || 'Failed to disconnect from Kommo');
+      console.error('Erro ao desconectar:', err);
+      setAuthError(err.message || 'Falha ao desconectar do Kommo');
     }
   };
 
@@ -151,7 +148,7 @@ export default function KommoIntegration() {
           </div>
           <div>
             <h3 className="text-lg font-semibold text-gray-900">Kommo CRM</h3>
-            <p className="text-sm text-gray-500">Connect your Kommo CRM account</p>
+            <p className="text-sm text-gray-500">Conecte sua conta do Kommo CRM</p>
           </div>
         </div>
       </div>
