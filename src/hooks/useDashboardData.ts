@@ -25,13 +25,20 @@ export interface DashboardData {
         leads: Array<{
           id: number;
           name: string;
-          created_at: number;
-          price: number;
+          value: string;
+          created_at: string;
         }>;
       }>;
-      vendorStats?: Record<string, number>;
-      personaStats?: Record<string, number>;
-    } | null;
+      vendorStats?: Record<string, {
+        totalLeads: number;
+        activeLeads: number;
+        totalPurchaseValue: string;
+      }>;
+      personaStats?: Record<string, {
+        quantity: number;
+        totalValue: string;
+      }>;
+    };
   };
   recentRules: any[];
 }
@@ -39,15 +46,12 @@ export interface DashboardData {
 export function useDashboardData() {
   const { isAuthenticated, user } = useAuthStore();
   const [data, setData] = useState<DashboardData | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   
   const isMounted = useRef(true);
   const lastFetchTime = useRef<number>(0);
-  const pollTimeoutRef = useRef<NodeJS.Timeout>();
-  const retryCount = useRef(0);
-  const maxRetries = 3;
 
   const fetchDashboardData = useCallback(async (force = false) => {
     if (!isAuthenticated || !user) {
@@ -62,35 +66,20 @@ export function useDashboardData() {
     }
 
     try {
-      const { data: response } = await api.get<ApiResponse<DashboardData>>('/dashboard/stats', {
-        params: {
-          detailed: true,
-          period: 7
-        }
-      });
+      setLoading(true);
+      const { data: response } = await api.get<ApiResponse<DashboardData>>('/dashboard/stats');
       
       if (!isMounted.current) return;
 
       if (response.status === 'success' && response.data) {
         setData(response.data);
         setError(null);
-        retryCount.current = 0;
       } else {
         throw new Error(response.message || 'Failed to fetch dashboard data');
       }
     } catch (err: any) {
       if (!isMounted.current) return;
       console.error('Dashboard fetch error:', err);
-
-      // Implement retry logic
-      if (retryCount.current < maxRetries) {
-        retryCount.current++;
-        setTimeout(() => {
-          fetchDashboardData(true);
-        }, 2000 * retryCount.current);
-        return;
-      }
-
       setError(err.response?.data?.message || err.message || 'Failed to connect to the server');
     } finally {
       if (isMounted.current) {
@@ -109,7 +98,6 @@ export function useDashboardData() {
     }
 
     // Initial fetch
-    setLoading(true);
     fetchDashboardData(true);
 
     // Socket connection
@@ -120,8 +108,6 @@ export function useDashboardData() {
       setIsConnected(status);
       if (status) {
         setError(null);
-        // Fetch fresh data when socket connects
-        fetchDashboardData(true);
       }
     });
 
@@ -132,42 +118,20 @@ export function useDashboardData() {
         ...newData
       }));
       setError(null);
-      lastFetchTime.current = Date.now();
       setLoading(false);
+      lastFetchTime.current = Date.now();
     });
-
-    // Polling fallback if socket is not connected
-    const startPolling = () => {
-      if (pollTimeoutRef.current) {
-        clearTimeout(pollTimeoutRef.current);
-      }
-
-      pollTimeoutRef.current = setTimeout(() => {
-        if (isMounted.current && !isConnected) {
-          fetchDashboardData();
-          startPolling();
-        }
-      }, 30000);
-    };
-
-    if (!isConnected) {
-      startPolling();
-    }
 
     return () => {
       isMounted.current = false;
-      if (pollTimeoutRef.current) {
-        clearTimeout(pollTimeoutRef.current);
-      }
       unsubscribeConnection();
       unsubscribeUpdates();
       socketService.disconnect();
     };
-  }, [fetchDashboardData, isConnected, isAuthenticated, user]);
+  }, [fetchDashboardData, isAuthenticated, user]);
 
   const refresh = useCallback(() => {
     if (Date.now() - lastFetchTime.current >= 5000) {
-      setLoading(true);
       fetchDashboardData(true);
     }
   }, [fetchDashboardData]);

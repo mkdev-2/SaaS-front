@@ -48,7 +48,65 @@ export default function Dashboard() {
   const [selectedPeriod, setSelectedPeriod] = useState('today');
 
   const analytics = data?.kommo?.analytics;
-  const periodStats = analytics?.periodStats || {
+
+  if (loading && !data) {
+    return (
+      <div className="p-6">
+        <div className="bg-white rounded-xl shadow-sm p-6">
+          <div className="flex items-center justify-center">
+            <RefreshCw className="w-6 h-6 text-indigo-600 animate-spin mr-3" />
+            <span className="text-gray-600">Carregando dados...</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="p-6">
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+          <div className="flex">
+            <AlertCircle className="h-5 w-5 text-red-400 mt-0.5 mr-3" />
+            <div>
+              <h3 className="text-sm font-medium text-red-800">
+                Erro ao carregar dados
+              </h3>
+              <p className="mt-2 text-sm text-red-700">{error}</p>
+              <button
+                onClick={refresh}
+                className="mt-3 text-sm font-medium text-red-600 hover:text-red-500"
+              >
+                Tentar novamente
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!analytics) {
+    return (
+      <div className="p-6">
+        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+          <div className="flex">
+            <AlertCircle className="h-5 w-5 text-yellow-400 mt-0.5 mr-3" />
+            <div>
+              <h3 className="text-sm font-medium text-yellow-800">
+                Nenhum dado disponível
+              </h3>
+              <p className="mt-2 text-sm text-yellow-700">
+                Não há dados analíticos para exibir no momento.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const periodStats = analytics.periodStats || {
     day: { totalLeads: 0, purchases: 0 },
     week: { totalLeads: 0, purchases: 0 },
     fortnight: { totalLeads: 0, purchases: 0 }
@@ -85,36 +143,7 @@ export default function Dashboard() {
         </Suspense>
       </div>
 
-      {error && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-          <div className="flex">
-            <AlertCircle className="h-5 w-5 text-red-400 mt-0.5 mr-3" />
-            <div>
-              <h3 className="text-sm font-medium text-red-800">
-                Erro ao carregar dados
-              </h3>
-              <p className="mt-2 text-sm text-red-700">{error}</p>
-              <button
-                onClick={refresh}
-                className="mt-3 text-sm font-medium text-red-600 hover:text-red-500"
-              >
-                Tentar novamente
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {loading && !data && (
-        <div className="bg-white rounded-xl shadow-sm p-6">
-          <div className="flex items-center justify-center">
-            <RefreshCw className="w-6 h-6 text-indigo-600 animate-spin mr-3" />
-            <span className="text-gray-600">Carregando dados...</span>
-          </div>
-        </div>
-      )}
-
-      {/* Stats Grid - Always show, even with zero values */}
+      {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {stats.map((stat, index) => (
           <StatCard
@@ -126,8 +155,8 @@ export default function Dashboard() {
         ))}
       </div>
 
-      {/* Charts and detailed stats - Only show when data is available */}
-      {analytics?.dailyStats && (
+      {/* Charts */}
+      {analytics.dailyStats && (
         <Suspense fallback={
           <div className="bg-white rounded-xl shadow-sm p-6">
             <div className="h-64 flex items-center justify-center">
@@ -143,7 +172,7 @@ export default function Dashboard() {
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {analytics?.vendorStats && (
+        {analytics.vendorStats && (
           <Suspense fallback={
             <div className="bg-white rounded-xl shadow-sm p-6 animate-pulse">
               <div className="h-4 bg-gray-200 rounded w-1/4 mb-4"></div>
@@ -159,7 +188,7 @@ export default function Dashboard() {
           </Suspense>
         )}
 
-        {analytics?.personaStats && (
+        {analytics.personaStats && (
           <Suspense fallback={
             <div className="bg-white rounded-xl shadow-sm p-6 animate-pulse">
               <div className="h-4 bg-gray-200 rounded w-1/4 mb-4"></div>
