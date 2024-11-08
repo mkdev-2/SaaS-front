@@ -17,6 +17,7 @@ interface InitiateOAuthData {
   accountDomain: string;
   code?: string;
   state?: string;
+  redirectUri: string;
 }
 
 const initialState: KommoState = {
@@ -115,7 +116,8 @@ export function useKommoIntegration() {
         const { data: response } = await api.post<ApiResponse<void>>('/kommo/auth/callback', {
           code: data.code,
           accountDomain: data.accountDomain,
-          state: data.state
+          state: data.state,
+          redirectUri: data.redirectUri
         });
 
         if (response.status !== 'success') {
@@ -129,7 +131,7 @@ export function useKommoIntegration() {
       // Initiate OAuth process
       const { data: response } = await api.post<ApiResponse<{ authUrl: string }>>('/kommo/auth/init', {
         accountDomain: data.accountDomain,
-        redirectUri: `${window.location.origin}/kommo/callback`
+        redirectUri: data.redirectUri
       });
 
       if (response.status !== 'success' || !response.data?.authUrl) {

@@ -7,6 +7,7 @@ import KommoConnectionStatus from './KommoConnectionStatus';
 import KommoButton from './KommoButton';
 
 const KOMMO_DOMAIN = 'vendaspersonalprime.kommo.com';
+const BACKEND_URL = 'https://saas-backend-production-8b94.up.railway.app';
 
 export default function KommoIntegration() {
   const navigate = useNavigate();
@@ -58,7 +59,8 @@ export default function KommoIntegration() {
       await initiateOAuth({
         accountDomain: KOMMO_DOMAIN,
         code,
-        state
+        state,
+        redirectUri: `${BACKEND_URL}/kommo/callback`
       });
       setAuthError(null);
     } catch (err: any) {
@@ -72,7 +74,8 @@ export default function KommoIntegration() {
       setAuthError(null);
 
       const response = await initiateOAuth({
-        accountDomain: KOMMO_DOMAIN
+        accountDomain: KOMMO_DOMAIN,
+        redirectUri: `${BACKEND_URL}/kommo/callback`
       });
 
       if (!response?.authUrl) {
