@@ -15,49 +15,25 @@ export interface DashboardData {
     connectedAt: string;
     automationRules: number;
     analytics: {
-      dailyStats: Record<string, {
+      periodStats: {
+        day: { totalLeads: number; purchases: number };
+        week: { totalLeads: number; purchases: number };
+        fortnight: { totalLeads: number; purchases: number };
+      };
+      dailyStats?: Record<string, {
         total: number;
-        sources: Record<string, any>;
         leads: Array<{
           id: number;
           name: string;
-          contacts: any[];
-          tags: any[];
+          price: number;
           created_at: number;
         }>;
       }>;
-      vendorStats: Record<string, {
-        active: number;
-        total: number;
-        leads: any[];
-      }>;
-      personaStats: Record<string, {
-        count: number;
-        leads: any[];
-      }>;
-      purchaseStats: Array<{
-        id: number;
-        customer: string;
-        products: any[];
-        total: number;
-        purchaseDate: string;
-        tags: any[];
-      }>;
-      periodStats: {
-        day: PeriodStats;
-        week: PeriodStats;
-        fortnight: PeriodStats;
-      };
+      vendorStats?: Record<string, number>;
+      personaStats?: Record<string, number>;
     } | null;
   };
   recentRules: any[];
-}
-
-interface PeriodStats {
-  totalLeads: number;
-  purchases: number;
-  byVendor: Record<string, number>;
-  byPersona: Record<string, number>;
 }
 
 export function useDashboardData() {
@@ -86,7 +62,12 @@ export function useDashboardData() {
     }
 
     try {
-      const { data: response } = await api.get<ApiResponse<DashboardData>>('/dashboard/stats');
+      const { data: response } = await api.get<ApiResponse<DashboardData>>('/dashboard/stats', {
+        params: {
+          detailed: true,
+          period: 15
+        }
+      });
       
       if (!isMounted.current) return;
 
@@ -99,7 +80,6 @@ export function useDashboardData() {
       }
     } catch (err: any) {
       if (!isMounted.current) return;
-      console.error('Dashboard fetch error:', err);
 
       // Implement retry logic
       if (retryCount.current < maxRetries) {
@@ -110,6 +90,7 @@ export function useDashboardData() {
         return;
       }
 
+      console.error('Dashboard fetch error:', err);
       setError(err.response?.data?.message || err.message || 'Failed to connect to the server');
       setData(null);
     } finally {
