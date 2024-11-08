@@ -1,7 +1,6 @@
 import React, { useState, Suspense } from 'react';
 import { Users, Box, RefreshCw, AlertCircle, FileText, CheckCircle } from 'lucide-react';
 import { useDashboardData } from '../hooks/useDashboardData';
-import { DashboardData, Analytics } from '../types/dashboard';
 import StatCard from './dashboard/StatCard';
 
 // Lazy load components
@@ -67,8 +66,9 @@ function EmptyState() {
   );
 }
 
-function getStats(analytics: Analytics, selectedPeriod: string) {
-  const periodStats = analytics.periodStats || {
+function getStats(analytics: any, selectedPeriod: string) {
+  // Handle undefined analytics or missing periodStats
+  const periodStats = analytics?.periodStats || {
     day: { totalLeads: 0, purchases: 0 },
     week: { totalLeads: 0, purchases: 0 },
     fortnight: { totalLeads: 0, purchases: 0 }
@@ -78,10 +78,10 @@ function getStats(analytics: Analytics, selectedPeriod: string) {
     selectedPeriod === 'today' ? 'day' : 
     selectedPeriod === 'week' ? 'week' : 
     'fortnight'
-  ];
+  ] || { totalLeads: 0, purchases: 0 };
 
   const today = new Date().toLocaleDateString('pt-BR');
-  const todayStats = analytics.dailyStats?.[today] || {
+  const todayStats = analytics?.dailyStats?.[today] || {
     total: 0,
     newLeads: 0,
     proposalsSent: 0,
