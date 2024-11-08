@@ -11,11 +11,6 @@ export class KommoService {
   private authService: KommoAuthService;
   private leadService: KommoLeadService;
   private analyticsService: KommoAnalyticsService;
-  private isRefreshing: boolean = false;
-  private refreshQueue: Array<{
-    resolve: (token: string) => void;
-    reject: (error: any) => void;
-  }> = [];
 
   constructor(config: KommoConfig) {
     this.config = config;
@@ -38,62 +33,18 @@ export class KommoService {
     client.interceptors.response.use(
       response => response,
       async error => {
-        if (error.response?.status === 401 && this.config.refreshToken) {
-          try {
+        if (error.response?.status === 401) {
+          return this.authService.handleTokenError(error, () => {
             const request = error.config;
-
-            if (!this.isRefreshing) {
-              this.isRefreshing = true;
-              try {
-                const newTokens = await this.authService.refreshToken();
-                this.updateConfig(newTokens);
-                this.processQueue(null, newTokens.accessToken);
-                return client(this.updateRequest(request, newTokens.accessToken));
-              } catch (error) {
-                this.processQueue(error, null);
-                throw error;
-              } finally {
-                this.isRefreshing = false;
-              }
-            }
-
-            // Se já estiver renovando, adiciona à fila
-            return new Promise((resolve, reject) => {
-              this.refreshQueue.push({
-                resolve: (token: string) => {
-                  resolve(client(this.updateRequest(request, token)));
-                },
-                reject: (err: any) => {
-                  reject(err);
-                }
-              });
-            });
-          } catch (refreshError) {
-            logger.error('Falha na renovação do token:', refreshError);
-            throw refreshError;
-          }
+            request.headers['Authorization'] = `Bearer ${this.config.accessToken}`;
+            return client(request);
+          });
         }
         throw error;
       }
     );
 
     return client;
-  }
-
-  private updateRequest(request: any, token: string) {
-    request.headers['Authorization'] = `Bearer ${token}`;
-    return request;
-  }
-
-  private processQueue(error: any, token: string | null) {
-    this.refreshQueue.forEach(promise => {
-      if (error) {
-        promise.reject(error);
-      } else if (token) {
-        promise.resolve(token);
-      }
-    });
-    this.refreshQueue = [];
   }
 
   private updateConfig(tokens: { accessToken: string; refreshToken?: string; expiresAt?: Date }) {
