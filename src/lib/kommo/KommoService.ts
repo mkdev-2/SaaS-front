@@ -11,6 +11,11 @@ export class KommoService {
   private authService: KommoAuthService;
   private leadService: KommoLeadService;
   private analyticsService: KommoAnalyticsService;
+  private isRefreshing: boolean = false;
+  private refreshQueue: Array<{
+    resolve: (token: string) => void;
+    reject: (error: any) => void;
+  }> = [];
 
   constructor(config: KommoConfig) {
     this.config = config;
@@ -35,13 +40,37 @@ export class KommoService {
       async error => {
         if (error.response?.status === 401 && this.config.refreshToken) {
           try {
-            const newTokens = await this.authService.refreshToken();
-            this.updateConfig(newTokens);
-            error.config.headers['Authorization'] = `Bearer ${newTokens.accessToken}`;
-            return client(error.config);
+            const request = error.config;
+
+            if (!this.isRefreshing) {
+              this.isRefreshing = true;
+              try {
+                const newTokens = await this.authService.refreshToken();
+                this.updateConfig(newTokens);
+                this.processQueue(null, newTokens.accessToken);
+                return client(this.updateRequest(request, newTokens.accessToken));
+              } catch (error) {
+                this.processQueue(error, null);
+                throw error;
+              } finally {
+                this.isRefreshing = false;
+              }
+            }
+
+            // Se já estiver renovando, adiciona à fila
+            return new Promise((resolve, reject) => {
+              this.refreshQueue.push({
+                resolve: (token: string) => {
+                  resolve(client(this.updateRequest(request, token)));
+                },
+                reject: (err: any) => {
+                  reject(err);
+                }
+              });
+            });
           } catch (refreshError) {
-            logger.error('Token refresh failed:', refreshError);
-            throw error;
+            logger.error('Falha na renovação do token:', refreshError);
+            throw refreshError;
           }
         }
         throw error;
@@ -49,6 +78,22 @@ export class KommoService {
     );
 
     return client;
+  }
+
+  private updateRequest(request: any, token: string) {
+    request.headers['Authorization'] = `Bearer ${token}`;
+    return request;
+  }
+
+  private processQueue(error: any, token: string | null) {
+    this.refreshQueue.forEach(promise => {
+      if (error) {
+        promise.reject(error);
+      } else if (token) {
+        promise.resolve(token);
+      }
+    });
+    this.refreshQueue = [];
   }
 
   private updateConfig(tokens: { accessToken: string; refreshToken?: string; expiresAt?: Date }) {
@@ -64,8 +109,8 @@ export class KommoService {
         status: 'active',
         lastSync: new Date().toISOString()
       };
-    } catch (error) {
-      logger.error('Status check failed:', error);
+    } catch (error: any) {
+      logger.error('Verificação de status falhou:', error);
       return {
         isConnected: false,
         status: 'error',
@@ -79,7 +124,7 @@ export class KommoService {
       const diagnostics = await this.runDiagnostics();
       return diagnostics.connection?.success || false;
     } catch (error) {
-      logger.error('Connection test failed:', error);
+      logger.error('Teste de conexão falhou:', error);
       return false;
     }
   }
@@ -112,13 +157,11 @@ export class KommoService {
     };
 
     try {
-      // Test basic connection
       results.connection = await this.testBasicConnection();
       if (!results.connection.success) {
-        throw new Error('Basic connection test failed');
+        throw new Error('Teste de conexão básica falhou');
       }
 
-      // Run parallel tests
       const [accountInfo, leadsInfo, customFieldsInfo, tagsInfo] = await Promise.all([
         this.testAccountAccess(),
         this.testLeadsAccess(),
@@ -131,7 +174,7 @@ export class KommoService {
       results.customFields = customFieldsInfo;
       results.tags = tagsInfo;
 
-    } catch (error) {
+    } catch (error: any) {
       results.error = {
         message: error.message,
         code: error.code,
@@ -151,7 +194,7 @@ export class KommoService {
       tokenExpired: this.config.expiresAt ? new Date(this.config.expiresAt) < new Date() : true,
       accountDomain: this.config.accountDomain,
       clientId: this.config.clientId,
-      clientSecret: this.config.clientSecret || '[MISSING]'
+      clientSecret: this.config.clientSecret ? '[PRESENTE]' : '[AUSENTE]'
     };
   }
 
@@ -163,7 +206,7 @@ export class KommoService {
         statusCode: response.status,
         timestamp: new Date().toISOString()
       };
-    } catch (error) {
+    } catch (error: any) {
       return {
         success: false,
         error: error.message,
@@ -182,7 +225,7 @@ export class KommoService {
         data: response.data,
         timestamp: new Date().toISOString()
       };
-    } catch (error) {
+    } catch (error: any) {
       return {
         success: false,
         error: error.message,
@@ -200,10 +243,9 @@ export class KommoService {
       return {
         success: true,
         count: response.data._embedded?.leads?.length || 0,
-        sample: response.data._embedded?.leads?.[0] ? '[DATA PRESENT]' : '[NO LEADS]',
         timestamp: new Date().toISOString()
       };
-    } catch (error) {
+    } catch (error: any) {
       return {
         success: false,
         error: error.message,
@@ -221,7 +263,7 @@ export class KommoService {
         count: response.data._embedded?.custom_fields?.length || 0,
         timestamp: new Date().toISOString()
       };
-    } catch (error) {
+    } catch (error: any) {
       return {
         success: false,
         error: error.message,
@@ -239,7 +281,7 @@ export class KommoService {
         count: response.data._embedded?.tags?.length || 0,
         timestamp: new Date().toISOString()
       };
-    } catch (error) {
+    } catch (error: any) {
       return {
         success: false,
         error: error.message,
