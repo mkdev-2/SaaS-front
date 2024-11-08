@@ -1,6 +1,7 @@
 import React, { useState, Suspense } from 'react';
 import { Users, Box, RefreshCw, AlertCircle, FileText, CheckCircle } from 'lucide-react';
 import { useDashboardData } from '../hooks/useDashboardData';
+import { DashboardData } from '../types/dashboard';
 import StatCard from './dashboard/StatCard';
 
 // Lazy load components
@@ -66,9 +67,12 @@ function EmptyState() {
   );
 }
 
-function getStats(analytics: any, selectedPeriod: string) {
+function getStats(data: DashboardData | null, selectedPeriod: string) {
+  const analytics = data?.kommoAnalytics;
+  if (!analytics) return [];
+
   // Handle undefined analytics or missing periodStats
-  const periodStats = analytics?.periodStats || {
+  const periodStats = analytics.periodStats || {
     day: { totalLeads: 0, purchases: 0 },
     week: { totalLeads: 0, purchases: 0 },
     fortnight: { totalLeads: 0, purchases: 0 }
@@ -81,7 +85,7 @@ function getStats(analytics: any, selectedPeriod: string) {
   ] || { totalLeads: 0, purchases: 0 };
 
   const today = new Date().toLocaleDateString('pt-BR');
-  const todayStats = analytics?.dailyStats?.[today] || {
+  const todayStats = analytics.dailyStats?.[today] || {
     total: 0,
     newLeads: 0,
     proposalsSent: 0,
@@ -131,12 +135,11 @@ export default function Dashboard() {
     return <ErrorState error={error} onRetry={refresh} />;
   }
 
-  const analytics = data?.kommo?.analytics;
-  if (!analytics) {
+  if (!data?.kommoAnalytics) {
     return <EmptyState />;
   }
 
-  const stats = getStats(analytics, selectedPeriod);
+  const stats = getStats(data, selectedPeriod);
 
   return (
     <div className="p-6 space-y-6">
@@ -150,7 +153,6 @@ export default function Dashboard() {
         </Suspense>
       </div>
 
-      {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {stats.map((stat, index) => (
           <StatCard
@@ -163,8 +165,7 @@ export default function Dashboard() {
         ))}
       </div>
 
-      {/* Charts */}
-      {analytics.dailyStats && (
+      {data.kommoAnalytics.dailyStats && (
         <Suspense fallback={
           <div className="bg-white rounded-xl shadow-sm p-6">
             <div className="h-64 flex items-center justify-center">
@@ -173,14 +174,14 @@ export default function Dashboard() {
           </div>
         }>
           <DailyLeadsChart 
-            data={analytics.dailyStats}
+            data={data.kommoAnalytics.dailyStats}
             period={selectedPeriod}
           />
         </Suspense>
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {analytics.vendorStats && (
+        {data.kommoAnalytics.vendorStats && (
           <Suspense fallback={
             <div className="bg-white rounded-xl shadow-sm p-6 animate-pulse">
               <div className="h-4 bg-gray-200 rounded w-1/4 mb-4"></div>
@@ -188,7 +189,7 @@ export default function Dashboard() {
             </div>
           }>
             <VendorStats 
-              data={Object.entries(analytics.vendorStats).map(([name, stats]) => ({
+              data={Object.entries(data.kommoAnalytics.vendorStats).map(([name, stats]) => ({
                 name,
                 leads: stats.totalLeads,
                 active: stats.activeLeads,
@@ -199,7 +200,7 @@ export default function Dashboard() {
           </Suspense>
         )}
 
-        {analytics.personaStats && (
+        {data.kommoAnalytics.personaStats && (
           <Suspense fallback={
             <div className="bg-white rounded-xl shadow-sm p-6 animate-pulse">
               <div className="h-4 bg-gray-200 rounded w-1/4 mb-4"></div>
@@ -207,7 +208,7 @@ export default function Dashboard() {
             </div>
           }>
             <PersonaStats 
-              data={Object.entries(analytics.personaStats).map(([name, stats]) => ({
+              data={Object.entries(data.kommoAnalytics.personaStats).map(([name, stats]) => ({
                 name,
                 quantity: stats.quantity,
                 value: stats.totalValue,
