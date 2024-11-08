@@ -136,11 +136,7 @@ export default function Dashboard() {
           </div>
         }>
           <DailyLeadsChart 
-            data={Object.entries(analytics.dailyStats).map(([date, stats]) => ({
-              date,
-              leads: stats.total,
-              value: stats.leads.reduce((sum: number, lead: any) => sum + (lead.price || 0), 0)
-            }))}
+            data={analytics.dailyStats}
             period={selectedPeriod}
           />
         </Suspense>
@@ -155,7 +151,10 @@ export default function Dashboard() {
             </div>
           }>
             <VendorStats 
-              data={Object.entries(analytics.vendorStats)}
+              data={Object.entries(analytics.vendorStats).map(([name, stats]) => [
+                name,
+                stats.totalLeads || 0
+              ])}
             />
           </Suspense>
         )}
@@ -168,7 +167,10 @@ export default function Dashboard() {
             </div>
           }>
             <PersonaStats 
-              data={Object.entries(analytics.personaStats)}
+              data={Object.entries(analytics.personaStats).map(([name, stats]) => [
+                name,
+                stats.quantity || 0
+              ])}
             />
           </Suspense>
         )}

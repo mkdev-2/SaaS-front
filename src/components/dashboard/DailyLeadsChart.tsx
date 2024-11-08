@@ -2,19 +2,24 @@ import React from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 interface DailyLeadsChartProps {
-  data: Array<{
-    date: string;
-    leads: number;
-    value: number;
+  data: Record<string, {
+    total: number;
+    leads: Array<{
+      id: number;
+      name: string;
+      value: string;
+      created_at: string;
+    }>;
   }>;
   period: string;
 }
 
-const formatCurrency = (value: number) => {
-  return value.toLocaleString('pt-BR', {
-    style: 'currency',
-    currency: 'BRL'
-  });
+const formatCurrency = (value: string | number) => {
+  if (typeof value === 'string') {
+    // Remove 'R$ ' prefix and convert to number
+    return parseFloat(value.replace('R$ ', '').replace(',', '.'));
+  }
+  return value;
 };
 
 export default function DailyLeadsChart({ data, period }: DailyLeadsChartProps) {
@@ -34,7 +39,14 @@ export default function DailyLeadsChart({ data, period }: DailyLeadsChartProps) 
         break;
     }
 
-    return data
+    return Object.entries(data)
+      .map(([date, stats]) => ({
+        date: date.replace(',', ''),
+        leads: stats.total,
+        value: stats.leads.reduce((sum, lead) => 
+          sum + formatCurrency(lead.value), 0
+        )
+      }))
       .filter(item => new Date(item.date) >= startDate)
       .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
   }, [data, period]);
@@ -48,27 +60,30 @@ export default function DailyLeadsChart({ data, period }: DailyLeadsChartProps) 
   }
 
   return (
-    <div className="h-64">
-      <ResponsiveContainer width="100%" height="100%">
-        <BarChart data={chartData}>
-          <CartesianGrid strokeDasharray="3 3" />
-          <XAxis 
-            dataKey="date" 
-            tickFormatter={(value) => new Date(value).toLocaleDateString('pt-BR')}
-          />
-          <YAxis yAxisId="left" orientation="left" stroke="#4F46E5" />
-          <YAxis yAxisId="right" orientation="right" stroke="#10B981" />
-          <Tooltip 
-            labelFormatter={(value) => new Date(value).toLocaleDateString('pt-BR')}
-            formatter={(value: number, name: string) => [
-              name === 'leads' ? value : formatCurrency(value),
-              name === 'leads' ? 'Leads' : 'Valor'
-            ]}
-          />
-          <Bar yAxisId="left" dataKey="leads" fill="#4F46E5" name="Leads" />
-          <Bar yAxisId="right" dataKey="value" fill="#10B981" name="Valor" />
-        </BarChart>
-      </ResponsiveContainer>
+    <div className="bg-white rounded-xl shadow-sm p-6">
+      <h2 className="text-lg font-semibold text-gray-900 mb-4">Leads por Dia</h2>
+      <div className="h-64">
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart data={chartData}>
+            <CartesianGrid strokeDasharray="3 3" />
+            <XAxis 
+              dataKey="date" 
+              tickFormatter={(value) => new Date(value).toLocaleDateString('pt-BR')}
+            />
+            <YAxis yAxisId="left" orientation="left" stroke="#4F46E5" />
+            <YAxis yAxisId="right" orientation="right" stroke="#10B981" />
+            <Tooltip 
+              labelFormatter={(value) => new Date(value).toLocaleDateString('pt-BR')}
+              formatter={(value: number, name: string) => [
+                name === 'leads' ? value : `R$ ${value.toFixed(2)}`,
+                name === 'leads' ? 'Leads' : 'Valor'
+              ]}
+            />
+            <Bar yAxisId="left" dataKey="leads" fill="#4F46E5" name="Leads" />
+            <Bar yAxisId="right" dataKey="value" fill="#10B981" name="Valor" />
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
     </div>
   );
 }
