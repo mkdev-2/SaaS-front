@@ -70,6 +70,8 @@ export function useDashboardData() {
   const isMounted = useRef(true);
   const lastFetchTime = useRef<number>(0);
   const pollTimeoutRef = useRef<NodeJS.Timeout>();
+  const retryCount = useRef(0);
+  const maxRetries = 3;
 
   const fetchDashboardData = useCallback(async (force = false) => {
     if (!isAuthenticated || !user) {
@@ -84,7 +86,6 @@ export function useDashboardData() {
     }
 
     try {
-      setLoading(true);
       const { data: response } = await api.get<ApiResponse<DashboardData>>('/dashboard/stats');
       
       if (!isMounted.current) return;
@@ -92,13 +93,24 @@ export function useDashboardData() {
       if (response.status === 'success' && response.data) {
         setData(response.data);
         setError(null);
+        retryCount.current = 0; // Reset retry count on success
       } else {
         throw new Error(response.message || 'Failed to fetch dashboard data');
       }
     } catch (err: any) {
       if (!isMounted.current) return;
       console.error('Dashboard fetch error:', err);
-      setError(err.message || 'Failed to connect to the server');
+
+      // Implement retry logic
+      if (retryCount.current < maxRetries) {
+        retryCount.current++;
+        setTimeout(() => {
+          fetchDashboardData(true);
+        }, 2000 * retryCount.current); // Exponential backoff
+        return;
+      }
+
+      setError(err.response?.data?.message || err.message || 'Failed to connect to the server');
       setData(null);
     } finally {
       if (isMounted.current) {
@@ -116,14 +128,20 @@ export function useDashboardData() {
       return;
     }
 
+    // Initial fetch
     fetchDashboardData(true);
+
+    // Socket connection
     socketService.connect();
 
     const unsubscribeConnection = socketService.onConnectionChange((status) => {
       if (!isMounted.current) return;
       setIsConnected(status);
+      
       if (status) {
         setError(null);
+        // Fetch fresh data when socket connects
+        fetchDashboardData(true);
       }
     });
 
@@ -134,15 +152,26 @@ export function useDashboardData() {
         ...newData
       }));
       setError(null);
+      setLoading(false);
       lastFetchTime.current = Date.now();
     });
 
-    if (!isConnected) {
+    // Polling fallback if socket is not connected
+    const startPolling = () => {
+      if (pollTimeoutRef.current) {
+        clearTimeout(pollTimeoutRef.current);
+      }
+
       pollTimeoutRef.current = setTimeout(() => {
         if (isMounted.current && !isConnected) {
           fetchDashboardData();
+          startPolling();
         }
       }, 30000);
+    };
+
+    if (!isConnected) {
+      startPolling();
     }
 
     return () => {
