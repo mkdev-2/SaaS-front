@@ -2,7 +2,7 @@ import { io, Socket } from 'socket.io-client';
 import { DashboardData } from '../types/dashboard';
 import useAuthStore from '../store/authStore';
 
-type DashboardCallback = (data: DashboardData) => void;
+type DashboardCallback = (data: any) => void;
 type ConnectionCallback = (status: boolean) => void;
 
 class SocketService {
@@ -101,7 +101,7 @@ class SocketService {
       }
     });
 
-    this.socket.on('dashboard:update', (data: DashboardData) => {
+    this.socket.on('dashboard:update', (data: any) => {
       this.dashboardCallbacks.forEach(callback => callback(data));
     });
 
@@ -130,8 +130,6 @@ class SocketService {
           this.connect();
         }
       }, delay);
-    } else {
-      this.disconnect();
     }
   }
 

@@ -1,9 +1,9 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import api from '../lib/api';
 import { ApiResponse } from '../types/api';
-import { DashboardData } from '../types/dashboard';
 import socketService from '../lib/socket';
 import useAuthStore from '../store/authStore';
+import { DashboardData } from '../types/dashboard';
 
 export function useDashboardData() {
   const { isAuthenticated, user } = useAuthStore();
@@ -14,6 +14,33 @@ export function useDashboardData() {
   
   const isMounted = useRef(true);
   const lastFetchTime = useRef<number>(0);
+
+  const transformSocketData = (socketData: any): DashboardData => {
+    const kommoData = socketData.data?.kommo;
+    
+    return {
+      projectCount: socketData.data?.projects?.total || 0,
+      recentProjects: socketData.data?.projects?.recent || [],
+      automationRules: socketData.data?.recentRules || [],
+      isKommoConnected: kommoData?.isConnected || false,
+      kommoConfig: kommoData ? {
+        id: 'socket',
+        accountDomain: kommoData.accountDomain,
+        clientId: '',
+        createdAt: kommoData.connectedAt
+      } : null,
+      kommoAnalytics: kommoData?.analytics ? {
+        periodStats: {
+          day: kommoData.analytics.periodStats.day,
+          week: kommoData.analytics.periodStats.week,
+          fortnight: kommoData.analytics.periodStats.fortnight
+        },
+        dailyStats: kommoData.analytics.dailyStats || {},
+        vendorStats: kommoData.analytics.vendorStats || {},
+        personaStats: kommoData.analytics.personaStats || {}
+      } : null
+    };
+  };
 
   const fetchDashboardData = useCallback(async (force = false) => {
     if (!isAuthenticated || !user) {
@@ -79,18 +106,22 @@ export function useDashboardData() {
       setLoading(false);
     });
 
-    const unsubscribeUpdates = socketService.onDashboardUpdate((newData) => {
+    const unsubscribeUpdates = socketService.onDashboardUpdate((socketData) => {
       if (!isMounted.current) return;
-      setData(prevData => ({
-        ...prevData,
-        ...newData,
-        kommoAnalytics: {
-          ...prevData?.kommoAnalytics,
-          ...newData.kommoAnalytics
-        }
-      }));
-      setError(null);
-      lastFetchTime.current = Date.now();
+      
+      if (socketData.status === 'success' && socketData.data) {
+        const transformedData = transformSocketData(socketData);
+        setData(prevData => ({
+          ...prevData,
+          ...transformedData,
+          kommoAnalytics: {
+            ...prevData?.kommoAnalytics,
+            ...transformedData.kommoAnalytics
+          }
+        }));
+        setError(null);
+        lastFetchTime.current = Date.now();
+      }
     });
 
     return () => {
