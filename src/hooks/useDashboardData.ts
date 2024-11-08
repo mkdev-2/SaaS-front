@@ -25,8 +25,8 @@ export interface DashboardData {
         leads: Array<{
           id: number;
           name: string;
-          price: number;
           created_at: number;
+          price: number;
         }>;
       }>;
       vendorStats?: Record<string, number>;
@@ -39,7 +39,7 @@ export interface DashboardData {
 export function useDashboardData() {
   const { isAuthenticated, user } = useAuthStore();
   const [data, setData] = useState<DashboardData | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   
@@ -65,7 +65,7 @@ export function useDashboardData() {
       const { data: response } = await api.get<ApiResponse<DashboardData>>('/dashboard/stats', {
         params: {
           detailed: true,
-          period: 15
+          period: 7
         }
       });
       
@@ -74,25 +74,24 @@ export function useDashboardData() {
       if (response.status === 'success' && response.data) {
         setData(response.data);
         setError(null);
-        retryCount.current = 0; // Reset retry count on success
+        retryCount.current = 0;
       } else {
         throw new Error(response.message || 'Failed to fetch dashboard data');
       }
     } catch (err: any) {
       if (!isMounted.current) return;
+      console.error('Dashboard fetch error:', err);
 
       // Implement retry logic
       if (retryCount.current < maxRetries) {
         retryCount.current++;
         setTimeout(() => {
           fetchDashboardData(true);
-        }, 2000 * retryCount.current); // Exponential backoff
+        }, 2000 * retryCount.current);
         return;
       }
 
-      console.error('Dashboard fetch error:', err);
       setError(err.response?.data?.message || err.message || 'Failed to connect to the server');
-      setData(null);
     } finally {
       if (isMounted.current) {
         setLoading(false);
@@ -110,6 +109,7 @@ export function useDashboardData() {
     }
 
     // Initial fetch
+    setLoading(true);
     fetchDashboardData(true);
 
     // Socket connection
@@ -118,7 +118,6 @@ export function useDashboardData() {
     const unsubscribeConnection = socketService.onConnectionChange((status) => {
       if (!isMounted.current) return;
       setIsConnected(status);
-      
       if (status) {
         setError(null);
         // Fetch fresh data when socket connects
@@ -133,8 +132,8 @@ export function useDashboardData() {
         ...newData
       }));
       setError(null);
-      setLoading(false);
       lastFetchTime.current = Date.now();
+      setLoading(false);
     });
 
     // Polling fallback if socket is not connected
@@ -168,6 +167,7 @@ export function useDashboardData() {
 
   const refresh = useCallback(() => {
     if (Date.now() - lastFetchTime.current >= 5000) {
+      setLoading(true);
       fetchDashboardData(true);
     }
   }, [fetchDashboardData]);

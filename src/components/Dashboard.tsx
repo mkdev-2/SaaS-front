@@ -6,37 +6,7 @@ import { useDashboardData } from '../hooks/useDashboardData';
 const DailyLeadsChart = React.lazy(() => import('./dashboard/DailyLeadsChart'));
 const VendorStats = React.lazy(() => import('./dashboard/VendorStats'));
 const PersonaStats = React.lazy(() => import('./dashboard/PersonaStats'));
-const PurchaseStats = React.lazy(() => import('./dashboard/PurchaseStats'));
 const PeriodSelector = React.lazy(() => import('./dashboard/PeriodSelector'));
-
-function LoadingState() {
-  return (
-    <div className="min-h-[60vh] flex flex-col items-center justify-center">
-      <RefreshCw className="w-8 h-8 text-indigo-600 animate-spin mb-4" />
-      <h3 className="text-lg font-medium text-gray-900">Carregando dados</h3>
-      <p className="text-sm text-gray-500 mt-2">Aguarde enquanto carregamos as métricas do dashboard...</p>
-    </div>
-  );
-}
-
-function LoadingCard() {
-  return (
-    <div className="bg-white rounded-xl shadow-sm p-6 animate-pulse">
-      <div className="h-4 bg-gray-200 rounded w-1/4 mb-4"></div>
-      <div className="h-8 bg-gray-200 rounded w-1/2"></div>
-    </div>
-  );
-}
-
-function LoadingChart() {
-  return (
-    <div className="bg-white rounded-xl shadow-sm p-6">
-      <div className="h-64 flex items-center justify-center">
-        <RefreshCw className="h-8 w-8 text-gray-400 animate-spin" />
-      </div>
-    </div>
-  );
-}
 
 interface StatCardProps {
   title: string;
@@ -76,11 +46,6 @@ function StatCard({ title, value, change, icon: Icon }: StatCardProps) {
 export default function Dashboard() {
   const { data, loading, error, refresh } = useDashboardData();
   const [selectedPeriod, setSelectedPeriod] = useState('today');
-
-  // Early return for loading state
-  if (loading && !data) {
-    return <LoadingState />;
-  }
 
   const analytics = data?.kommo?.analytics;
   const periodStats = analytics?.periodStats || {
@@ -140,7 +105,16 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* Stats Grid */}
+      {loading && !data && (
+        <div className="bg-white rounded-xl shadow-sm p-6">
+          <div className="flex items-center justify-center">
+            <RefreshCw className="w-6 h-6 text-indigo-600 animate-spin mr-3" />
+            <span className="text-gray-600">Carregando dados...</span>
+          </div>
+        </div>
+      )}
+
+      {/* Stats Grid - Always show, even with zero values */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {stats.map((stat, index) => (
           <StatCard
@@ -152,9 +126,15 @@ export default function Dashboard() {
         ))}
       </div>
 
-      {/* Charts and detailed stats */}
+      {/* Charts and detailed stats - Only show when data is available */}
       {analytics?.dailyStats && (
-        <Suspense fallback={<LoadingChart />}>
+        <Suspense fallback={
+          <div className="bg-white rounded-xl shadow-sm p-6">
+            <div className="h-64 flex items-center justify-center">
+              <RefreshCw className="h-8 w-8 text-gray-400 animate-spin" />
+            </div>
+          </div>
+        }>
           <DailyLeadsChart 
             data={Object.entries(analytics.dailyStats).map(([date, stats]) => ({
               date,
@@ -168,7 +148,12 @@ export default function Dashboard() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {analytics?.vendorStats && (
-          <Suspense fallback={<LoadingCard />}>
+          <Suspense fallback={
+            <div className="bg-white rounded-xl shadow-sm p-6 animate-pulse">
+              <div className="h-4 bg-gray-200 rounded w-1/4 mb-4"></div>
+              <div className="h-8 bg-gray-200 rounded w-1/2"></div>
+            </div>
+          }>
             <VendorStats 
               data={Object.entries(analytics.vendorStats)}
             />
@@ -176,7 +161,12 @@ export default function Dashboard() {
         )}
 
         {analytics?.personaStats && (
-          <Suspense fallback={<LoadingCard />}>
+          <Suspense fallback={
+            <div className="bg-white rounded-xl shadow-sm p-6 animate-pulse">
+              <div className="h-4 bg-gray-200 rounded w-1/4 mb-4"></div>
+              <div className="h-8 bg-gray-200 rounded w-1/2"></div>
+            </div>
+          }>
             <PersonaStats 
               data={Object.entries(analytics.personaStats)}
             />
