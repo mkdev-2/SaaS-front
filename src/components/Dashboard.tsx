@@ -1,4 +1,4 @@
-import React, { useState, Suspense } from 'react';
+import React, { useState, Suspense, useEffect } from 'react';
 import { ArrowUpRight, ArrowDownRight, Activity, Users, Box, Zap, RefreshCw, AlertCircle } from 'lucide-react';
 import { useDashboardData } from '../hooks/useDashboardData';
 
@@ -44,18 +44,30 @@ export default function Dashboard() {
   const { data, loading, error, refresh } = useDashboardData();
   const [selectedPeriod, setSelectedPeriod] = useState('today');
 
+  useEffect(() => {
+    if (data) {
+      console.log('Dashboard Data:', {
+        hasData: !!data,
+        hasKommo: !!data?.kommo,
+        hasAnalytics: !!data?.kommo?.analytics,
+        periodStats: data?.kommo?.analytics?.periodStats,
+        dailyStats: data?.kommo?.analytics?.dailyStats
+      });
+    }
+  }, [data]);
+
   // Early return for loading state
-  // if (loading && !data) {
-  //   return <LoadingState />;
-  // }
+  if (loading && !data) {
+    return <LoadingState />;
+  }
 
   // Early return for error state
   if (error) {
     return <ErrorState error={error} onRetry={refresh} />;
   }
 
-  // Early return if no data is available
-  if (!data?.kommo?.analytics) {
+  // Check data structure
+  if (!data || !data.kommo) {
     return (
       <div className="p-6">
         <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
@@ -81,11 +93,23 @@ export default function Dashboard() {
     );
   }
 
+  // Initialize analytics with empty defaults if not available
+  const analytics = data.kommo.analytics || {
+    periodStats: {
+      day: { totalLeads: 0, purchases: 0 },
+      week: { totalLeads: 0, purchases: 0 },
+      fortnight: { totalLeads: 0, purchases: 0 }
+    },
+    dailyStats: {},
+    vendorStats: {},
+    personaStats: {}
+  };
+
   // Calculate basic statistics
   const stats = [
     {
       title: "Leads do Período",
-      value: data.kommo.analytics.periodStats?.[
+      value: analytics.periodStats?.[
         selectedPeriod === 'today' ? 'day' : 
         selectedPeriod === 'week' ? 'week' : 
         'fortnight'
@@ -95,7 +119,7 @@ export default function Dashboard() {
     },
     {
       title: "Vendas Realizadas",
-      value: data.kommo.analytics.periodStats?.[
+      value: analytics.periodStats?.[
         selectedPeriod === 'today' ? 'day' : 
         selectedPeriod === 'week' ? 'week' : 
         'fortnight'
@@ -133,7 +157,7 @@ export default function Dashboard() {
       {/* Charts and detailed stats */}
       <Suspense fallback={<LoadingChart />}>
         <DailyLeadsChart 
-          data={Object.entries(data.kommo.analytics.dailyStats || {}).map(([date, stats]) => ({
+          data={Object.entries(analytics.dailyStats || {}).map(([date, stats]) => ({
             date,
             leads: stats.total,
             value: stats.leads.reduce((sum: number, lead: any) => sum + (lead.price || 0), 0)
@@ -145,13 +169,13 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Suspense fallback={<LoadingCard />}>
           <VendorStats 
-            data={Object.entries(data.kommo.analytics.vendorStats || {})} 
+            data={Object.entries(analytics.vendorStats || {})} 
           />
         </Suspense>
 
         <Suspense fallback={<LoadingCard />}>
           <PersonaStats 
-            data={Object.entries(data.kommo.analytics.personaStats || {})}
+            data={Object.entries(analytics.personaStats || {})}
           />
         </Suspense>
       </div>
