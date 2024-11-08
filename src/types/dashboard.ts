@@ -1,33 +1,34 @@
-export interface DailyStats {
-  total: number;
-  newLeads: number;
-  proposalsSent: number;
-  purchases: number;
-  purchaseValue: string;
-  purchaseRate: string;
-  proposalRate: string;
-  leads: Array<{
-    id: number;
-    name: string;
-    value: string;
-    created_at: string;
-    status: string;
-    statusColor: string;
-  }>;
-}
-
 export interface PeriodStats {
   totalLeads: number;
   purchases: number;
 }
 
-export interface Analytics {
+export interface BasicStats {
   periodStats: {
     day: PeriodStats;
     week: PeriodStats;
     fortnight: PeriodStats;
   };
-  dailyStats: Record<string, DailyStats>;
+}
+
+export interface DetailedStats {
+  dailyStats: Record<string, {
+    total: number;
+    newLeads: number;
+    proposalsSent: number;
+    purchases: number;
+    purchaseValue: string;
+    purchaseRate: string;
+    proposalRate: string;
+    leads: Array<{
+      id: number;
+      name: string;
+      value: string;
+      created_at: string;
+      status: string;
+      statusColor: string;
+    }>;
+  }>;
   vendorStats: Record<string, {
     totalLeads: number;
     activeLeads: number;
@@ -42,7 +43,25 @@ export interface Analytics {
 }
 
 export interface DashboardData {
-  kommo?: {
-    analytics?: Analytics;
-  };
+  projectCount: number;
+  recentProjects: Array<{
+    id: string;
+    name: string;
+    status: string;
+    updatedAt: string;
+  }>;
+  automationRules: Array<{
+    id: string;
+    name: string;
+    isActive: boolean;
+    updatedAt: string;
+  }>;
+  kommoConfig: {
+    id: string;
+    accountDomain: string;
+    clientId: string;
+    createdAt: string;
+  } | null;
+  kommoAnalytics: (BasicStats & Partial<DetailedStats>) | null;
+  isKommoConnected: boolean;
 }

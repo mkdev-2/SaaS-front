@@ -1,8 +1,8 @@
 import { io, Socket } from 'socket.io-client';
-import { DashboardStats } from '../types/dashboard';
+import { DashboardData } from '../types/dashboard';
 import useAuthStore from '../store/authStore';
 
-type DashboardCallback = (data: DashboardStats) => void;
+type DashboardCallback = (data: DashboardData) => void;
 type ConnectionCallback = (status: boolean) => void;
 
 class SocketService {
@@ -53,6 +53,10 @@ class SocketService {
         reconnectionDelay: 1000,
         reconnectionDelayMax: 5000,
         timeout: 10000,
+        query: {
+          detailed: true,
+          period: 15
+        }
       });
 
       this.setupEventListeners();
@@ -71,7 +75,7 @@ class SocketService {
       this.isConnecting = false;
       this.reconnectAttempts = 0;
       this.notifyConnectionStatus(true);
-      this.socket?.emit('subscribe:dashboard');
+      this.socket?.emit('subscribe:dashboard', { detailed: true, period: 15 });
     });
 
     this.socket.on('connect_error', (error) => {
@@ -97,7 +101,7 @@ class SocketService {
       }
     });
 
-    this.socket.on('dashboard:update', (data: DashboardStats) => {
+    this.socket.on('dashboard:update', (data: DashboardData) => {
       this.dashboardCallbacks.forEach(callback => callback(data));
     });
 
@@ -127,7 +131,6 @@ class SocketService {
         }
       }, delay);
     } else {
-      // Max reconnection attempts reached
       this.disconnect();
     }
   }
