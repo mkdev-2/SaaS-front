@@ -4,7 +4,7 @@ import { ApiResponse } from '../types/api';
 import socketService from '../lib/socket';
 import useAuthStore from '../store/authStore';
 
-export interface DashboardData {
+interface DashboardData {
   projects: {
     total: number;
     recent: any[];
@@ -20,23 +20,33 @@ export interface DashboardData {
         week: { totalLeads: number; purchases: number };
         fortnight: { totalLeads: number; purchases: number };
       };
-      dailyStats?: Record<string, {
+      dailyStats: Record<string, {
         total: number;
+        newLeads: number;
+        proposalsSent: number;
+        purchases: number;
+        purchaseValue: string;
+        purchaseRate: string;
+        proposalRate: string;
         leads: Array<{
           id: number;
           name: string;
           value: string;
           created_at: string;
+          status: string;
+          statusColor: string;
         }>;
       }>;
-      vendorStats?: Record<string, {
+      vendorStats: Record<string, {
         totalLeads: number;
         activeLeads: number;
         totalPurchaseValue: string;
+        activeRate: string;
       }>;
-      personaStats?: Record<string, {
+      personaStats: Record<string, {
         quantity: number;
         totalValue: string;
+        percentage: string;
       }>;
     };
   };
@@ -109,6 +119,7 @@ export function useDashboardData() {
       if (status) {
         setError(null);
       }
+      setLoading(false);
     });
 
     const unsubscribeUpdates = socketService.onDashboardUpdate((newData) => {
@@ -118,7 +129,6 @@ export function useDashboardData() {
         ...newData
       }));
       setError(null);
-      setLoading(false);
       lastFetchTime.current = Date.now();
     });
 
@@ -131,9 +141,7 @@ export function useDashboardData() {
   }, [fetchDashboardData, isAuthenticated, user]);
 
   const refresh = useCallback(() => {
-    if (Date.now() - lastFetchTime.current >= 5000) {
-      fetchDashboardData(true);
-    }
+    fetchDashboardData(true);
   }, [fetchDashboardData]);
 
   return {
