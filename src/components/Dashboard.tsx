@@ -1,6 +1,8 @@
 import React, { useState, Suspense } from 'react';
-import { ArrowUpRight, ArrowDownRight, Activity, Users, Box, Zap, RefreshCw, AlertCircle, FileText, CheckCircle } from 'lucide-react';
+import { Users, Box, RefreshCw, AlertCircle, FileText, CheckCircle } from 'lucide-react';
 import { useDashboardData } from '../hooks/useDashboardData';
+import { DashboardData, Analytics } from '../types/dashboard';
+import StatCard from './dashboard/StatCard';
 
 // Lazy load components
 const DailyLeadsChart = React.lazy(() => import('./dashboard/DailyLeadsChart'));
@@ -8,105 +10,64 @@ const VendorStats = React.lazy(() => import('./dashboard/VendorStats'));
 const PersonaStats = React.lazy(() => import('./dashboard/PersonaStats'));
 const PeriodSelector = React.lazy(() => import('./dashboard/PeriodSelector'));
 
-interface StatCardProps {
-  title: string;
-  value: string | number;
-  change?: string;
-  icon: React.ElementType;
-  color?: string;
-}
-
-function StatCard({ title, value, change, icon: Icon, color = 'indigo' }: StatCardProps) {
-  const isPositive = change ? !change.startsWith('-') : true;
-  
+function LoadingState() {
   return (
-    <div className="bg-white rounded-xl shadow-sm p-6">
-      <div className="flex items-center justify-between">
-        <div className={`p-2 bg-${color}-100 rounded-lg`}>
-          <Icon className={`h-6 w-6 text-${color}-600`} />
+    <div className="p-6">
+      <div className="bg-white rounded-xl shadow-sm p-6">
+        <div className="flex items-center justify-center">
+          <RefreshCw className="w-6 h-6 text-indigo-600 animate-spin mr-3" />
+          <span className="text-gray-600">Carregando dados...</span>
         </div>
-        {change && (
-          <span className={`flex items-center text-sm ${
-            isPositive ? 'text-green-600' : 'text-red-600'
-          }`}>
-            {change}
-            {isPositive ? (
-              <ArrowUpRight className="h-4 w-4 ml-1" />
-            ) : (
-              <ArrowDownRight className="h-4 w-4 ml-1" />
-            )}
-          </span>
-        )}
       </div>
-      <h3 className="text-2xl font-bold mt-4">{value}</h3>
-      <p className="text-gray-600 text-sm">{title}</p>
     </div>
   );
 }
 
-export default function Dashboard() {
-  const { data, loading, error, refresh } = useDashboardData();
-  const [selectedPeriod, setSelectedPeriod] = useState('today');
-
-  const analytics = data?.kommo?.analytics;
-
-  if (loading && !data) {
-    return (
-      <div className="p-6">
-        <div className="bg-white rounded-xl shadow-sm p-6">
-          <div className="flex items-center justify-center">
-            <RefreshCw className="w-6 h-6 text-indigo-600 animate-spin mr-3" />
-            <span className="text-gray-600">Carregando dados...</span>
+function ErrorState({ error, onRetry }: { error: string; onRetry: () => void }) {
+  return (
+    <div className="p-6">
+      <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+        <div className="flex">
+          <AlertCircle className="h-5 w-5 text-red-400 mt-0.5 mr-3" />
+          <div>
+            <h3 className="text-sm font-medium text-red-800">
+              Erro ao carregar dados
+            </h3>
+            <p className="mt-2 text-sm text-red-700">{error}</p>
+            <button
+              onClick={onRetry}
+              className="mt-3 text-sm font-medium text-red-600 hover:text-red-500"
+            >
+              Tentar novamente
+            </button>
           </div>
         </div>
       </div>
-    );
-  }
+    </div>
+  );
+}
 
-  if (error) {
-    return (
-      <div className="p-6">
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-          <div className="flex">
-            <AlertCircle className="h-5 w-5 text-red-400 mt-0.5 mr-3" />
-            <div>
-              <h3 className="text-sm font-medium text-red-800">
-                Erro ao carregar dados
-              </h3>
-              <p className="mt-2 text-sm text-red-700">{error}</p>
-              <button
-                onClick={refresh}
-                className="mt-3 text-sm font-medium text-red-600 hover:text-red-500"
-              >
-                Tentar novamente
-              </button>
-            </div>
+function EmptyState() {
+  return (
+    <div className="p-6">
+      <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+        <div className="flex">
+          <AlertCircle className="h-5 w-5 text-yellow-400 mt-0.5 mr-3" />
+          <div>
+            <h3 className="text-sm font-medium text-yellow-800">
+              Nenhum dado disponível
+            </h3>
+            <p className="mt-2 text-sm text-yellow-700">
+              Não há dados analíticos para exibir no momento.
+            </p>
           </div>
         </div>
       </div>
-    );
-  }
+    </div>
+  );
+}
 
-  if (!analytics) {
-    return (
-      <div className="p-6">
-        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-          <div className="flex">
-            <AlertCircle className="h-5 w-5 text-yellow-400 mt-0.5 mr-3" />
-            <div>
-              <h3 className="text-sm font-medium text-yellow-800">
-                Nenhum dado disponível
-              </h3>
-              <p className="mt-2 text-sm text-yellow-700">
-                Não há dados analíticos para exibir no momento.
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
+function getStats(analytics: Analytics, selectedPeriod: string) {
   const periodStats = analytics.periodStats || {
     day: { totalLeads: 0, purchases: 0 },
     week: { totalLeads: 0, purchases: 0 },
@@ -119,9 +80,8 @@ export default function Dashboard() {
     'fortnight'
   ];
 
-  // Get current day stats
   const today = new Date().toLocaleDateString('pt-BR');
-  const todayStats = analytics.dailyStats[today] || {
+  const todayStats = analytics.dailyStats?.[today] || {
     total: 0,
     newLeads: 0,
     proposalsSent: 0,
@@ -131,7 +91,7 @@ export default function Dashboard() {
     proposalRate: '0%'
   };
 
-  const stats = [
+  return [
     {
       title: "Leads do Período",
       value: currentPeriodStats.totalLeads,
@@ -157,6 +117,26 @@ export default function Dashboard() {
       color: 'purple'
     }
   ];
+}
+
+export default function Dashboard() {
+  const { data, loading, error, refresh } = useDashboardData();
+  const [selectedPeriod, setSelectedPeriod] = useState('today');
+
+  if (loading && !data) {
+    return <LoadingState />;
+  }
+
+  if (error) {
+    return <ErrorState error={error} onRetry={refresh} />;
+  }
+
+  const analytics = data?.kommo?.analytics;
+  if (!analytics) {
+    return <EmptyState />;
+  }
+
+  const stats = getStats(analytics, selectedPeriod);
 
   return (
     <div className="p-6 space-y-6">
