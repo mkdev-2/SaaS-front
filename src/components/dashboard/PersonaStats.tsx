@@ -2,22 +2,29 @@ import React from 'react';
 import { Users } from 'lucide-react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
 
+interface PersonaData {
+  name: string;
+  quantity: number;
+  value: string;
+  percentage: string;
+}
+
 interface PersonaStatsProps {
-  data: [string, number][];
+  data: PersonaData[];
 }
 
 const COLORS = ['#4F46E5', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6'];
 
 export default function PersonaStats({ data }: PersonaStatsProps) {
   const chartData = React.useMemo(() => {
-    return data.map(([name, value]) => ({
-      name,
-      value
+    return data.map(item => ({
+      name: item.name,
+      value: item.quantity
     }));
   }, [data]);
 
   const totalLeads = React.useMemo(() => {
-    return data.reduce((sum, [_, count]) => sum + count, 0);
+    return data.reduce((sum, item) => sum + item.quantity, 0);
   }, [data]);
 
   return (
@@ -55,18 +62,23 @@ export default function PersonaStats({ data }: PersonaStatsProps) {
       </div>
 
       <div className="mt-4 space-y-2">
-        {chartData.map((entry, index) => (
-          <div key={entry.name} className="flex items-center justify-between">
+        {data.map((item, index) => (
+          <div key={item.name} className="flex items-center justify-between">
             <div className="flex items-center">
               <div
                 className="w-3 h-3 rounded-full mr-2"
                 style={{ backgroundColor: COLORS[index % COLORS.length] }}
               />
-              <span className="text-sm text-gray-600">{entry.name}</span>
+              <span className="text-sm text-gray-600">{item.name}</span>
             </div>
-            <span className="text-sm font-medium text-gray-900">
-              {((entry.value / totalLeads) * 100).toFixed(1)}%
-            </span>
+            <div className="text-right">
+              <span className="text-sm font-medium text-gray-900 mr-2">
+                {item.value}
+              </span>
+              <span className="text-sm text-gray-500">
+                ({item.percentage})
+              </span>
+            </div>
           </div>
         ))}
       </div>

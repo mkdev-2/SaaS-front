@@ -1,5 +1,5 @@
 import React, { useState, Suspense } from 'react';
-import { ArrowUpRight, ArrowDownRight, Activity, Users, Box, Zap, RefreshCw, AlertCircle } from 'lucide-react';
+import { ArrowUpRight, ArrowDownRight, Activity, Users, Box, Zap, RefreshCw, AlertCircle, FileText, CheckCircle } from 'lucide-react';
 import { useDashboardData } from '../hooks/useDashboardData';
 
 // Lazy load components
@@ -13,16 +13,17 @@ interface StatCardProps {
   value: string | number;
   change?: string;
   icon: React.ElementType;
+  color?: string;
 }
 
-function StatCard({ title, value, change, icon: Icon }: StatCardProps) {
+function StatCard({ title, value, change, icon: Icon, color = 'indigo' }: StatCardProps) {
   const isPositive = change ? !change.startsWith('-') : true;
   
   return (
     <div className="bg-white rounded-xl shadow-sm p-6">
       <div className="flex items-center justify-between">
-        <div className="p-2 bg-indigo-100 rounded-lg">
-          <Icon className="h-6 w-6 text-indigo-600" />
+        <div className={`p-2 bg-${color}-100 rounded-lg`}>
+          <Icon className={`h-6 w-6 text-${color}-600`} />
         </div>
         {change && (
           <span className={`flex items-center text-sm ${
@@ -118,16 +119,42 @@ export default function Dashboard() {
     'fortnight'
   ];
 
+  // Get current day stats
+  const today = new Date().toLocaleDateString('pt-BR');
+  const todayStats = analytics.dailyStats[today] || {
+    total: 0,
+    newLeads: 0,
+    proposalsSent: 0,
+    purchases: 0,
+    purchaseValue: 'R$ 0,00',
+    purchaseRate: '0%',
+    proposalRate: '0%'
+  };
+
   const stats = [
     {
       title: "Leads do Período",
       value: currentPeriodStats.totalLeads,
-      icon: Users
+      icon: Users,
+      color: 'indigo'
     },
     {
-      title: "Vendas Realizadas",
-      value: currentPeriodStats.purchases,
-      icon: Box
+      title: "Propostas Enviadas",
+      value: todayStats.proposalsSent,
+      icon: FileText,
+      color: 'blue'
+    },
+    {
+      title: "Taxa de Conversão",
+      value: todayStats.purchaseRate,
+      icon: CheckCircle,
+      color: 'green'
+    },
+    {
+      title: "Valor Total",
+      value: todayStats.purchaseValue,
+      icon: Box,
+      color: 'purple'
     }
   ];
 
@@ -144,13 +171,14 @@ export default function Dashboard() {
       </div>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {stats.map((stat, index) => (
           <StatCard
             key={index}
             title={stat.title}
             value={stat.value}
             icon={stat.icon}
+            color={stat.color}
           />
         ))}
       </div>
@@ -180,10 +208,13 @@ export default function Dashboard() {
             </div>
           }>
             <VendorStats 
-              data={Object.entries(analytics.vendorStats).map(([name, stats]) => [
+              data={Object.entries(analytics.vendorStats).map(([name, stats]) => ({
                 name,
-                stats.totalLeads || 0
-              ])}
+                leads: stats.totalLeads,
+                active: stats.activeLeads,
+                value: stats.totalPurchaseValue,
+                rate: stats.activeRate
+              }))}
             />
           </Suspense>
         )}
@@ -196,10 +227,12 @@ export default function Dashboard() {
             </div>
           }>
             <PersonaStats 
-              data={Object.entries(analytics.personaStats).map(([name, stats]) => [
+              data={Object.entries(analytics.personaStats).map(([name, stats]) => ({
                 name,
-                stats.quantity || 0
-              ])}
+                quantity: stats.quantity,
+                value: stats.totalValue,
+                percentage: stats.percentage
+              }))}
             />
           </Suspense>
         )}
