@@ -45,9 +45,9 @@ export default function Dashboard() {
   const [selectedPeriod, setSelectedPeriod] = useState('today');
 
   // Early return for loading state
-  if (loading && !data) {
-    return <LoadingState />;
-  }
+  // if (loading && !data) {
+  //   return <LoadingState />;
+  // }
 
   // Early return for error state
   if (error) {
