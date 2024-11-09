@@ -14,6 +14,10 @@ class SocketService {
   private maxReconnectAttempts = 5;
   private reconnectTimer: NodeJS.Timeout | null = null;
   private isConnecting = false;
+  private subscriptionParams = {
+    detailed: true,
+    period: 15
+  };
 
   private constructor() {}
 
@@ -75,7 +79,9 @@ class SocketService {
       this.isConnecting = false;
       this.reconnectAttempts = 0;
       this.notifyConnectionStatus(true);
-      this.socket?.emit('subscribe:dashboard', { detailed: true, period: 15 });
+      
+      // Subscribe to dashboard updates with parameters
+      this.socket.emit('subscribe:dashboard', this.subscriptionParams);
     });
 
     this.socket.on('connect_error', (error) => {
@@ -102,7 +108,11 @@ class SocketService {
     });
 
     this.socket.on('dashboard:update', (data: any) => {
-      this.dashboardCallbacks.forEach(callback => callback(data));
+      if (data.status === 'success' && data.data) {
+        this.dashboardCallbacks.forEach(callback => callback(data));
+      } else {
+        console.error('Invalid dashboard update:', data);
+      }
     });
 
     this.socket.on('error', (error: Error) => {
@@ -130,6 +140,17 @@ class SocketService {
           this.connect();
         }
       }, delay);
+    }
+  }
+
+  updateSubscription(params: { detailed?: boolean; period?: number }) {
+    this.subscriptionParams = {
+      ...this.subscriptionParams,
+      ...params
+    };
+
+    if (this.socket?.connected) {
+      this.socket.emit('subscribe:dashboard', this.subscriptionParams);
     }
   }
 
