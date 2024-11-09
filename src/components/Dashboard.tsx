@@ -3,6 +3,7 @@ import { Users, Box, RefreshCw, AlertCircle, FileText, CheckCircle, TrendingUp }
 import { useDashboardData } from '../hooks/useDashboardData';
 import { DashboardData } from '../types/dashboard';
 import StatCard from './dashboard/StatCard';
+import LeadsList from './dashboard/LeadsList';
 
 const DailyLeadsChart = React.lazy(() => import('./dashboard/DailyLeadsChart'));
 const VendorStats = React.lazy(() => import('./dashboard/VendorStats'));
@@ -68,22 +69,11 @@ function EmptyState() {
 
 function getStats(data: DashboardData | null, selectedPeriod: string) {
   const analytics = data?.kommoAnalytics;
-  if (!analytics) return [];
+  if (!analytics?.periodStats) return [];
 
-  const periodStats = analytics.periodStats || {
-    day: { totalLeads: 0, vendas: 0, valorVendas: 'R$ 0,00', taxaConversao: '0%' },
-    week: { totalLeads: 0, vendas: 0, valorVendas: 'R$ 0,00', taxaConversao: '0%' },
-    fortnight: { totalLeads: 0, vendas: 0, valorVendas: 'R$ 0,00', taxaConversao: '0%' }
-  };
-
-  const currentPeriodStats = periodStats[
-    selectedPeriod === 'today' ? 'day' : 
-    selectedPeriod === 'week' ? 'week' : 
-    'fortnight'
-  ];
-
-  const today = new Date().toLocaleDateString('pt-BR');
-  const todayStats = analytics.dailyStats?.[today] || {
+  const periodStats = analytics.periodStats;
+  const today = new Date().toISOString().split('T')[0];
+  const dailyStats = analytics.dailyStats?.[today] || {
     total: 0,
     novosLeads: 0,
     interacoes: 0,
@@ -97,30 +87,30 @@ function getStats(data: DashboardData | null, selectedPeriod: string) {
 
   return [
     {
-      title: "Leads do Período",
-      value: currentPeriodStats.totalLeads,
-      subtitle: `${todayStats.novosLeads} novos hoje`,
+      title: "Total de Leads",
+      value: periodStats[selectedPeriod === 'today' ? 'day' : selectedPeriod === 'week' ? 'week' : 'fortnight'].totalLeads,
+      subtitle: `${dailyStats.novosLeads} novos hoje`,
       icon: Users,
       color: 'indigo'
     },
     {
       title: "Interações",
-      value: todayStats.interacoes,
-      subtitle: `Taxa: ${todayStats.taxaInteracao}`,
+      value: dailyStats.interacoes,
+      subtitle: `Taxa: ${dailyStats.taxaInteracao}`,
       icon: TrendingUp,
       color: 'blue'
     },
     {
-      title: "Propostas Enviadas",
-      value: todayStats.propostas,
-      subtitle: `Taxa: ${todayStats.taxaPropostas}`,
+      title: "Propostas",
+      value: dailyStats.propostas,
+      subtitle: `Taxa: ${dailyStats.taxaPropostas}`,
       icon: FileText,
       color: 'amber'
     },
     {
-      title: "Vendas Realizadas",
-      value: todayStats.vendas,
-      subtitle: `${todayStats.valorVendas} • ${todayStats.taxaVendas}`,
+      title: "Vendas",
+      value: dailyStats.vendas,
+      subtitle: `${dailyStats.valorVendas} • ${dailyStats.taxaVendas}`,
       icon: CheckCircle,
       color: 'green'
     }
@@ -144,6 +134,8 @@ export default function Dashboard() {
   }
 
   const stats = getStats(data, selectedPeriod);
+  const today = new Date().toISOString().split('T')[0];
+  const todayLeads = data.kommoAnalytics.dailyStats?.[today]?.leads || [];
 
   return (
     <div className="p-6 space-y-6">
@@ -163,9 +155,9 @@ export default function Dashboard() {
             key={index}
             title={stat.title}
             value={stat.value}
+            subtitle={stat.subtitle}
             icon={stat.icon}
             color={stat.color}
-            subtitle={stat.subtitle}
           />
         ))}
       </div>
@@ -186,7 +178,7 @@ export default function Dashboard() {
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {data.kommoAnalytics.vendorStats && (
+        {data.kommoAnalytics.vendorStats && Object.keys(data.kommoAnalytics.vendorStats).length > 0 && (
           <Suspense fallback={
             <div className="bg-white rounded-xl shadow-sm p-6 animate-pulse">
               <div className="h-4 bg-gray-200 rounded w-1/4 mb-4"></div>
@@ -207,7 +199,7 @@ export default function Dashboard() {
           </Suspense>
         )}
 
-        {data.kommoAnalytics.personaStats && (
+        {data.kommoAnalytics.personaStats && Object.keys(data.kommoAnalytics.personaStats).length > 0 && (
           <Suspense fallback={
             <div className="bg-white rounded-xl shadow-sm p-6 animate-pulse">
               <div className="h-4 bg-gray-200 rounded w-1/4 mb-4"></div>
@@ -225,6 +217,13 @@ export default function Dashboard() {
           </Suspense>
         )}
       </div>
+
+      {todayLeads.length > 0 && (
+        <div className="bg-white rounded-xl shadow-sm p-6">
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">Leads de Hoje</h2>
+          <LeadsList leads={todayLeads} />
+        </div>
+      )}
     </div>
   );
 }
