@@ -15,29 +15,37 @@ export function useDashboardData() {
   const isMounted = useRef(true);
   const lastFetchTime = useRef<number>(0);
 
-  const transformSocketData = (socketData: any): DashboardData => {
-    const kommoData = socketData.data?.kommo;
-    
+  const transformData = (responseData: any): DashboardData => {
     return {
-      projectCount: socketData.data?.projects?.total || 0,
-      recentProjects: socketData.data?.projects?.recent || [],
-      automationRules: socketData.data?.recentRules || [],
-      isKommoConnected: kommoData?.isConnected || false,
-      kommoConfig: kommoData ? {
-        id: 'socket',
-        accountDomain: kommoData.accountDomain,
-        clientId: '',
-        createdAt: kommoData.connectedAt
-      } : null,
-      kommoAnalytics: kommoData?.analytics ? {
+      projectCount: responseData.projectCount || 0,
+      recentProjects: responseData.recentProjects || [],
+      automationRules: responseData.automationRules || [],
+      kommoConfig: responseData.kommoConfig || null,
+      isKommoConnected: responseData.isKommoConnected || false,
+      kommoAnalytics: responseData.kommo?.analytics ? {
         periodStats: {
-          day: kommoData.analytics.periodStats.day,
-          week: kommoData.analytics.periodStats.week,
-          fortnight: kommoData.analytics.periodStats.fortnight
+          day: {
+            totalLeads: responseData.kommo.analytics.periodStats.day.totalLeads || 0,
+            vendas: responseData.kommo.analytics.periodStats.day.purchases || 0,
+            valorVendas: responseData.kommo.analytics.periodStats.day.valorVendas || 'R$ 0,00',
+            taxaConversao: responseData.kommo.analytics.periodStats.day.taxaConversao || '0%'
+          },
+          week: {
+            totalLeads: responseData.kommo.analytics.periodStats.week.totalLeads || 0,
+            vendas: responseData.kommo.analytics.periodStats.week.purchases || 0,
+            valorVendas: responseData.kommo.analytics.periodStats.week.valorVendas || 'R$ 0,00',
+            taxaConversao: responseData.kommo.analytics.periodStats.week.taxaConversao || '0%'
+          },
+          fortnight: {
+            totalLeads: responseData.kommo.analytics.periodStats.fortnight.totalLeads || 0,
+            vendas: responseData.kommo.analytics.periodStats.fortnight.purchases || 0,
+            valorVendas: responseData.kommo.analytics.periodStats.fortnight.valorVendas || 'R$ 0,00',
+            taxaConversao: responseData.kommo.analytics.periodStats.fortnight.taxaConversao || '0%'
+          }
         },
-        dailyStats: kommoData.analytics.dailyStats || {},
-        vendorStats: kommoData.analytics.vendorStats || {},
-        personaStats: kommoData.analytics.personaStats || {}
+        dailyStats: responseData.kommo.analytics.dailyStats || {},
+        vendorStats: responseData.kommo.analytics.vendorStats || {},
+        personaStats: responseData.kommo.analytics.personaStats || {}
       } : null
     };
   };
@@ -56,7 +64,7 @@ export function useDashboardData() {
 
     try {
       setLoading(true);
-      const { data: response } = await api.get<ApiResponse<DashboardData>>('/dashboard/stats', {
+      const { data: response } = await api.get<ApiResponse<any>>('/dashboard/stats', {
         params: {
           detailed: true,
           period: 15
@@ -66,7 +74,8 @@ export function useDashboardData() {
       if (!isMounted.current) return;
 
       if (response.status === 'success' && response.data) {
-        setData(response.data);
+        const transformedData = transformData(response.data);
+        setData(transformedData);
         setError(null);
       } else {
         throw new Error(response.message || 'Failed to fetch dashboard data');
@@ -110,14 +119,10 @@ export function useDashboardData() {
       if (!isMounted.current) return;
       
       if (socketData.status === 'success' && socketData.data) {
-        const transformedData = transformSocketData(socketData);
+        const transformedData = transformData(socketData.data);
         setData(prevData => ({
           ...prevData,
-          ...transformedData,
-          kommoAnalytics: {
-            ...prevData?.kommoAnalytics,
-            ...transformedData.kommoAnalytics
-          }
+          ...transformedData
         }));
         setError(null);
         lastFetchTime.current = Date.now();
