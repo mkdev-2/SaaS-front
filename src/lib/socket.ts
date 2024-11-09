@@ -18,6 +18,7 @@ class SocketService {
     detailed: true,
     period: 15
   };
+  private lastData: any = null;
 
   private constructor() {}
 
@@ -82,6 +83,11 @@ class SocketService {
       
       // Subscribe to dashboard updates with parameters
       this.socket.emit('subscribe:dashboard', this.subscriptionParams);
+
+      // If we have last data, notify callbacks
+      if (this.lastData) {
+        this.dashboardCallbacks.forEach(callback => callback(this.lastData));
+      }
     });
 
     this.socket.on('connect_error', (error) => {
@@ -109,6 +115,8 @@ class SocketService {
 
     this.socket.on('dashboard:update', (data: any) => {
       if (data.status === 'success' && data.data) {
+        // Store last successful data
+        this.lastData = data;
         this.dashboardCallbacks.forEach(callback => callback(data));
       } else {
         console.error('Invalid dashboard update:', data);
@@ -156,6 +164,10 @@ class SocketService {
 
   onDashboardUpdate(callback: DashboardCallback) {
     this.dashboardCallbacks.add(callback);
+    // Send last known data to new subscriber
+    if (this.lastData) {
+      callback(this.lastData);
+    }
     return () => this.dashboardCallbacks.delete(callback);
   }
 
@@ -171,6 +183,7 @@ class SocketService {
 
   disconnect() {
     this.isConnecting = false;
+    this.lastData = null;
     
     if (this.reconnectTimer) {
       clearTimeout(this.reconnectTimer);
