@@ -16,37 +16,39 @@ export function useDashboardData() {
   const lastFetchTime = useRef<number>(0);
 
   const transformData = (responseData: any): DashboardData => {
+    const kommoAnalytics = responseData.kommo?.analytics ? {
+      periodStats: {
+        day: {
+          totalLeads: responseData.kommo.analytics.periodStats.day.totalLeads || 0,
+          vendas: responseData.kommo.analytics.periodStats.day.totalVendas || 0,
+          valorVendas: responseData.kommo.analytics.periodStats.day.valorTotalVendas || 'R$ 0,00',
+          taxaConversao: responseData.kommo.analytics.periodStats.day.taxaConversao || '0%'
+        },
+        week: {
+          totalLeads: responseData.kommo.analytics.periodStats.week.totalLeads || 0,
+          vendas: responseData.kommo.analytics.periodStats.week.totalVendas || 0,
+          valorVendas: responseData.kommo.analytics.periodStats.week.valorTotalVendas || 'R$ 0,00',
+          taxaConversao: responseData.kommo.analytics.periodStats.week.taxaConversao || '0%'
+        },
+        fortnight: {
+          totalLeads: responseData.kommo.analytics.periodStats.fortnight.totalLeads || 0,
+          vendas: responseData.kommo.analytics.periodStats.fortnight.totalVendas || 0,
+          valorVendas: responseData.kommo.analytics.periodStats.fortnight.valorTotalVendas || 'R$ 0,00',
+          taxaConversao: responseData.kommo.analytics.periodStats.fortnight.taxaConversao || '0%'
+        }
+      },
+      dailyStats: responseData.kommo.analytics.dailyStats || {},
+      vendorStats: responseData.kommo.analytics.vendorStats || {},
+      personaStats: responseData.kommo.analytics.personaStats || {}
+    } : null;
+
     return {
       projectCount: responseData.projectCount || 0,
       recentProjects: responseData.recentProjects || [],
       automationRules: responseData.automationRules || [],
       kommoConfig: responseData.kommoConfig || null,
       isKommoConnected: responseData.isKommoConnected || false,
-      kommoAnalytics: responseData.kommo?.analytics ? {
-        periodStats: {
-          day: {
-            totalLeads: responseData.kommo.analytics.periodStats.day.totalLeads || 0,
-            vendas: responseData.kommo.analytics.periodStats.day.purchases || 0,
-            valorVendas: responseData.kommo.analytics.periodStats.day.valorVendas || 'R$ 0,00',
-            taxaConversao: responseData.kommo.analytics.periodStats.day.taxaConversao || '0%'
-          },
-          week: {
-            totalLeads: responseData.kommo.analytics.periodStats.week.totalLeads || 0,
-            vendas: responseData.kommo.analytics.periodStats.week.purchases || 0,
-            valorVendas: responseData.kommo.analytics.periodStats.week.valorVendas || 'R$ 0,00',
-            taxaConversao: responseData.kommo.analytics.periodStats.week.taxaConversao || '0%'
-          },
-          fortnight: {
-            totalLeads: responseData.kommo.analytics.periodStats.fortnight.totalLeads || 0,
-            vendas: responseData.kommo.analytics.periodStats.fortnight.purchases || 0,
-            valorVendas: responseData.kommo.analytics.periodStats.fortnight.valorVendas || 'R$ 0,00',
-            taxaConversao: responseData.kommo.analytics.periodStats.fortnight.taxaConversao || '0%'
-          }
-        },
-        dailyStats: responseData.kommo.analytics.dailyStats || {},
-        vendorStats: responseData.kommo.analytics.vendorStats || {},
-        personaStats: responseData.kommo.analytics.personaStats || {}
-      } : null
+      kommoAnalytics
     };
   };
 
@@ -103,8 +105,9 @@ export function useDashboardData() {
     // Initial fetch with detailed data
     fetchDashboardData(true);
 
-    // Socket connection
+    // Socket connection with detailed data subscription
     socketService.connect();
+    socketService.updateSubscription({ detailed: true, period: 15 });
 
     const unsubscribeConnection = socketService.onConnectionChange((status) => {
       if (!isMounted.current) return;
