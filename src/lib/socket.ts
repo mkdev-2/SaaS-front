@@ -19,6 +19,7 @@ class SocketService {
     period: 15
   };
   private lastData: any = null;
+  private initialDataLoaded = false;
 
   private constructor() {}
 
@@ -58,10 +59,7 @@ class SocketService {
         reconnectionDelay: 1000,
         reconnectionDelayMax: 5000,
         timeout: 10000,
-        query: {
-          detailed: true,
-          period: 15
-        }
+        query: this.subscriptionParams
       });
 
       this.setupEventListeners();
@@ -80,12 +78,10 @@ class SocketService {
       this.isConnecting = false;
       this.reconnectAttempts = 0;
       this.notifyConnectionStatus(true);
-      
       this.socket?.emit('subscribe:dashboard', this.subscriptionParams);
 
-      if (this.lastData) {
-        this.dashboardCallbacks.forEach(callback => callback(this.lastData));
-      }
+      // Request initial data immediately after connection
+      this.socket?.emit('dashboard:request');
     });
 
     this.socket.on('connect_error', (error) => {
@@ -116,6 +112,7 @@ class SocketService {
         const processedData = this.processData(data.data);
         if (processedData) {
           this.lastData = { status: 'success', data: processedData };
+          this.initialDataLoaded = true;
           this.dashboardCallbacks.forEach(callback => callback(this.lastData));
         }
       } else {
@@ -130,6 +127,25 @@ class SocketService {
         useAuthStore.getState().logout();
       }
     });
+  }
+
+  private handleReconnect() {
+    this.notifyConnectionStatus(false);
+
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer);
+    }
+
+    if (this.reconnectAttempts < this.maxReconnectAttempts) {
+      this.reconnectAttempts++;
+      const delay = Math.min(1000 * Math.pow(2, this.reconnectAttempts), 5000);
+
+      this.reconnectTimer = setTimeout(() => {
+        if (!this.socket?.connected && !this.isConnecting) {
+          this.connect();
+        }
+      }, delay);
+    }
   }
 
   private processData(data: any) {
@@ -192,25 +208,6 @@ class SocketService {
     };
   }
 
-  private handleReconnect() {
-    this.notifyConnectionStatus(false);
-
-    if (this.reconnectTimer) {
-      clearTimeout(this.reconnectTimer);
-    }
-
-    if (this.reconnectAttempts < this.maxReconnectAttempts) {
-      this.reconnectAttempts++;
-      const delay = Math.min(1000 * Math.pow(2, this.reconnectAttempts), 5000);
-
-      this.reconnectTimer = setTimeout(() => {
-        if (!this.socket?.connected && !this.isConnecting) {
-          this.connect();
-        }
-      }, delay);
-    }
-  }
-
   updateSubscription(params: { detailed?: boolean; period?: number }) {
     this.subscriptionParams = {
       ...this.subscriptionParams,
@@ -219,12 +216,14 @@ class SocketService {
 
     if (this.socket?.connected) {
       this.socket.emit('subscribe:dashboard', this.subscriptionParams);
+      // Request fresh data after subscription update
+      this.socket.emit('dashboard:request');
     }
   }
 
   onDashboardUpdate(callback: DashboardCallback) {
     this.dashboardCallbacks.add(callback);
-    if (this.lastData) {
+    if (this.lastData && this.initialDataLoaded) {
       callback(this.lastData);
     }
     return () => this.dashboardCallbacks.delete(callback);
@@ -243,6 +242,7 @@ class SocketService {
   disconnect() {
     this.isConnecting = false;
     this.lastData = null;
+    this.initialDataLoaded = false;
     
     if (this.reconnectTimer) {
       clearTimeout(this.reconnectTimer);
@@ -259,6 +259,12 @@ class SocketService {
     this.connectionCallbacks.clear();
     this.reconnectAttempts = 0;
     this.notifyConnectionStatus(false);
+  }
+
+  requestData() {
+    if (this.socket?.connected) {
+      this.socket.emit('dashboard:request');
+    }
   }
 }
 

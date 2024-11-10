@@ -1,4 +1,4 @@
-import React, { useState, Suspense } from 'react';
+import React, { useState, Suspense, useEffect } from 'react';
 import { Users, Box, RefreshCw, AlertCircle, FileText, CheckCircle, TrendingUp } from 'lucide-react';
 import { useDashboardData } from '../hooks/useDashboardData';
 import StatCard from './dashboard/StatCard';
@@ -54,10 +54,10 @@ function EmptyState() {
           <AlertCircle className="h-5 w-5 text-yellow-400 mt-0.5 mr-3" />
           <div>
             <h3 className="text-sm font-medium text-yellow-800">
-              Nenhum dado disponível
+              Aguardando dados
             </h3>
             <p className="mt-2 text-sm text-yellow-700">
-              Não há dados analíticos para exibir no momento.
+              Os dados estão sendo carregados em tempo real...
             </p>
           </div>
         </div>
@@ -67,32 +67,31 @@ function EmptyState() {
 }
 
 function getStats(data: any) {
-  if (!data?.kommo?.analytics?.metrics) {
+  if (!data?.kommo?.analytics?.periodStats) {
     return [];
   }
 
-  const { metrics } = data.kommo.analytics;
-  const { metadata } = data.kommo.analytics;
+  const { day: dayStats } = data.kommo.analytics.periodStats;
 
   return [
     {
       title: "Leads Ativos",
-      value: metrics.activeLeads,
-      subtitle: `${((metadata.currentLeadsCount / metadata.previousLeadsCount) * 100).toFixed(1)}% vs período anterior`,
+      value: dayStats.totalLeads,
+      subtitle: `${dayStats.taxaConversao} de conversão`,
       icon: Users,
       color: 'indigo'
     },
     {
-      title: "Taxa de Qualificação",
-      value: `${metrics.qualificationRate}%`,
-      subtitle: `Custo por lead: R$ ${metrics.costPerLead}`,
+      title: "Vendas Realizadas",
+      value: dayStats.totalVendas,
+      subtitle: `Total: ${dayStats.valorTotalVendas}`,
       icon: CheckCircle,
       color: 'green'
     },
     {
-      title: "Tempo de Conversão",
-      value: `${metrics.conversionTime}h`,
-      subtitle: "Média do período",
+      title: "Média por Venda",
+      value: dayStats.valorTotalVendas,
+      subtitle: "No período atual",
       icon: TrendingUp,
       color: 'blue'
     }
@@ -102,8 +101,15 @@ function getStats(data: any) {
 export default function Dashboard() {
   const { data, loading, error, refresh } = useDashboardData();
   const [selectedPeriod, setSelectedPeriod] = useState('today');
+  const [hasInitialData, setHasInitialData] = useState(false);
 
-  if (loading && !data) {
+  useEffect(() => {
+    if (data?.kommo?.analytics?.periodStats) {
+      setHasInitialData(true);
+    }
+  }, [data]);
+
+  if (loading && !hasInitialData) {
     return <LoadingState />;
   }
 
@@ -111,12 +117,11 @@ export default function Dashboard() {
     return <ErrorState error={error} onRetry={refresh} />;
   }
 
-  if (!data?.kommo?.analytics) {
+  if (!data?.kommo?.analytics?.periodStats) {
     return <EmptyState />;
   }
 
   const stats = getStats(data);
-  const analytics = data.kommo.analytics;
 
   return (
     <div className="p-6 space-y-6">
@@ -143,80 +148,21 @@ export default function Dashboard() {
         ))}
       </div>
 
-      {analytics.funnel && analytics.funnel.length > 0 && (
-        <div className="bg-white rounded-xl shadow-sm p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Funil de Vendas</h2>
-          <div className="space-y-4">
-            {analytics.funnel.map((stage, index) => (
-              <div key={index} className="flex items-center justify-between">
-                <div className="flex-1">
-                  <div className="h-4 bg-indigo-100 rounded-full">
-                    <div
-                      className="h-4 bg-indigo-600 rounded-full"
-                      style={{ width: `${stage.conversionRate}%` }}
-                    />
-                  </div>
-                  <div className="flex justify-between mt-1">
-                    <span className="text-sm text-gray-600">{stage.stage}</span>
-                    <span className="text-sm font-medium text-gray-900">{stage.count}</span>
-                  </div>
-                </div>
-                <span className="ml-4 text-sm text-gray-500">
-                  {stage.conversionRate.toFixed(1)}%
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+      <Suspense fallback={<div className="h-64 bg-gray-50 rounded-xl animate-pulse" />}>
+        <DailyLeadsChart data={data.kommo.analytics} period={selectedPeriod} />
+      </Suspense>
 
-      {analytics.vendorPerformance && analytics.vendorPerformance.length > 0 && (
-        <Suspense fallback={
-          <div className="bg-white rounded-xl shadow-sm p-6 animate-pulse">
-            <div className="h-4 bg-gray-200 rounded w-1/4 mb-4"></div>
-            <div className="h-8 bg-gray-200 rounded w-1/2"></div>
-          </div>
-        }>
-          <VendorStats data={analytics.vendorPerformance} />
+      {data.kommo.analytics.vendorStats && Object.keys(data.kommo.analytics.vendorStats).length > 0 && (
+        <Suspense fallback={<div className="h-64 bg-gray-50 rounded-xl animate-pulse" />}>
+          <VendorStats data={data.kommo.analytics.vendorStats} />
         </Suspense>
       )}
 
-      {analytics.sources && analytics.sources.length > 0 && (
-        <div className="bg-white rounded-xl shadow-sm p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Origem dos Leads</h2>
-          <div className="space-y-4">
-            {analytics.sources.map((source: any, index: number) => (
-              <div key={index} className="flex items-center justify-between">
-                <span className="text-sm text-gray-600">{source.name}</span>
-                <div className="flex items-center space-x-4">
-                  <span className="text-sm font-medium text-gray-900">{source.count}</span>
-                  <span className="text-sm text-gray-500">{source.percentage}%</span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
+      {data.kommo.analytics.personaStats && Object.keys(data.kommo.analytics.personaStats).length > 0 && (
+        <Suspense fallback={<div className="h-64 bg-gray-50 rounded-xl animate-pulse" />}>
+          <PersonaStats data={data.kommo.analytics.personaStats} />
+        </Suspense>
       )}
-
-      <div className="bg-white rounded-xl shadow-sm p-6">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">Período da Análise</h2>
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <p className="text-sm text-gray-500">Período Atual</p>
-            <p className="text-sm font-medium text-gray-900">
-              {new Date(analytics.metadata.dateRanges.current.start).toLocaleDateString()} até{' '}
-              {new Date(analytics.metadata.dateRanges.current.end).toLocaleDateString()}
-            </p>
-          </div>
-          <div>
-            <p className="text-sm text-gray-500">Período Anterior</p>
-            <p className="text-sm font-medium text-gray-900">
-              {new Date(analytics.metadata.dateRanges.previous.start).toLocaleDateString()} até{' '}
-              {new Date(analytics.metadata.dateRanges.previous.end).toLocaleDateString()}
-            </p>
-          </div>
-        </div>
-      </div>
     </div>
   );
 }
