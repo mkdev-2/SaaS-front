@@ -66,34 +66,33 @@ function EmptyState() {
   );
 }
 
-function getStats(data: any, selectedPeriod: string) {
-  if (!data?.kommo?.analytics?.summary) {
+function getStats(data: any) {
+  if (!data?.kommo?.analytics?.metrics) {
     return [];
   }
 
-  const analytics = data.kommo.analytics;
-  const summary = analytics.summary;
-  const periodStats = analytics.periodStats[selectedPeriod === 'today' ? 'day' : selectedPeriod === 'week' ? 'week' : 'fortnight'];
+  const { metrics } = data.kommo.analytics;
+  const { metadata } = data.kommo.analytics;
 
   return [
     {
-      title: "Total de Leads",
-      value: periodStats.totalLeads || 0,
-      subtitle: `${summary.conversionRate} taxa de conversão`,
+      title: "Leads Ativos",
+      value: metrics.activeLeads,
+      subtitle: `${((metadata.currentLeadsCount / metadata.previousLeadsCount) * 100).toFixed(1)}% vs período anterior`,
       icon: Users,
       color: 'indigo'
     },
     {
-      title: "Vendas",
-      value: periodStats.purchases || 0,
-      subtitle: summary.totalPurchaseValue,
+      title: "Taxa de Qualificação",
+      value: `${metrics.qualificationRate}%`,
+      subtitle: `Custo por lead: R$ ${metrics.costPerLead}`,
       icon: CheckCircle,
       color: 'green'
     },
     {
-      title: "Performance",
-      value: summary.conversionRate || '0%',
-      subtitle: `${summary.totalPurchases} vendas totais`,
+      title: "Tempo de Conversão",
+      value: `${metrics.conversionTime}h`,
+      subtitle: "Média do período",
       icon: TrendingUp,
       color: 'blue'
     }
@@ -116,7 +115,7 @@ export default function Dashboard() {
     return <EmptyState />;
   }
 
-  const stats = getStats(data, selectedPeriod);
+  const stats = getStats(data);
   const analytics = data.kommo.analytics;
 
   return (
@@ -144,56 +143,80 @@ export default function Dashboard() {
         ))}
       </div>
 
-      {analytics.vendorStats && Object.keys(analytics.vendorStats).length > 0 && (
-        <Suspense fallback={
-          <div className="bg-white rounded-xl shadow-sm p-6 animate-pulse">
-            <div className="h-4 bg-gray-200 rounded w-1/4 mb-4"></div>
-            <div className="h-8 bg-gray-200 rounded w-1/2"></div>
-          </div>
-        }>
-          <VendorStats 
-            data={Object.entries(analytics.vendorStats).map(([name, stats]: [string, any]) => ({
-              name,
-              atendimentos: stats.totalLeads,
-              propostas: stats.propostas,
-              vendas: stats.vendas,
-              valor: stats.valorVendas,
-              taxaConversao: stats.taxaConversao,
-              taxaPropostas: stats.taxaPropostas
-            }))}
-          />
-        </Suspense>
-      )}
-
-      {analytics.personaStats && Object.keys(analytics.personaStats).length > 0 && (
-        <Suspense fallback={
-          <div className="bg-white rounded-xl shadow-sm p-6 animate-pulse">
-            <div className="h-4 bg-gray-200 rounded w-1/4 mb-4"></div>
-            <div className="h-8 bg-gray-200 rounded w-1/2"></div>
-          </div>
-        }>
-          <PersonaStats 
-            data={Object.entries(analytics.personaStats).map(([name, stats]: [string, any]) => ({
-              name,
-              quantity: stats.quantidade,
-              value: stats.valorTotal,
-              percentage: stats.porcentagem
-            }))}
-          />
-        </Suspense>
-      )}
-
-      {analytics.summary.totalLeads > 0 && (
+      {analytics.funnel && analytics.funnel.length > 0 && (
         <div className="bg-white rounded-xl shadow-sm p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Leads Recentes</h2>
-          <LeadsList 
-            leads={Object.values(analytics.dailyStats || {})
-              .flatMap((day: any) => day.leads || [])
-              .slice(0, 10)
-            } 
-          />
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">Funil de Vendas</h2>
+          <div className="space-y-4">
+            {analytics.funnel.map((stage, index) => (
+              <div key={index} className="flex items-center justify-between">
+                <div className="flex-1">
+                  <div className="h-4 bg-indigo-100 rounded-full">
+                    <div
+                      className="h-4 bg-indigo-600 rounded-full"
+                      style={{ width: `${stage.conversionRate}%` }}
+                    />
+                  </div>
+                  <div className="flex justify-between mt-1">
+                    <span className="text-sm text-gray-600">{stage.stage}</span>
+                    <span className="text-sm font-medium text-gray-900">{stage.count}</span>
+                  </div>
+                </div>
+                <span className="ml-4 text-sm text-gray-500">
+                  {stage.conversionRate.toFixed(1)}%
+                </span>
+              </div>
+            ))}
+          </div>
         </div>
       )}
+
+      {analytics.vendorPerformance && analytics.vendorPerformance.length > 0 && (
+        <Suspense fallback={
+          <div className="bg-white rounded-xl shadow-sm p-6 animate-pulse">
+            <div className="h-4 bg-gray-200 rounded w-1/4 mb-4"></div>
+            <div className="h-8 bg-gray-200 rounded w-1/2"></div>
+          </div>
+        }>
+          <VendorStats data={analytics.vendorPerformance} />
+        </Suspense>
+      )}
+
+      {analytics.sources && analytics.sources.length > 0 && (
+        <div className="bg-white rounded-xl shadow-sm p-6">
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">Origem dos Leads</h2>
+          <div className="space-y-4">
+            {analytics.sources.map((source: any, index: number) => (
+              <div key={index} className="flex items-center justify-between">
+                <span className="text-sm text-gray-600">{source.name}</span>
+                <div className="flex items-center space-x-4">
+                  <span className="text-sm font-medium text-gray-900">{source.count}</span>
+                  <span className="text-sm text-gray-500">{source.percentage}%</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div className="bg-white rounded-xl shadow-sm p-6">
+        <h2 className="text-lg font-semibold text-gray-900 mb-4">Período da Análise</h2>
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <p className="text-sm text-gray-500">Período Atual</p>
+            <p className="text-sm font-medium text-gray-900">
+              {new Date(analytics.metadata.dateRanges.current.start).toLocaleDateString()} até{' '}
+              {new Date(analytics.metadata.dateRanges.current.end).toLocaleDateString()}
+            </p>
+          </div>
+          <div>
+            <p className="text-sm text-gray-500">Período Anterior</p>
+            <p className="text-sm font-medium text-gray-900">
+              {new Date(analytics.metadata.dateRanges.previous.start).toLocaleDateString()} até{' '}
+              {new Date(analytics.metadata.dateRanges.previous.end).toLocaleDateString()}
+            </p>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
