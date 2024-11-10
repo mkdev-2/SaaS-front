@@ -113,7 +113,6 @@ class SocketService {
 
     this.socket.on('dashboard:update', (data: any) => {
       if (data.status === 'success' && data.data) {
-        // Ensure the data structure is correct before notifying callbacks
         const processedData = this.processData(data.data);
         if (processedData) {
           this.lastData = { status: 'success', data: processedData };
@@ -134,30 +133,63 @@ class SocketService {
   }
 
   private processData(data: any) {
-    // Ensure the data has the required structure
-    if (!data.kommo) {
-      data = {
-        kommo: {
-          analytics: {
-            periodStats: {
-              day: { totalLeads: 0, vendas: 0, valorVendas: 'R$ 0,00', taxaConversao: '0%' },
-              week: { totalLeads: 0, vendas: 0, valorVendas: 'R$ 0,00', taxaConversao: '0%' },
-              fortnight: { totalLeads: 0, vendas: 0, valorVendas: 'R$ 0,00', taxaConversao: '0%' }
-            },
-            dailyStats: {},
-            vendorStats: {},
-            personaStats: {}
-          },
-          config: null,
-          isConnected: false
+    // Create default analytics structure
+    const defaultAnalytics = {
+      periodStats: {
+        day: {
+          totalLeads: 0,
+          totalVendas: 0,
+          valorTotalVendas: 'R$ 0,00',
+          taxaConversao: '0%'
         },
-        projectCount: data.projectCount || 0,
-        recentProjects: data.recentProjects || [],
-        automationRules: data.automationRules || []
+        week: {
+          totalLeads: 0,
+          totalVendas: 0,
+          valorTotalVendas: 'R$ 0,00',
+          taxaConversao: '0%'
+        },
+        fortnight: {
+          totalLeads: 0,
+          totalVendas: 0,
+          valorTotalVendas: 'R$ 0,00',
+          taxaConversao: '0%'
+        }
+      },
+      dailyStats: {},
+      vendorStats: {},
+      personaStats: {}
+    };
+
+    // If kommo data exists, merge it with defaults
+    if (data.kommo?.analytics) {
+      return {
+        ...data,
+        kommo: {
+          ...data.kommo,
+          analytics: {
+            ...defaultAnalytics,
+            ...data.kommo.analytics,
+            periodStats: {
+              day: { ...defaultAnalytics.periodStats.day, ...data.kommo.analytics.periodStats?.day },
+              week: { ...defaultAnalytics.periodStats.week, ...data.kommo.analytics.periodStats?.week },
+              fortnight: { ...defaultAnalytics.periodStats.fortnight, ...data.kommo.analytics.periodStats?.fortnight }
+            }
+          }
+        }
       };
     }
 
-    return data;
+    // If no kommo data, return default structure
+    return {
+      kommo: {
+        analytics: defaultAnalytics,
+        config: null,
+        isConnected: false
+      },
+      projectCount: data.projectCount || 0,
+      recentProjects: data.recentProjects || [],
+      automationRules: data.automationRules || []
+    };
   }
 
   private handleReconnect() {
