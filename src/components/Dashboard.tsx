@@ -9,10 +9,6 @@ const DailyLeadsChart = React.lazy(() => import('./dashboard/DailyLeadsChart'));
 const VendorStats = React.lazy(() => import('./dashboard/VendorStats'));
 const PersonaStats = React.lazy(() => import('./dashboard/PersonaStats'));
 const PeriodSelector = React.lazy(() => import('./dashboard/PeriodSelector'));
-const ConversionFunnelChart = React.lazy(() => import('./dashboard/ConversionFunnelChart'));
-const LeadSourceChart = React.lazy(() => import('./dashboard/LeadSourceChart'));
-const MetricsGrid = React.lazy(() => import('./dashboard/MetricsGrid'));
-const PerformanceTable = React.lazy(() => import('./dashboard/PerformanceTable'));
 
 function LoadingState() {
   return (
@@ -72,18 +68,18 @@ function EmptyState() {
 }
 
 function getStats(data: DashboardData | null, selectedPeriod: string) {
-  if (!data?.kommoAnalytics?.periodStats) return [];
+  const analytics = data?.kommoAnalytics;
+  if (!analytics) return [];
 
-  const periodStats = data.kommoAnalytics.periodStats;
   const periodKey = selectedPeriod === 'today' ? 'day' : selectedPeriod === 'week' ? 'week' : 'fortnight';
-  const currentPeriodStats = periodStats[periodKey] || {
+  const periodStats = analytics.periodStats?.[periodKey] || {
     totalLeads: 0,
     vendas: 0,
     valorVendas: 'R$ 0,00',
     taxaConversao: '0%'
   };
 
-  const dailyStats = Object.values(data.kommoAnalytics.dailyStats || {}).reduce(
+  const dailyStats = Object.values(analytics.dailyStats || {}).reduce(
     (acc: any, day: any) => {
       acc.interacoes += day.interacoes || 0;
       acc.propostas += day.propostas || 0;
@@ -95,21 +91,21 @@ function getStats(data: DashboardData | null, selectedPeriod: string) {
   return [
     {
       title: "Total de Leads",
-      value: currentPeriodStats.totalLeads || 0,
-      subtitle: `${currentPeriodStats.taxaConversao || '0%'} taxa de conversão`,
+      value: periodStats.totalLeads,
+      subtitle: `${periodStats.taxaConversao} taxa de conversão`,
       icon: Users,
       color: 'indigo'
     },
     {
       title: "Vendas",
-      value: currentPeriodStats.vendas || 0,
-      subtitle: currentPeriodStats.valorVendas || 'R$ 0,00',
+      value: periodStats.vendas,
+      subtitle: periodStats.valorVendas,
       icon: CheckCircle,
       color: 'green'
     },
     {
       title: "Performance",
-      value: currentPeriodStats.taxaConversao || '0%',
+      value: periodStats.taxaConversao,
       subtitle: `${dailyStats.propostas} propostas enviadas`,
       icon: TrendingUp,
       color: 'blue'
@@ -178,21 +174,14 @@ export default function Dashboard() {
         ))}
       </div>
 
-      <Suspense fallback={<div className="h-64 bg-white rounded-xl shadow-sm animate-pulse" />}>
-        <MetricsGrid data={data.kommoAnalytics} period={selectedPeriod} />
-      </Suspense>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Suspense fallback={<div className="h-96 bg-white rounded-xl shadow-sm animate-pulse" />}>
-          <ConversionFunnelChart data={data.kommoAnalytics} period={selectedPeriod} />
-        </Suspense>
-        <Suspense fallback={<div className="h-96 bg-white rounded-xl shadow-sm animate-pulse" />}>
-          <LeadSourceChart data={data.kommoAnalytics} period={selectedPeriod} />
-        </Suspense>
-      </div>
-
       {data.kommoAnalytics.dailyStats && (
-        <Suspense fallback={<div className="h-96 bg-white rounded-xl shadow-sm animate-pulse" />}>
+        <Suspense fallback={
+          <div className="bg-white rounded-xl shadow-sm p-6">
+            <div className="h-64 flex items-center justify-center">
+              <RefreshCw className="h-8 w-8 text-gray-400 animate-spin" />
+            </div>
+          </div>
+        }>
           <DailyLeadsChart 
             data={data.kommoAnalytics.dailyStats}
             period={selectedPeriod}
@@ -200,21 +189,25 @@ export default function Dashboard() {
         </Suspense>
       )}
 
-      {vendorStats.length > 0 && (
-        <Suspense fallback={<div className="h-96 bg-white rounded-xl shadow-sm animate-pulse" />}>
-          <PerformanceTable data={data.kommoAnalytics} period={selectedPeriod} />
-        </Suspense>
-      )}
-
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {vendorStats.length > 0 && (
-          <Suspense fallback={<div className="h-96 bg-white rounded-xl shadow-sm animate-pulse" />}>
+          <Suspense fallback={
+            <div className="bg-white rounded-xl shadow-sm p-6 animate-pulse">
+              <div className="h-4 bg-gray-200 rounded w-1/4 mb-4"></div>
+              <div className="h-8 bg-gray-200 rounded w-1/2"></div>
+            </div>
+          }>
             <VendorStats data={vendorStats} />
           </Suspense>
         )}
 
         {personaStats.length > 0 && (
-          <Suspense fallback={<div className="h-96 bg-white rounded-xl shadow-sm animate-pulse" />}>
+          <Suspense fallback={
+            <div className="bg-white rounded-xl shadow-sm p-6 animate-pulse">
+              <div className="h-4 bg-gray-200 rounded w-1/4 mb-4"></div>
+              <div className="h-8 bg-gray-200 rounded w-1/2"></div>
+            </div>
+          }>
             <PersonaStats data={personaStats} />
           </Suspense>
         )}
