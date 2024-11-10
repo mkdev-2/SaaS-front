@@ -81,10 +81,8 @@ class SocketService {
       this.reconnectAttempts = 0;
       this.notifyConnectionStatus(true);
       
-      // Subscribe to dashboard updates with parameters
-      this.socket.emit('subscribe:dashboard', this.subscriptionParams);
+      this.socket?.emit('subscribe:dashboard', this.subscriptionParams);
 
-      // If we have last data, notify callbacks
       if (this.lastData) {
         this.dashboardCallbacks.forEach(callback => callback(this.lastData));
       }
@@ -115,9 +113,12 @@ class SocketService {
 
     this.socket.on('dashboard:update', (data: any) => {
       if (data.status === 'success' && data.data) {
-        // Store last successful data
-        this.lastData = data;
-        this.dashboardCallbacks.forEach(callback => callback(data));
+        // Ensure the data structure is correct before notifying callbacks
+        const processedData = this.processData(data.data);
+        if (processedData) {
+          this.lastData = { status: 'success', data: processedData };
+          this.dashboardCallbacks.forEach(callback => callback(this.lastData));
+        }
       } else {
         console.error('Invalid dashboard update:', data);
       }
@@ -130,6 +131,33 @@ class SocketService {
         useAuthStore.getState().logout();
       }
     });
+  }
+
+  private processData(data: any) {
+    // Ensure the data has the required structure
+    if (!data.kommo) {
+      data = {
+        kommo: {
+          analytics: {
+            periodStats: {
+              day: { totalLeads: 0, vendas: 0, valorVendas: 'R$ 0,00', taxaConversao: '0%' },
+              week: { totalLeads: 0, vendas: 0, valorVendas: 'R$ 0,00', taxaConversao: '0%' },
+              fortnight: { totalLeads: 0, vendas: 0, valorVendas: 'R$ 0,00', taxaConversao: '0%' }
+            },
+            dailyStats: {},
+            vendorStats: {},
+            personaStats: {}
+          },
+          config: null,
+          isConnected: false
+        },
+        projectCount: data.projectCount || 0,
+        recentProjects: data.recentProjects || [],
+        automationRules: data.automationRules || []
+      };
+    }
+
+    return data;
   }
 
   private handleReconnect() {
@@ -164,7 +192,6 @@ class SocketService {
 
   onDashboardUpdate(callback: DashboardCallback) {
     this.dashboardCallbacks.add(callback);
-    // Send last known data to new subscriber
     if (this.lastData) {
       callback(this.lastData);
     }
