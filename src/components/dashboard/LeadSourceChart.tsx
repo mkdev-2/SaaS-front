@@ -11,15 +11,19 @@ const COLORS = ['#4F46E5', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899'
 
 export default function LeadSourceChart({ data, period }: LeadSourceChartProps) {
   const sourceData = React.useMemo(() => {
-    // Simulate source data since it's not in the original data
-    return [
-      { name: 'Website', value: 35, growth: '+12%' },
-      { name: 'Referral', value: 25, growth: '+8%' },
-      { name: 'Social Media', value: 20, growth: '+15%' },
-      { name: 'Direct', value: 15, growth: '-3%' },
-      { name: 'Other', value: 5, growth: '+1%' }
-    ];
-  }, [data, period]);
+    if (!data.tags?.origem) return [];
+
+    return Object.entries(data.tags.origem).map(([name, count]: [string, number]) => ({
+      name,
+      value: count
+    }));
+  }, [data]);
+
+  if (!sourceData.length) {
+    return null;
+  }
+
+  const total = sourceData.reduce((sum, item) => sum + item.value, 0);
 
   return (
     <div className="bg-white rounded-xl shadow-sm p-6">
@@ -52,7 +56,7 @@ export default function LeadSourceChart({ data, period }: LeadSourceChartProps) 
                 ))}
               </Pie>
               <Tooltip
-                formatter={(value: number) => [`${value}%`, 'Porcentagem']}
+                formatter={(value: number) => [value, 'Leads']}
                 contentStyle={{
                   backgroundColor: 'white',
                   border: '1px solid #E5E7EB',
@@ -75,11 +79,9 @@ export default function LeadSourceChart({ data, period }: LeadSourceChartProps) 
                 <span className="text-sm font-medium text-gray-900">{source.name}</span>
               </div>
               <div className="flex items-center space-x-4">
-                <span className="text-sm text-gray-600">{source.value}%</span>
-                <span className={`text-sm font-medium ${
-                  source.growth.startsWith('+') ? 'text-green-600' : 'text-red-600'
-                }`}>
-                  {source.growth}
+                <span className="text-sm text-gray-600">{source.value}</span>
+                <span className="text-sm text-gray-500">
+                  {((source.value / total) * 100).toFixed(1)}%
                 </span>
               </div>
             </div>

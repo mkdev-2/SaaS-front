@@ -10,6 +10,11 @@ interface ConversionFunnelChartProps {
 export default function ConversionFunnelChart({ data, period }: ConversionFunnelChartProps) {
   const funnelData = React.useMemo(() => {
     const periodStats = data.periodStats[period === 'today' ? 'day' : period === 'week' ? 'week' : 'fortnight'];
+    const dailyStats = Object.values(data.dailyStats || {}).reduce((acc: any, day: any) => {
+      acc.propostas += day.propostas || 0;
+      acc.interacoes += day.interacoes || 0;
+      return acc;
+    }, { propostas: 0, interacoes: 0 });
     
     return [
       {
@@ -18,19 +23,14 @@ export default function ConversionFunnelChart({ data, period }: ConversionFunnel
         color: '#4F46E5'
       },
       {
-        stage: 'Qualificados',
-        value: Math.round(periodStats.totalLeads * 0.7),
+        stage: 'Interações',
+        value: dailyStats.interacoes,
         color: '#7C3AED'
       },
       {
         stage: 'Propostas',
-        value: Math.round(periodStats.totalLeads * 0.4),
+        value: dailyStats.propostas,
         color: '#EC4899'
-      },
-      {
-        stage: 'Negociação',
-        value: Math.round(periodStats.totalLeads * 0.25),
-        color: '#F59E0B'
       },
       {
         stage: 'Vendas',

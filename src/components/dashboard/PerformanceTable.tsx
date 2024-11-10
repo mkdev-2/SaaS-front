@@ -1,5 +1,5 @@
 import React from 'react';
-import { ArrowUp, ArrowDown } from 'lucide-react';
+import { TrendingUp, TrendingDown } from 'lucide-react';
 
 interface PerformanceTableProps {
   data: any;
@@ -8,40 +8,23 @@ interface PerformanceTableProps {
 
 export default function PerformanceTable({ data, period }: PerformanceTableProps) {
   const performanceData = React.useMemo(() => {
-    // Simulate performance data
-    return [
-      {
-        vendedor: 'João Silva',
-        leads: 45,
-        propostas: 32,
-        vendas: 18,
-        valor: 'R$ 54.000,00',
-        conversao: '40%',
-        ticket: 'R$ 3.000,00',
-        tendencia: 'up'
-      },
-      {
-        vendedor: 'Maria Santos',
-        leads: 38,
-        propostas: 25,
-        vendas: 15,
-        valor: 'R$ 45.000,00',
-        conversao: '39%',
-        ticket: 'R$ 3.000,00',
-        tendencia: 'down'
-      },
-      {
-        vendedor: 'Pedro Costa',
-        leads: 42,
-        propostas: 28,
-        vendas: 16,
-        valor: 'R$ 48.000,00',
-        conversao: '38%',
-        ticket: 'R$ 3.000,00',
-        tendencia: 'up'
-      }
-    ];
-  }, [data, period]);
+    if (!data.vendorStats) return [];
+
+    return Object.entries(data.vendorStats).map(([name, stats]: [string, any]) => ({
+      vendedor: name,
+      leads: stats.totalAtendimentos,
+      propostas: stats.propostas,
+      vendas: stats.vendas,
+      valor: stats.valorVendas,
+      conversao: stats.taxaConversao,
+      propostas_taxa: stats.taxaPropostas,
+      tendencia: stats.vendas > (stats.totalAtendimentos * 0.3) ? 'up' : 'down'
+    }));
+  }, [data]);
+
+  if (!performanceData.length) {
+    return null;
+  }
 
   return (
     <div className="bg-white rounded-xl shadow-sm overflow-hidden">
@@ -72,7 +55,7 @@ export default function PerformanceTable({ data, period }: PerformanceTableProps
                 Taxa Conv.
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Ticket Médio
+                Taxa Prop.
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Tendência
@@ -101,13 +84,13 @@ export default function PerformanceTable({ data, period }: PerformanceTableProps
                   <div className="text-sm text-gray-900">{row.conversao}</div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="text-sm text-gray-900">{row.ticket}</div>
+                  <div className="text-sm text-gray-900">{row.propostas_taxa}</div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   {row.tendencia === 'up' ? (
-                    <ArrowUp className="h-5 w-5 text-green-500" />
+                    <TrendingUp className="h-5 w-5 text-green-500" />
                   ) : (
-                    <ArrowDown className="h-5 w-5 text-red-500" />
+                    <TrendingDown className="h-5 w-5 text-red-500" />
                   )}
                 </td>
               </tr>
