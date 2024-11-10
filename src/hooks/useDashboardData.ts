@@ -16,30 +16,50 @@ export function useDashboardData() {
   const lastFetchTime = useRef<number>(0);
 
   const transformData = (responseData: any): DashboardData => {
-    const kommoAnalytics = responseData.kommo?.analytics ? {
+    // Default analytics structure
+    const defaultAnalytics = {
       periodStats: {
         day: {
-          totalLeads: responseData.kommo.analytics.periodStats.day.totalLeads || 0,
-          vendas: responseData.kommo.analytics.periodStats.day.totalVendas || 0,
-          valorVendas: responseData.kommo.analytics.periodStats.day.valorTotalVendas || 'R$ 0,00',
-          taxaConversao: responseData.kommo.analytics.periodStats.day.taxaConversao || '0%'
+          totalLeads: 0,
+          totalVendas: 0,
+          valorTotalVendas: 'R$ 0,00',
+          taxaConversao: '0%'
         },
         week: {
-          totalLeads: responseData.kommo.analytics.periodStats.week.totalLeads || 0,
-          vendas: responseData.kommo.analytics.periodStats.week.totalVendas || 0,
-          valorVendas: responseData.kommo.analytics.periodStats.week.valorTotalVendas || 'R$ 0,00',
-          taxaConversao: responseData.kommo.analytics.periodStats.week.taxaConversao || '0%'
+          totalLeads: 0,
+          totalVendas: 0,
+          valorTotalVendas: 'R$ 0,00',
+          taxaConversao: '0%'
         },
         fortnight: {
-          totalLeads: responseData.kommo.analytics.periodStats.fortnight.totalLeads || 0,
-          vendas: responseData.kommo.analytics.periodStats.fortnight.totalVendas || 0,
-          valorVendas: responseData.kommo.analytics.periodStats.fortnight.valorTotalVendas || 'R$ 0,00',
-          taxaConversao: responseData.kommo.analytics.periodStats.fortnight.taxaConversao || '0%'
+          totalLeads: 0,
+          totalVendas: 0,
+          valorTotalVendas: 'R$ 0,00',
+          taxaConversao: '0%'
         }
       },
-      dailyStats: responseData.kommo.analytics.dailyStats || {},
-      vendorStats: responseData.kommo.analytics.vendorStats || {},
-      personaStats: responseData.kommo.analytics.personaStats || {}
+      dailyStats: {},
+      vendorStats: {},
+      personaStats: {}
+    };
+
+    const kommoAnalytics = responseData.kommo?.analytics ? {
+      ...defaultAnalytics,
+      ...responseData.kommo.analytics,
+      periodStats: {
+        day: {
+          ...defaultAnalytics.periodStats.day,
+          ...responseData.kommo.analytics.periodStats?.day
+        },
+        week: {
+          ...defaultAnalytics.periodStats.week,
+          ...responseData.kommo.analytics.periodStats?.week
+        },
+        fortnight: {
+          ...defaultAnalytics.periodStats.fortnight,
+          ...responseData.kommo.analytics.periodStats?.fortnight
+        }
+      }
     } : null;
 
     return {
