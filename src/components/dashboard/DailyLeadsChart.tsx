@@ -3,27 +3,23 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import { DetailedStats } from '../../types/dashboard';
 
 interface DailyLeadsChartProps {
-  data: DetailedStats['dailyStats'] | undefined;
+  data: any;
   period: string;
 }
 
-interface ChartDataPoint {
-  date: string;
-  novosLeads: number;
-  interacoes: number;
-  propostas: number;
-  vendas: number;
-  valor: number;
-}
-
-const formatCurrency = (value: string | undefined): number => {
-  if (!value) return 0;
-  return parseFloat(value.replace('R$ ', '').replace('.', '').replace(',', '.'));
+const formatCurrency = (value: string | number): number => {
+  if (typeof value === 'string') {
+    return parseFloat(value.replace('R$ ', '').replace('.', '').replace(',', '.'));
+  }
+  return value;
 };
 
 const formatDate = (dateStr: string): string => {
   try {
-    return new Date(dateStr).toLocaleDateString('pt-BR');
+    return new Date(dateStr).toLocaleDateString('pt-BR', {
+      day: '2-digit',
+      month: '2-digit'
+    });
   } catch (e) {
     return dateStr;
   }
@@ -31,7 +27,7 @@ const formatDate = (dateStr: string): string => {
 
 export default function DailyLeadsChart({ data, period }: DailyLeadsChartProps) {
   const chartData = React.useMemo(() => {
-    if (!data) return [];
+    if (!data?.dailyStats) return [];
 
     const now = new Date();
     const startDate = new Date();
@@ -48,29 +44,20 @@ export default function DailyLeadsChart({ data, period }: DailyLeadsChartProps) 
         break;
     }
 
-    return Object.entries(data)
-      .map(([date, stats]): ChartDataPoint => ({
+    return Object.entries(data.dailyStats)
+      .map(([date, stats]: [string, any]) => ({
         date,
         novosLeads: stats.novosLeads || 0,
         interacoes: stats.interacoes || 0,
         propostas: stats.propostas || 0,
         vendas: stats.vendas || 0,
-        valor: formatCurrency(stats.valorVendas)
+        valor: formatCurrency(stats.valorVendas || 0)
       }))
       .filter(item => {
-        try {
-          return new Date(item.date) >= startDate;
-        } catch (e) {
-          return false;
-        }
+        const itemDate = new Date(item.date);
+        return itemDate >= startDate && itemDate <= now;
       })
-      .sort((a, b) => {
-        try {
-          return new Date(a.date).getTime() - new Date(b.date).getTime();
-        } catch (e) {
-          return 0;
-        }
-      });
+      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
   }, [data, period]);
 
   if (!chartData.length) {
@@ -94,6 +81,7 @@ export default function DailyLeadsChart({ data, period }: DailyLeadsChartProps) 
             <XAxis 
               dataKey="date" 
               tickFormatter={formatDate}
+              interval="preserveStartEnd"
             />
             <YAxis yAxisId="left" orientation="left" stroke="#4F46E5" />
             <YAxis yAxisId="right" orientation="right" stroke="#10B981" />
@@ -110,17 +98,47 @@ export default function DailyLeadsChart({ data, period }: DailyLeadsChartProps) 
                   case 'vendas':
                     return [value, 'Vendas'];
                   case 'valor':
-                    return [`R$ ${value.toFixed(2)}`, 'Valor'];
+                    return [`R$ ${value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, 'Valor'];
                   default:
                     return [value, name];
                 }
               }}
             />
-            <Bar yAxisId="left" dataKey="novosLeads" fill="#4F46E5" name="Novos Leads" />
-            <Bar yAxisId="left" dataKey="interacoes" fill="#8B5CF6" name="Interações" />
-            <Bar yAxisId="left" dataKey="propostas" fill="#F59E0B" name="Propostas" />
-            <Bar yAxisId="left" dataKey="vendas" fill="#10B981" name="Vendas" />
-            <Bar yAxisId="right" dataKey="valor" fill="#6366F1" name="Valor" />
+            <Bar 
+              yAxisId="left" 
+              dataKey="novosLeads" 
+              fill="#4F46E5" 
+              name="Novos Leads"
+              radius={[4, 4, 0, 0]}
+            />
+            <Bar 
+              yAxisId="left" 
+              dataKey="interacoes" 
+              fill="#8B5CF6" 
+              name="Interações"
+              radius={[4, 4, 0, 0]}
+            />
+            <Bar 
+              yAxisId="left" 
+              dataKey="propostas" 
+              fill="#F59E0B" 
+              name="Propostas"
+              radius={[4, 4, 0, 0]}
+            />
+            <Bar 
+              yAxisId="left" 
+              dataKey="vendas" 
+              fill="#10B981" 
+              name="Vendas"
+              radius={[4, 4, 0, 0]}
+            />
+            <Bar 
+              yAxisId="right" 
+              dataKey="valor" 
+              fill="#6366F1" 
+              name="Valor"
+              radius={[4, 4, 0, 0]}
+            />
           </BarChart>
         </ResponsiveContainer>
       </div>
