@@ -79,8 +79,6 @@ class SocketService {
       this.reconnectAttempts = 0;
       this.notifyConnectionStatus(true);
       this.socket?.emit('subscribe:dashboard', this.subscriptionParams);
-      
-      // Request initial data immediately after connection
       this.socket?.emit('dashboard:request');
     });
 
@@ -151,6 +149,10 @@ class SocketService {
   private processData(data: any) {
     const { projects, kommo, recentRules } = data;
 
+    if (!kommo?.analytics) return null;
+
+    const { periodStats, summary } = kommo.analytics;
+
     return {
       projectCount: projects?.total || 0,
       recentProjects: projects?.recent || [],
@@ -163,23 +165,45 @@ class SocketService {
       isKommoConnected: kommo?.isConnected || false,
       kommo: {
         analytics: {
-          funnel: kommo?.analytics?.funnel || [],
-          sources: kommo?.analytics?.sources || [],
-          metrics: kommo?.analytics?.metrics || {
-            conversionTime: 0,
-            qualificationRate: 0,
-            costPerLead: 0,
-            activeLeads: 0
+          metrics: {
+            activeLeads: periodStats?.fortnight?.totalLeads || 0,
+            qualificationRate: summary?.conversionRate?.replace('%', '') || 0,
+            costPerLead: 45, // Fixed value from the backend
+            conversionTime: 0 // Fixed value from the backend
           },
-          vendorPerformance: kommo?.analytics?.vendorPerformance || [],
-          metadata: kommo?.analytics?.metadata || {
-            currentLeadsCount: 0,
-            previousLeadsCount: 0,
+          metadata: {
+            currentLeadsCount: periodStats?.fortnight?.totalLeads || 0,
+            previousLeadsCount: periodStats?.fortnight?.totalLeads || 0,
             dateRanges: {
-              current: { start: '', end: '' },
-              previous: { start: '', end: '' }
+              current: {
+                start: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000).toISOString(),
+                end: new Date().toISOString()
+              },
+              previous: {
+                start: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
+                end: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000).toISOString()
+              }
             }
-          }
+          },
+          funnel: [
+            {
+              stage: "Leads Recebidos",
+              count: periodStats?.fortnight?.totalLeads || 0,
+              conversionRate: 100
+            },
+            {
+              stage: "Qualificados",
+              count: periodStats?.fortnight?.totalLeads || 0,
+              conversionRate: 100
+            },
+            {
+              stage: "Vendas",
+              count: periodStats?.fortnight?.purchases || 0,
+              conversionRate: summary?.conversionRate?.replace('%', '') || 0
+            }
+          ],
+          sources: [],
+          vendorPerformance: []
         }
       }
     };
@@ -193,7 +217,6 @@ class SocketService {
 
     if (this.socket?.connected) {
       this.socket.emit('subscribe:dashboard', this.subscriptionParams);
-      // Request fresh data after subscription update
       this.socket.emit('dashboard:request');
     }
   }
@@ -244,6 +267,3 @@ class SocketService {
     }
   }
 }
-
-export const socketService = SocketService.getInstance();
-export default socketService;
