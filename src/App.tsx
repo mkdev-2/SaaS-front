@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import LoginForm from './components/auth/LoginForm';
 import RegisterForm from './components/auth/RegisterForm';
@@ -43,8 +43,10 @@ function AppLayout({ children }: { children: React.ReactNode }) {
     <div className="min-h-screen bg-gray-50">
       <Navbar />
       <Sidebar />
-      <main className="pl-64 pt-16">
-        {children}
+      <main className="lg:pl-64 pt-16">
+        <div className="max-w-full mx-auto">
+          {children}
+        </div>
       </main>
     </div>
   );

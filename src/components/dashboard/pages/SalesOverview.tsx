@@ -13,10 +13,10 @@ export default function SalesOverview() {
 
   if (loading || !data?.kommoAnalytics) {
     return (
-      <div className="p-6">
+      <div className="p-4 sm:p-6">
         <div className="animate-pulse space-y-4">
           <div className="h-8 bg-gray-200 rounded w-1/4"></div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
             {[...Array(4)].map((_, i) => (
               <div key={i} className="h-32 bg-gray-200 rounded-xl"></div>
             ))}
@@ -61,7 +61,6 @@ export default function SalesOverview() {
     }
   ];
 
-  // Transformar dados diários em lista de leads
   const recentLeads = Object.entries(dailyStats)
     .flatMap(([date, stats]: [string, any]) => {
       if (!stats.leads) return [];
@@ -74,11 +73,11 @@ export default function SalesOverview() {
     .slice(0, 10);
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex justify-between items-center">
+    <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center space-y-4 sm:space-y-0">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Visão Geral de Vendas</h1>
-          <p className="text-gray-500">
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Visão Geral de Vendas</h1>
+          <p className="text-sm sm:text-base text-gray-500">
             Acompanhamento em tempo real do desempenho comercial
             {!isConnected && ' (Reconectando...)'}
           </p>
@@ -86,7 +85,7 @@ export default function SalesOverview() {
         <PeriodSelector value={period} onChange={setPeriod} />
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
         {stats.map((stat, index) => (
           <StatCard
             key={index}
@@ -99,16 +98,16 @@ export default function SalesOverview() {
         ))}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
         <DailyLeadsChart data={analytics} period={period} />
         <ConversionFunnelChart data={analytics} period={period} />
       </div>
 
       <div className="bg-white rounded-xl shadow-sm">
-        <div className="p-6 border-b border-gray-200">
+        <div className="p-4 sm:p-6 border-b border-gray-200">
           <h2 className="text-lg font-semibold text-gray-900">Leads Recentes</h2>
         </div>
-        <div className="p-6">
+        <div className="p-4 sm:p-6 overflow-x-auto">
           <LeadsList leads={recentLeads} />
         </div>
       </div>
