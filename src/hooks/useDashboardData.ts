@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import api from '../lib/api';
 import { ApiResponse } from '../types/api';
-import socketService from '../lib/socket';
+import { socketService } from '../lib/socket';
 import useAuthStore from '../store/authStore';
 import { DashboardData } from '../types/dashboard';
 
@@ -16,71 +16,24 @@ export function useDashboardData() {
   const lastFetchTime = useRef<number>(0);
 
   const transformData = (responseData: any): DashboardData => {
-    if (!responseData?.kommo?.analytics) {
+    if (!responseData?.kommo) {
       return {
-        projectCount: responseData?.projectCount || 0,
-        recentProjects: responseData?.recentProjects || [],
-        automationRules: responseData?.automationRules || [],
+        projectCount: 0,
+        recentProjects: [],
+        automationRules: [],
         kommoConfig: null,
         isKommoConnected: false,
-        kommoAnalytics: {
-          periodStats: {
-            day: {
-              totalLeads: 0,
-              totalVendas: 0,
-              valorTotalVendas: 'R$ 0,00',
-              taxaConversao: '0%'
-            },
-            week: {
-              totalLeads: 0,
-              totalVendas: 0,
-              valorTotalVendas: 'R$ 0,00',
-              taxaConversao: '0%'
-            },
-            fortnight: {
-              totalLeads: 0,
-              totalVendas: 0,
-              valorTotalVendas: 'R$ 0,00',
-              taxaConversao: '0%'
-            }
-          },
-          dailyStats: {},
-          vendorStats: {},
-          personaStats: {}
-        }
+        kommoAnalytics: null
       };
     }
 
     return {
-      ...responseData,
-      kommo: {
-        ...responseData.kommo,
-        analytics: {
-          periodStats: {
-            day: responseData.kommo.analytics.periodStats?.day || {
-              totalLeads: 0,
-              totalVendas: 0,
-              valorTotalVendas: 'R$ 0,00',
-              taxaConversao: '0%'
-            },
-            week: responseData.kommo.analytics.periodStats?.week || {
-              totalLeads: 0,
-              totalVendas: 0,
-              valorTotalVendas: 'R$ 0,00',
-              taxaConversao: '0%'
-            },
-            fortnight: responseData.kommo.analytics.periodStats?.fortnight || {
-              totalLeads: 0,
-              totalVendas: 0,
-              valorTotalVendas: 'R$ 0,00',
-              taxaConversao: '0%'
-            }
-          },
-          dailyStats: responseData.kommo.analytics.dailyStats || {},
-          vendorStats: responseData.kommo.analytics.vendorStats || {},
-          personaStats: responseData.kommo.analytics.personaStats || {}
-        }
-      }
+      projectCount: responseData.projects?.total || 0,
+      recentProjects: responseData.projects?.recent || [],
+      automationRules: responseData.recentRules || [],
+      kommoConfig: responseData.kommo || null,
+      isKommoConnected: responseData.kommo?.isConnected || false,
+      kommoAnalytics: responseData.kommo?.analytics || null
     };
   };
 
@@ -98,12 +51,7 @@ export function useDashboardData() {
 
     try {
       setLoading(true);
-      const { data: response } = await api.get<ApiResponse<any>>('/dashboard/stats', {
-        params: {
-          detailed: true,
-          period: 15
-        }
-      });
+      const { data: response } = await api.get<ApiResponse<any>>('/dashboard/stats');
       
       if (!isMounted.current) return;
 
@@ -139,14 +87,13 @@ export function useDashboardData() {
 
     // Socket connection with detailed data subscription
     socketService.connect();
-    socketService.updateSubscription({ detailed: true, period: 15 });
 
     const unsubscribeConnection = socketService.onConnectionChange((status) => {
       if (!isMounted.current) return;
       setIsConnected(status);
       if (status) {
         setError(null);
-        socketService.requestData(); // Request fresh data when connected
+        socketService.requestData();
       }
       setLoading(false);
     });

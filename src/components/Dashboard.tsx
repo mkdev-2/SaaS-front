@@ -94,8 +94,9 @@ export default function Dashboard() {
   }
 
   // Check if we have the required data structure
-  const hasData = data?.kommo?.analytics?.metrics && data?.kommo?.analytics?.funnel;
-  const stats = hasData ? getStats(data) : [];
+  const hasData = data?.kommo?.analytics !== null;
+  const stats = hasData && data?.kommo?.analytics?.metrics ? getStats(data) : [];
+  const analytics = data?.kommo?.analytics;
 
   return (
     <div className="p-6 space-y-6">
@@ -112,26 +113,28 @@ export default function Dashboard() {
         </Suspense>
       </div>
 
-      {hasData ? (
+      {hasData && analytics ? (
         <>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {stats.map((stat, index) => (
-              <StatCard
-                key={index}
-                title={stat.title}
-                value={stat.value}
-                subtitle={stat.subtitle}
-                icon={stat.icon}
-                color={stat.color}
-              />
-            ))}
-          </div>
+          {stats.length > 0 && (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {stats.map((stat, index) => (
+                <StatCard
+                  key={index}
+                  title={stat.title}
+                  value={stat.value}
+                  subtitle={stat.subtitle}
+                  icon={stat.icon}
+                  color={stat.color}
+                />
+              ))}
+            </div>
+          )}
 
-          {data.kommo.analytics.funnel && data.kommo.analytics.funnel.length > 0 && (
+          {analytics.funnel && analytics.funnel.length > 0 && (
             <div className="bg-white rounded-xl shadow-sm p-6">
               <h2 className="text-lg font-semibold text-gray-900 mb-4">Funil de Vendas</h2>
               <div className="space-y-4">
-                {data.kommo.analytics.funnel.map((stage, index) => (
+                {analytics.funnel.map((stage, index) => (
                   <div key={index} className="flex items-center justify-between">
                     <div className="flex-1">
                       <div className="h-4 bg-indigo-100 rounded-full">
@@ -154,25 +157,27 @@ export default function Dashboard() {
             </div>
           )}
 
-          <div className="bg-white rounded-xl shadow-sm p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Período da Análise</h2>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <p className="text-sm text-gray-500">Período Atual</p>
-                <p className="text-sm font-medium text-gray-900">
-                  {new Date(data.kommo.analytics.metadata.dateRanges.current.start).toLocaleDateString()} até{' '}
-                  {new Date(data.kommo.analytics.metadata.dateRanges.current.end).toLocaleDateString()}
-                </p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-500">Período Anterior</p>
-                <p className="text-sm font-medium text-gray-900">
-                  {new Date(data.kommo.analytics.metadata.dateRanges.previous.start).toLocaleDateString()} até{' '}
-                  {new Date(data.kommo.analytics.metadata.dateRanges.previous.end).toLocaleDateString()}
-                </p>
+          {analytics.metadata && (
+            <div className="bg-white rounded-xl shadow-sm p-6">
+              <h2 className="text-lg font-semibold text-gray-900 mb-4">Período da Análise</h2>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-sm text-gray-500">Período Atual</p>
+                  <p className="text-sm font-medium text-gray-900">
+                    {new Date(analytics.metadata.dateRanges.current.start).toLocaleDateString()} até{' '}
+                    {new Date(analytics.metadata.dateRanges.current.end).toLocaleDateString()}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-500">Período Anterior</p>
+                  <p className="text-sm font-medium text-gray-900">
+                    {new Date(analytics.metadata.dateRanges.previous.start).toLocaleDateString()} até{' '}
+                    {new Date(analytics.metadata.dateRanges.previous.end).toLocaleDateString()}
+                  </p>
+                </div>
               </div>
             </div>
-          </div>
+          )}
         </>
       ) : (
         <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
