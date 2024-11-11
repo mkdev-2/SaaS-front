@@ -14,12 +14,12 @@ class SocketService {
   private maxReconnectAttempts = 5;
   private reconnectTimer: NodeJS.Timeout | null = null;
   private isConnecting = false;
+  private initialDataLoaded = false;
   private subscriptionParams = {
     detailed: true,
     period: 15
   };
   private lastData: any = null;
-  private initialDataLoaded = false;
 
   private constructor() {}
 
@@ -79,7 +79,7 @@ class SocketService {
       this.reconnectAttempts = 0;
       this.notifyConnectionStatus(true);
       this.socket?.emit('subscribe:dashboard', this.subscriptionParams);
-
+      
       // Request initial data immediately after connection
       this.socket?.emit('dashboard:request');
     });
@@ -149,62 +149,39 @@ class SocketService {
   }
 
   private processData(data: any) {
-    // Create default analytics structure
-    const defaultAnalytics = {
-      periodStats: {
-        day: {
-          totalLeads: 0,
-          totalVendas: 0,
-          valorTotalVendas: 'R$ 0,00',
-          taxaConversao: '0%'
-        },
-        week: {
-          totalLeads: 0,
-          totalVendas: 0,
-          valorTotalVendas: 'R$ 0,00',
-          taxaConversao: '0%'
-        },
-        fortnight: {
-          totalLeads: 0,
-          totalVendas: 0,
-          valorTotalVendas: 'R$ 0,00',
-          taxaConversao: '0%'
-        }
-      },
-      dailyStats: {},
-      vendorStats: {},
-      personaStats: {}
-    };
+    const { projects, kommo, recentRules } = data;
 
-    // If kommo data exists, merge it with defaults
-    if (data.kommo?.analytics) {
-      return {
-        ...data,
-        kommo: {
-          ...data.kommo,
-          analytics: {
-            ...defaultAnalytics,
-            ...data.kommo.analytics,
-            periodStats: {
-              day: { ...defaultAnalytics.periodStats.day, ...data.kommo.analytics.periodStats?.day },
-              week: { ...defaultAnalytics.periodStats.week, ...data.kommo.analytics.periodStats?.week },
-              fortnight: { ...defaultAnalytics.periodStats.fortnight, ...data.kommo.analytics.periodStats?.fortnight }
+    return {
+      projectCount: projects?.total || 0,
+      recentProjects: projects?.recent || [],
+      automationRules: recentRules || [],
+      kommoConfig: kommo ? {
+        accountDomain: kommo.accountDomain,
+        connectedAt: kommo.connectedAt,
+        isConnected: kommo.isConnected
+      } : null,
+      isKommoConnected: kommo?.isConnected || false,
+      kommo: {
+        analytics: {
+          funnel: kommo?.analytics?.funnel || [],
+          sources: kommo?.analytics?.sources || [],
+          metrics: kommo?.analytics?.metrics || {
+            conversionTime: 0,
+            qualificationRate: 0,
+            costPerLead: 0,
+            activeLeads: 0
+          },
+          vendorPerformance: kommo?.analytics?.vendorPerformance || [],
+          metadata: kommo?.analytics?.metadata || {
+            currentLeadsCount: 0,
+            previousLeadsCount: 0,
+            dateRanges: {
+              current: { start: '', end: '' },
+              previous: { start: '', end: '' }
             }
           }
         }
-      };
-    }
-
-    // If no kommo data, return default structure
-    return {
-      kommo: {
-        analytics: defaultAnalytics,
-        config: null,
-        isConnected: false
-      },
-      projectCount: data.projectCount || 0,
-      recentProjects: data.recentProjects || [],
-      automationRules: data.automationRules || []
+      }
     };
   }
 

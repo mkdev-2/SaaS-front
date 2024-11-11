@@ -1,4 +1,4 @@
-import React, { useState, Suspense, useEffect } from 'react';
+import React, { useState, Suspense } from 'react';
 import { Users, Box, RefreshCw, AlertCircle, FileText, CheckCircle, TrendingUp } from 'lucide-react';
 import { useDashboardData } from '../hooks/useDashboardData';
 import StatCard from './dashboard/StatCard';
@@ -47,31 +47,33 @@ function ErrorState({ error, onRetry }: { error: string; onRetry: () => void }) 
 }
 
 function getStats(data: any) {
-  if (!data?.kommo?.analytics?.periodStats?.day) {
+  if (!data?.kommo?.analytics?.metrics) {
     return [];
   }
 
-  const dayStats = data.kommo.analytics.periodStats.day;
+  const { metrics, metadata } = data.kommo.analytics;
+  const previousCount = metadata.previousLeadsCount || 1;
+  const changePercentage = ((metadata.currentLeadsCount - previousCount) / previousCount * 100).toFixed(1);
 
   return [
     {
       title: "Leads Ativos",
-      value: dayStats.totalLeads || 0,
-      subtitle: `${dayStats.taxaConversao || '0%'} de conversão`,
+      value: metrics.activeLeads,
+      subtitle: `${changePercentage}% vs período anterior`,
       icon: Users,
       color: 'indigo'
     },
     {
-      title: "Vendas Realizadas",
-      value: dayStats.totalVendas || 0,
-      subtitle: `Total: ${dayStats.valorTotalVendas || 'R$ 0,00'}`,
+      title: "Taxa de Qualificação",
+      value: `${metrics.qualificationRate}%`,
+      subtitle: `Custo por lead: R$ ${metrics.costPerLead}`,
       icon: CheckCircle,
       color: 'green'
     },
     {
-      title: "Média por Venda",
-      value: dayStats.valorTotalVendas || 'R$ 0,00',
-      subtitle: "No período atual",
+      title: "Tempo de Conversão",
+      value: `${metrics.conversionTime}h`,
+      subtitle: "Média do período",
       icon: TrendingUp,
       color: 'blue'
     }
@@ -124,21 +126,75 @@ export default function Dashboard() {
             ))}
           </div>
 
-          <Suspense fallback={<div className="h-64 bg-gray-50 rounded-xl animate-pulse" />}>
-            <DailyLeadsChart data={data.kommo.analytics} period={selectedPeriod} />
-          </Suspense>
+          {data.kommo.analytics.funnel && data.kommo.analytics.funnel.length > 0 && (
+            <div className="bg-white rounded-xl shadow-sm p-6">
+              <h2 className="text-lg font-semibold text-gray-900 mb-4">Funil de Vendas</h2>
+              <div className="space-y-4">
+                {data.kommo.analytics.funnel.map((stage, index) => (
+                  <div key={index} className="flex items-center justify-between">
+                    <div className="flex-1">
+                      <div className="h-4 bg-indigo-100 rounded-full">
+                        <div
+                          className="h-4 bg-indigo-600 rounded-full"
+                          style={{ width: `${stage.conversionRate}%` }}
+                        />
+                      </div>
+                      <div className="flex justify-between mt-1">
+                        <span className="text-sm text-gray-600">{stage.stage}</span>
+                        <span className="text-sm font-medium text-gray-900">{stage.count}</span>
+                      </div>
+                    </div>
+                    <span className="ml-4 text-sm text-gray-500">
+                      {stage.conversionRate.toFixed(1)}%
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
-          {data.kommo.analytics.vendorStats && Object.keys(data.kommo.analytics.vendorStats).length > 0 && (
+          {data.kommo.analytics.vendorPerformance && data.kommo.analytics.vendorPerformance.length > 0 && (
             <Suspense fallback={<div className="h-64 bg-gray-50 rounded-xl animate-pulse" />}>
-              <VendorStats data={data.kommo.analytics.vendorStats} />
+              <VendorStats data={data.kommo.analytics.vendorPerformance} />
             </Suspense>
           )}
 
-          {data.kommo.analytics.personaStats && Object.keys(data.kommo.analytics.personaStats).length > 0 && (
-            <Suspense fallback={<div className="h-64 bg-gray-50 rounded-xl animate-pulse" />}>
-              <PersonaStats data={data.kommo.analytics.personaStats} />
-            </Suspense>
+          {data.kommo.analytics.sources && data.kommo.analytics.sources.length > 0 && (
+            <div className="bg-white rounded-xl shadow-sm p-6">
+              <h2 className="text-lg font-semibold text-gray-900 mb-4">Origem dos Leads</h2>
+              <div className="space-y-4">
+                {data.kommo.analytics.sources.map((source: any, index: number) => (
+                  <div key={index} className="flex items-center justify-between">
+                    <span className="text-sm text-gray-600">{source.name}</span>
+                    <div className="flex items-center space-x-4">
+                      <span className="text-sm font-medium text-gray-900">{source.count}</span>
+                      <span className="text-sm text-gray-500">{source.percentage}%</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
           )}
+
+          <div className="bg-white rounded-xl shadow-sm p-6">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">Período da Análise</h2>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <p className="text-sm text-gray-500">Período Atual</p>
+                <p className="text-sm font-medium text-gray-900">
+                  {new Date(data.kommo.analytics.metadata.dateRanges.current.start).toLocaleDateString()} até{' '}
+                  {new Date(data.kommo.analytics.metadata.dateRanges.current.end).toLocaleDateString()}
+                </p>
+              </div>
+              <div>
+                <p className="text-sm text-gray-500">Período Anterior</p>
+                <p className="text-sm font-medium text-gray-900">
+                  {new Date(data.kommo.analytics.metadata.dateRanges.previous.start).toLocaleDateString()} até{' '}
+                  {new Date(data.kommo.analytics.metadata.dateRanges.previous.end).toLocaleDateString()}
+                </p>
+              </div>
+            </div>
+          </div>
         </>
       ) : (
         <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
