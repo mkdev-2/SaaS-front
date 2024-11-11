@@ -14,7 +14,7 @@ const DEBUG = true;
 function debugLog(label: string, data: any) {
   if (DEBUG) {
     console.group(`Dashboard Debug: ${label}`);
-    console.log(JSON.stringify(data, null, 2));
+    console.log(data);
     console.groupEnd();
   }
 }
@@ -56,12 +56,12 @@ function ErrorState({ error, onRetry }: { error: string; onRetry: () => void }) 
   );
 }
 
-function getStats(data: any) {
-  if (!data?.kommo?.analytics?.metrics) {
+function getStats(analytics: any) {
+  if (!analytics?.metrics) {
     return [];
   }
 
-  const { metrics, metadata } = data.kommo.analytics;
+  const { metrics, metadata } = analytics;
   const previousCount = metadata.previousLeadsCount || 1;
   const changePercentage = ((metadata.currentLeadsCount - previousCount) / previousCount * 100).toFixed(1);
 
@@ -96,12 +96,14 @@ export default function Dashboard() {
 
   // Log dos dados sempre que eles mudarem
   useEffect(() => {
-    if (data?.kommo?.analytics) {
-      debugLog('Analytics Data', {
-        metrics: data.kommo.analytics.metrics,
-        funnel: data.kommo.analytics.funnel,
-        metadata: data.kommo.analytics.metadata,
-        fullData: data.kommo.analytics // log completo
+    if (data?.kommoAnalytics) {
+      debugLog('Current State', {
+        hasData: !!data?.kommoAnalytics,
+        hasMetrics: !!data?.kommoAnalytics?.metrics,
+        hasFunnel: !!data?.kommoAnalytics?.funnel?.length,
+        metrics: data.kommoAnalytics.metrics,
+        funnel: data.kommoAnalytics.funnel,
+        metadata: data.kommoAnalytics.metadata
       });
     }
   }, [data]);
@@ -116,17 +118,9 @@ export default function Dashboard() {
   }
 
   // Check if we have the required data structure
-  const hasData = data?.kommo?.analytics !== null;
-  const stats = hasData && data?.kommo?.analytics?.metrics ? getStats(data) : [];
-  const analytics = data?.kommo?.analytics;
-
-  // Log do estado atual dos dados
-  debugLog('Current State', {
-    hasData,
-    hasMetrics: !!data?.kommo?.analytics?.metrics,
-    hasFunnel: !!analytics?.funnel,
-    analyticsKeys: analytics ? Object.keys(analytics) : [],
-  });
+  const analytics = data?.kommoAnalytics;
+  const hasData = !!analytics;
+  const stats = hasData ? getStats(analytics) : [];
 
   return (
     <div className="p-6 space-y-6">
@@ -143,7 +137,7 @@ export default function Dashboard() {
         </Suspense>
       </div>
 
-      {hasData && analytics ? (
+      {hasData ? (
         <>
           {stats.length > 0 && (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -164,7 +158,7 @@ export default function Dashboard() {
             <div className="bg-white rounded-xl shadow-sm p-6">
               <h2 className="text-lg font-semibold text-gray-900 mb-4">Funil de Vendas</h2>
               <div className="space-y-4">
-                {analytics.funnel.map((stage, index) => (
+                {analytics.funnel.map((stage: any, index: number) => (
                   <div key={index} className="flex items-center justify-between">
                     <div className="flex-1">
                       <div className="h-4 bg-indigo-100 rounded-full">

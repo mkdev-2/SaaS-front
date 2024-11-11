@@ -41,26 +41,27 @@ export function useDashboardData() {
     // Transformar métricas baseado na estrutura real recebida
     const transformedAnalytics = analytics ? {
       metrics: {
-        activeLeads: analytics.summary?.totalLeads || 0,
-        qualificationRate: parseFloat((analytics.summary?.conversionRate || '0%').replace('%', '')),
-        costPerLead: 45,
-        conversionTime: 0
+        activeLeads: analytics.metrics?.activeLeads || 0,
+        qualificationRate: analytics.metrics?.qualificationRate || 0,
+        costPerLead: analytics.metrics?.costPerLead || 0,
+        conversionTime: analytics.metrics?.conversionTime || 0,
+        periodComparison: analytics.metrics?.periodComparison || {}
       },
       funnel: analytics.funnel || [],
       sources: analytics.sources || [],
-      metadata: {
+      metadata: analytics.metadata || {
         period: 15,
         compareWith: 30,
-        currentLeadsCount: analytics.summary?.totalLeads || 0,
-        previousLeadsCount: analytics.metadata?.previousLeadsCount || 0,
+        currentLeadsCount: 0,
+        previousLeadsCount: 0,
         dateRanges: {
           current: {
-            start: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000).toISOString(),
+            start: new Date().toISOString(),
             end: new Date().toISOString()
           },
           previous: {
-            start: new Date(Date.now() - 45 * 24 * 60 * 60 * 1000).toISOString(),
-            end: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000).toISOString()
+            start: new Date().toISOString(),
+            end: new Date().toISOString()
           }
         }
       },
