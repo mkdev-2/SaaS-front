@@ -9,7 +9,6 @@ const VendorStats = React.lazy(() => import('./dashboard/VendorStats'));
 const PersonaStats = React.lazy(() => import('./dashboard/PersonaStats'));
 const PeriodSelector = React.lazy(() => import('./dashboard/PeriodSelector'));
 
-// Adiciona uma função de debug que podemos ativar/desativar facilmente
 const DEBUG = true;
 function debugLog(label: string, data: any) {
   if (DEBUG) {
@@ -56,34 +55,38 @@ function ErrorState({ error, onRetry }: { error: string; onRetry: () => void }) 
   );
 }
 
-function getStats(analytics: any) {
-  if (!analytics?.metrics) {
+function getStats(analytics: any, period: string) {
+  if (!analytics?.metrics || !analytics?.periodStats) {
     return [];
   }
 
   const { metrics, metadata } = analytics;
+  const periodData = analytics.periodStats[period === 'today' ? 'day' : period === 'week' ? 'week' : 'fortnight'];
+  
+  if (!periodData) return [];
+
   const previousCount = metadata.previousLeadsCount || 1;
   const changePercentage = ((metadata.currentLeadsCount - previousCount) / previousCount * 100).toFixed(1);
 
   return [
     {
       title: "Leads Ativos",
-      value: metrics.activeLeads,
+      value: periodData.totalLeads,
       subtitle: `${changePercentage}% vs período anterior`,
       icon: Users,
       color: 'indigo'
     },
     {
-      title: "Taxa de Qualificação",
-      value: `${metrics.qualificationRate}%`,
-      subtitle: `Custo por lead: R$ ${metrics.costPerLead}`,
+      title: "Taxa de Conversão",
+      value: periodData.taxaConversao,
+      subtitle: `${periodData.vendas} vendas realizadas`,
       icon: CheckCircle,
       color: 'green'
     },
     {
-      title: "Tempo de Conversão",
-      value: `${metrics.conversionTime}h`,
-      subtitle: "Média do período",
+      title: "Valor Total",
+      value: periodData.valorVendas,
+      subtitle: "Total do período",
       icon: TrendingUp,
       color: 'blue'
     }
@@ -94,6 +97,11 @@ export default function Dashboard() {
   const { data, loading, error, refresh, isConnected } = useDashboardData();
   const [selectedPeriod, setSelectedPeriod] = useState('today');
 
+  const handlePeriodChange = (period: string) => {
+    setSelectedPeriod(period);
+    socketService.updateSubscription({ detailed: true, period: period === 'today' ? 1 : period === 'week' ? 7 : 15 });
+  };
+
   // Log dos dados sempre que eles mudarem
   useEffect(() => {
     if (data?.kommoAnalytics) {
@@ -101,14 +109,12 @@ export default function Dashboard() {
         hasData: !!data?.kommoAnalytics,
         hasMetrics: !!data?.kommoAnalytics?.metrics,
         hasFunnel: !!data?.kommoAnalytics?.funnel?.length,
-        metrics: data.kommoAnalytics.metrics,
-        funnel: data.kommoAnalytics.funnel,
-        metadata: data.kommoAnalytics.metadata
+        selectedPeriod,
+        periodStats: data.kommoAnalytics.periodStats?.[selectedPeriod === 'today' ? 'day' : selectedPeriod === 'week' ? 'week' : 'fortnight']
       });
     }
-  }, [data]);
+  }, [data, selectedPeriod]);
 
-  // Render loading state only on initial load
   if (loading && !data) {
     return <LoadingState />;
   }
@@ -117,10 +123,9 @@ export default function Dashboard() {
     return <ErrorState error={error} onRetry={refresh} />;
   }
 
-  // Check if we have the required data structure
   const analytics = data?.kommoAnalytics;
-  const hasData = !!analytics;
-  const stats = hasData ? getStats(analytics) : [];
+  const hasData = !!analytics && !!analytics.periodStats;
+  const stats = hasData ? getStats(analytics, selectedPeriod) : [];
 
   return (
     <div className="p-6 space-y-6">
@@ -133,7 +138,7 @@ export default function Dashboard() {
           </p>
         </div>
         <Suspense fallback={null}>
-          <PeriodSelector value={selectedPeriod} onChange={setSelectedPeriod} />
+          <PeriodSelector value={selectedPeriod} onChange={handlePeriodChange} />
         </Suspense>
       </div>
 
