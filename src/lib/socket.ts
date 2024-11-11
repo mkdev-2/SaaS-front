@@ -1,6 +1,5 @@
 import { io, Socket } from 'socket.io-client';
 import { DashboardData } from '../types/dashboard';
-import useAuthStore from '../store/authStore';
 
 type DashboardCallback = (data: any) => void;
 type ConnectionCallback = (status: boolean) => void;
@@ -78,31 +77,24 @@ class SocketService {
       this.isConnecting = false;
       this.reconnectAttempts = 0;
       this.notifyConnectionStatus(true);
+      
+      // Resubscribe and request initial data
       this.socket?.emit('subscribe:dashboard', this.subscriptionParams);
-      this.socket?.emit('dashboard:request');
+      this.requestData();
     });
 
     this.socket.on('connect_error', (error) => {
       console.error('Socket connection error:', error);
       this.isConnecting = false;
-      
-      if (error.message.includes('authentication')) {
-        useAuthStore.getState().logout();
-      } else {
-        this.handleReconnect();
-      }
+      this.notifyConnectionStatus(false);
+      this.handleReconnect();
     });
 
     this.socket.on('disconnect', (reason) => {
       console.log('Socket disconnected:', reason);
       this.isConnecting = false;
       this.notifyConnectionStatus(false);
-
-      if (reason === 'io server disconnect') {
-        useAuthStore.getState().logout();
-      } else {
-        this.handleReconnect();
-      }
+      this.handleReconnect();
     });
 
     this.socket.on('dashboard:update', (data: any) => {
@@ -118,15 +110,11 @@ class SocketService {
     this.socket.on('error', (error: Error) => {
       console.error('Socket error:', error);
       this.isConnecting = false;
-      if (error.message.includes('authentication')) {
-        useAuthStore.getState().logout();
-      }
+      this.notifyConnectionStatus(false);
     });
   }
 
   private handleReconnect() {
-    this.notifyConnectionStatus(false);
-
     if (this.reconnectTimer) {
       clearTimeout(this.reconnectTimer);
     }
@@ -151,7 +139,7 @@ class SocketService {
 
     if (this.socket?.connected) {
       this.socket.emit('subscribe:dashboard', this.subscriptionParams);
-      this.socket.emit('dashboard:request');
+      this.requestData();
     }
   }
 
@@ -173,10 +161,16 @@ class SocketService {
     this.connectionCallbacks.forEach(callback => callback(status));
   }
 
+  requestData() {
+    if (this.socket?.connected) {
+      this.socket.emit('dashboard:request');
+    }
+  }
+
   disconnect() {
     this.isConnecting = false;
-    this.lastData = null;
     this.initialDataLoaded = false;
+    this.lastData = null;
     
     if (this.reconnectTimer) {
       clearTimeout(this.reconnectTimer);
@@ -193,12 +187,6 @@ class SocketService {
     this.connectionCallbacks.clear();
     this.reconnectAttempts = 0;
     this.notifyConnectionStatus(false);
-  }
-
-  requestData() {
-    if (this.socket?.connected) {
-      this.socket.emit('dashboard:request');
-    }
   }
 }
 

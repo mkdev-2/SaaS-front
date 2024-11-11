@@ -21,8 +21,9 @@ export function useDashboardData() {
   
   const isMounted = useRef(true);
   const lastFetchTime = useRef<number>(0);
+  const dataRef = useRef<DashboardData | null>(null);
 
-  const transformData = (responseData: any): DashboardData => {
+  const transformData = useCallback((responseData: any): DashboardData => {
     debugLog('Raw Response Data', responseData);
 
     if (!responseData?.kommo) {
@@ -38,7 +39,11 @@ export function useDashboardData() {
 
     const { analytics, isConnected, accountDomain, connectedAt } = responseData.kommo;
 
-    // Transformar métricas baseado na estrutura real recebida
+    // Manter dados anteriores se não houver novos dados
+    if (!analytics && dataRef.current?.kommoAnalytics) {
+      return dataRef.current;
+    }
+
     const transformedAnalytics = analytics ? {
       metrics: {
         activeLeads: analytics.metrics?.activeLeads || 0,
@@ -103,7 +108,7 @@ export function useDashboardData() {
 
     debugLog('Transformed Data', result);
     return result;
-  };
+  }, []);
 
   const fetchDashboardData = useCallback(async (force = false) => {
     if (!isAuthenticated || !user) {
@@ -125,6 +130,7 @@ export function useDashboardData() {
 
       if (response.status === 'success' && response.data) {
         const transformedData = transformData(response.data);
+        dataRef.current = transformedData;
         setData(transformedData);
         setError(null);
       } else {
@@ -140,19 +146,19 @@ export function useDashboardData() {
         lastFetchTime.current = Date.now();
       }
     }
-  }, [isAuthenticated, user]);
+  }, [isAuthenticated, user, transformData]);
 
   useEffect(() => {
     if (!isAuthenticated || !user) {
       socketService.disconnect();
       setData(null);
+      dataRef.current = null;
       setLoading(false);
       return;
     }
 
     fetchDashboardData(true);
     socketService.connect();
-    socketService.requestData();
 
     const unsubscribeConnection = socketService.onConnectionChange((status) => {
       if (!isMounted.current) return;
@@ -170,6 +176,7 @@ export function useDashboardData() {
       
       if (socketData.status === 'success' && socketData.data) {
         const transformedData = transformData(socketData.data);
+        dataRef.current = transformedData;
         setData(transformedData);
         setError(null);
         lastFetchTime.current = Date.now();
@@ -182,14 +189,14 @@ export function useDashboardData() {
       unsubscribeUpdates();
       socketService.disconnect();
     };
-  }, [fetchDashboardData, isAuthenticated, user]);
+  }, [fetchDashboardData, isAuthenticated, user, transformData]);
 
   const refresh = useCallback(() => {
     fetchDashboardData(true);
   }, [fetchDashboardData]);
 
   return {
-    data,
+    data: data || dataRef.current,
     loading,
     error,
     refresh,
