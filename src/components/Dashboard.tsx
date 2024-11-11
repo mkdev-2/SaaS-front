@@ -1,5 +1,5 @@
 import React from 'react';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import SalesOverview from './dashboard/pages/SalesOverview';
 import TeamPerformance from './dashboard/pages/TeamPerformance';
 import MarketingAnalytics from './dashboard/pages/MarketingAnalytics';
