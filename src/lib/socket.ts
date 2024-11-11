@@ -107,12 +107,9 @@ class SocketService {
 
     this.socket.on('dashboard:update', (data: any) => {
       if (data.status === 'success' && data.data) {
-        const processedData = this.processData(data.data);
-        if (processedData) {
-          this.lastData = { status: 'success', data: processedData };
-          this.initialDataLoaded = true;
-          this.dashboardCallbacks.forEach(callback => callback(this.lastData));
-        }
+        this.lastData = data;
+        this.initialDataLoaded = true;
+        this.dashboardCallbacks.forEach(callback => callback(data));
       } else {
         console.error('Invalid dashboard update:', data);
       }
@@ -144,69 +141,6 @@ class SocketService {
         }
       }, delay);
     }
-  }
-
-  private processData(data: any) {
-    const { projects, kommo, recentRules } = data;
-
-    if (!kommo?.analytics) return null;
-
-    const { periodStats, summary } = kommo.analytics;
-
-    return {
-      projectCount: projects?.total || 0,
-      recentProjects: projects?.recent || [],
-      automationRules: recentRules || [],
-      kommoConfig: kommo ? {
-        accountDomain: kommo.accountDomain,
-        connectedAt: kommo.connectedAt,
-        isConnected: kommo.isConnected
-      } : null,
-      isKommoConnected: kommo?.isConnected || false,
-      kommo: {
-        analytics: {
-          metrics: {
-            activeLeads: periodStats?.fortnight?.totalLeads || 0,
-            qualificationRate: summary?.conversionRate?.replace('%', '') || 0,
-            costPerLead: 45, // Fixed value from the backend
-            conversionTime: 0 // Fixed value from the backend
-          },
-          metadata: {
-            currentLeadsCount: periodStats?.fortnight?.totalLeads || 0,
-            previousLeadsCount: periodStats?.fortnight?.totalLeads || 0,
-            dateRanges: {
-              current: {
-                start: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000).toISOString(),
-                end: new Date().toISOString()
-              },
-              previous: {
-                start: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
-                end: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000).toISOString()
-              }
-            }
-          },
-          funnel: [
-            {
-              stage: "Leads Recebidos",
-              count: periodStats?.fortnight?.totalLeads || 0,
-              conversionRate: 100
-            },
-            {
-              stage: "Qualificados",
-              count: periodStats?.fortnight?.totalLeads || 0,
-              conversionRate: 100
-            },
-            {
-              stage: "Vendas",
-              count: periodStats?.fortnight?.purchases || 0,
-              conversionRate: summary?.conversionRate?.replace('%', '') || 0
-            }
-          ],
-          sources: [],
-          vendorPerformance: []
-        }
-      }
-    };
   }
 
   updateSubscription(params: { detailed?: boolean; period?: number }) {

@@ -93,8 +93,9 @@ export default function Dashboard() {
     return <ErrorState error={error} onRetry={refresh} />;
   }
 
-  // Always try to render data if we have it
-  const stats = getStats(data);
+  // Check if we have the required data structure
+  const hasData = data?.kommo?.analytics?.metrics && data?.kommo?.analytics?.funnel;
+  const stats = hasData ? getStats(data) : [];
 
   return (
     <div className="p-6 space-y-6">
@@ -111,7 +112,7 @@ export default function Dashboard() {
         </Suspense>
       </div>
 
-      {stats.length > 0 ? (
+      {hasData ? (
         <>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {stats.map((stat, index) => (
@@ -147,29 +148,6 @@ export default function Dashboard() {
                     <span className="ml-4 text-sm text-gray-500">
                       {stage.conversionRate.toFixed(1)}%
                     </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {data.kommo.analytics.vendorPerformance && data.kommo.analytics.vendorPerformance.length > 0 && (
-            <Suspense fallback={<div className="h-64 bg-gray-50 rounded-xl animate-pulse" />}>
-              <VendorStats data={data.kommo.analytics.vendorPerformance} />
-            </Suspense>
-          )}
-
-          {data.kommo.analytics.sources && data.kommo.analytics.sources.length > 0 && (
-            <div className="bg-white rounded-xl shadow-sm p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">Origem dos Leads</h2>
-              <div className="space-y-4">
-                {data.kommo.analytics.sources.map((source: any, index: number) => (
-                  <div key={index} className="flex items-center justify-between">
-                    <span className="text-sm text-gray-600">{source.name}</span>
-                    <div className="flex items-center space-x-4">
-                      <span className="text-sm font-medium text-gray-900">{source.count}</span>
-                      <span className="text-sm text-gray-500">{source.percentage}%</span>
-                    </div>
                   </div>
                 ))}
               </div>
