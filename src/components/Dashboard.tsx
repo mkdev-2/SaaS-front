@@ -46,51 +46,31 @@ function ErrorState({ error, onRetry }: { error: string; onRetry: () => void }) 
   );
 }
 
-function EmptyState() {
-  return (
-    <div className="p-6">
-      <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-        <div className="flex">
-          <AlertCircle className="h-5 w-5 text-yellow-400 mt-0.5 mr-3" />
-          <div>
-            <h3 className="text-sm font-medium text-yellow-800">
-              Aguardando dados
-            </h3>
-            <p className="mt-2 text-sm text-yellow-700">
-              Os dados estão sendo carregados em tempo real...
-            </p>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 function getStats(data: any) {
-  if (!data?.kommo?.analytics?.periodStats) {
+  if (!data?.kommo?.analytics?.periodStats?.day) {
     return [];
   }
 
-  const { day: dayStats } = data.kommo.analytics.periodStats;
+  const dayStats = data.kommo.analytics.periodStats.day;
 
   return [
     {
       title: "Leads Ativos",
-      value: dayStats.totalLeads,
-      subtitle: `${dayStats.taxaConversao} de conversão`,
+      value: dayStats.totalLeads || 0,
+      subtitle: `${dayStats.taxaConversao || '0%'} de conversão`,
       icon: Users,
       color: 'indigo'
     },
     {
       title: "Vendas Realizadas",
-      value: dayStats.totalVendas,
-      subtitle: `Total: ${dayStats.valorTotalVendas}`,
+      value: dayStats.totalVendas || 0,
+      subtitle: `Total: ${dayStats.valorTotalVendas || 'R$ 0,00'}`,
       icon: CheckCircle,
       color: 'green'
     },
     {
       title: "Média por Venda",
-      value: dayStats.valorTotalVendas,
+      value: dayStats.valorTotalVendas || 'R$ 0,00',
       subtitle: "No período atual",
       icon: TrendingUp,
       color: 'blue'
@@ -99,17 +79,11 @@ function getStats(data: any) {
 }
 
 export default function Dashboard() {
-  const { data, loading, error, refresh } = useDashboardData();
+  const { data, loading, error, refresh, isConnected } = useDashboardData();
   const [selectedPeriod, setSelectedPeriod] = useState('today');
-  const [hasInitialData, setHasInitialData] = useState(false);
 
-  useEffect(() => {
-    if (data?.kommo?.analytics?.periodStats) {
-      setHasInitialData(true);
-    }
-  }, [data]);
-
-  if (loading && !hasInitialData) {
+  // Render loading state only on initial load
+  if (loading && !data) {
     return <LoadingState />;
   }
 
@@ -117,10 +91,7 @@ export default function Dashboard() {
     return <ErrorState error={error} onRetry={refresh} />;
   }
 
-  if (!data?.kommo?.analytics?.periodStats) {
-    return <EmptyState />;
-  }
-
+  // Always try to render data if we have it
   const stats = getStats(data);
 
   return (
@@ -128,40 +99,61 @@ export default function Dashboard() {
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Dashboard de Vendas</h1>
-          <p className="text-gray-500">Métricas de vendas e desempenho em tempo real</p>
+          <p className="text-gray-500">
+            Métricas de vendas e desempenho em tempo real
+            {!isConnected && ' (Reconectando...)'}
+          </p>
         </div>
         <Suspense fallback={null}>
           <PeriodSelector value={selectedPeriod} onChange={setSelectedPeriod} />
         </Suspense>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {stats.map((stat, index) => (
-          <StatCard
-            key={index}
-            title={stat.title}
-            value={stat.value}
-            subtitle={stat.subtitle}
-            icon={stat.icon}
-            color={stat.color}
-          />
-        ))}
-      </div>
+      {stats.length > 0 ? (
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {stats.map((stat, index) => (
+              <StatCard
+                key={index}
+                title={stat.title}
+                value={stat.value}
+                subtitle={stat.subtitle}
+                icon={stat.icon}
+                color={stat.color}
+              />
+            ))}
+          </div>
 
-      <Suspense fallback={<div className="h-64 bg-gray-50 rounded-xl animate-pulse" />}>
-        <DailyLeadsChart data={data.kommo.analytics} period={selectedPeriod} />
-      </Suspense>
+          <Suspense fallback={<div className="h-64 bg-gray-50 rounded-xl animate-pulse" />}>
+            <DailyLeadsChart data={data.kommo.analytics} period={selectedPeriod} />
+          </Suspense>
 
-      {data.kommo.analytics.vendorStats && Object.keys(data.kommo.analytics.vendorStats).length > 0 && (
-        <Suspense fallback={<div className="h-64 bg-gray-50 rounded-xl animate-pulse" />}>
-          <VendorStats data={data.kommo.analytics.vendorStats} />
-        </Suspense>
-      )}
+          {data.kommo.analytics.vendorStats && Object.keys(data.kommo.analytics.vendorStats).length > 0 && (
+            <Suspense fallback={<div className="h-64 bg-gray-50 rounded-xl animate-pulse" />}>
+              <VendorStats data={data.kommo.analytics.vendorStats} />
+            </Suspense>
+          )}
 
-      {data.kommo.analytics.personaStats && Object.keys(data.kommo.analytics.personaStats).length > 0 && (
-        <Suspense fallback={<div className="h-64 bg-gray-50 rounded-xl animate-pulse" />}>
-          <PersonaStats data={data.kommo.analytics.personaStats} />
-        </Suspense>
+          {data.kommo.analytics.personaStats && Object.keys(data.kommo.analytics.personaStats).length > 0 && (
+            <Suspense fallback={<div className="h-64 bg-gray-50 rounded-xl animate-pulse" />}>
+              <PersonaStats data={data.kommo.analytics.personaStats} />
+            </Suspense>
+          )}
+        </>
+      ) : (
+        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+          <div className="flex">
+            <AlertCircle className="h-5 w-5 text-yellow-400 mt-0.5 mr-3" />
+            <div>
+              <h3 className="text-sm font-medium text-yellow-800">
+                Aguardando dados
+              </h3>
+              <p className="mt-2 text-sm text-yellow-700">
+                Os dados estão sendo carregados em tempo real...
+              </p>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

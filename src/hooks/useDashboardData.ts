@@ -16,59 +16,71 @@ export function useDashboardData() {
   const lastFetchTime = useRef<number>(0);
 
   const transformData = (responseData: any): DashboardData => {
-    // Default analytics structure
-    const defaultAnalytics = {
-      periodStats: {
-        day: {
-          totalLeads: 0,
-          totalVendas: 0,
-          valorTotalVendas: 'R$ 0,00',
-          taxaConversao: '0%'
-        },
-        week: {
-          totalLeads: 0,
-          totalVendas: 0,
-          valorTotalVendas: 'R$ 0,00',
-          taxaConversao: '0%'
-        },
-        fortnight: {
-          totalLeads: 0,
-          totalVendas: 0,
-          valorTotalVendas: 'R$ 0,00',
-          taxaConversao: '0%'
+    if (!responseData?.kommo?.analytics) {
+      return {
+        projectCount: responseData?.projectCount || 0,
+        recentProjects: responseData?.recentProjects || [],
+        automationRules: responseData?.automationRules || [],
+        kommoConfig: null,
+        isKommoConnected: false,
+        kommoAnalytics: {
+          periodStats: {
+            day: {
+              totalLeads: 0,
+              totalVendas: 0,
+              valorTotalVendas: 'R$ 0,00',
+              taxaConversao: '0%'
+            },
+            week: {
+              totalLeads: 0,
+              totalVendas: 0,
+              valorTotalVendas: 'R$ 0,00',
+              taxaConversao: '0%'
+            },
+            fortnight: {
+              totalLeads: 0,
+              totalVendas: 0,
+              valorTotalVendas: 'R$ 0,00',
+              taxaConversao: '0%'
+            }
+          },
+          dailyStats: {},
+          vendorStats: {},
+          personaStats: {}
         }
-      },
-      dailyStats: {},
-      vendorStats: {},
-      personaStats: {}
-    };
-
-    const kommoAnalytics = responseData.kommo?.analytics ? {
-      ...defaultAnalytics,
-      ...responseData.kommo.analytics,
-      periodStats: {
-        day: {
-          ...defaultAnalytics.periodStats.day,
-          ...responseData.kommo.analytics.periodStats?.day
-        },
-        week: {
-          ...defaultAnalytics.periodStats.week,
-          ...responseData.kommo.analytics.periodStats?.week
-        },
-        fortnight: {
-          ...defaultAnalytics.periodStats.fortnight,
-          ...responseData.kommo.analytics.periodStats?.fortnight
-        }
-      }
-    } : null;
+      };
+    }
 
     return {
-      projectCount: responseData.projectCount || 0,
-      recentProjects: responseData.recentProjects || [],
-      automationRules: responseData.automationRules || [],
-      kommoConfig: responseData.kommoConfig || null,
-      isKommoConnected: responseData.isKommoConnected || false,
-      kommoAnalytics
+      ...responseData,
+      kommo: {
+        ...responseData.kommo,
+        analytics: {
+          periodStats: {
+            day: responseData.kommo.analytics.periodStats?.day || {
+              totalLeads: 0,
+              totalVendas: 0,
+              valorTotalVendas: 'R$ 0,00',
+              taxaConversao: '0%'
+            },
+            week: responseData.kommo.analytics.periodStats?.week || {
+              totalLeads: 0,
+              totalVendas: 0,
+              valorTotalVendas: 'R$ 0,00',
+              taxaConversao: '0%'
+            },
+            fortnight: responseData.kommo.analytics.periodStats?.fortnight || {
+              totalLeads: 0,
+              totalVendas: 0,
+              valorTotalVendas: 'R$ 0,00',
+              taxaConversao: '0%'
+            }
+          },
+          dailyStats: responseData.kommo.analytics.dailyStats || {},
+          vendorStats: responseData.kommo.analytics.vendorStats || {},
+          personaStats: responseData.kommo.analytics.personaStats || {}
+        }
+      }
     };
   };
 
@@ -134,6 +146,7 @@ export function useDashboardData() {
       setIsConnected(status);
       if (status) {
         setError(null);
+        socketService.requestData(); // Request fresh data when connected
       }
       setLoading(false);
     });
@@ -143,10 +156,7 @@ export function useDashboardData() {
       
       if (socketData.status === 'success' && socketData.data) {
         const transformedData = transformData(socketData.data);
-        setData(prevData => ({
-          ...prevData,
-          ...transformedData
-        }));
+        setData(transformedData);
         setError(null);
         lastFetchTime.current = Date.now();
       }
@@ -162,6 +172,7 @@ export function useDashboardData() {
 
   const refresh = useCallback(() => {
     fetchDashboardData(true);
+    socketService.requestData();
   }, [fetchDashboardData]);
 
   return {
