@@ -42,17 +42,17 @@ export function useDashboardData() {
     const transformedAnalytics = analytics ? {
       metrics: {
         activeLeads: analytics.summary?.totalLeads || 0,
-        qualificationRate: parseFloat(analytics.summary?.conversionRate || '0'),
-        costPerLead: 45, // Valor fixo conforme backend
-        conversionTime: 0, // Valor padrão
+        qualificationRate: parseFloat((analytics.summary?.conversionRate || '0%').replace('%', '')),
+        costPerLead: 45,
+        conversionTime: 0
       },
       funnel: analytics.funnel || [],
       sources: analytics.sources || [],
       metadata: {
         period: 15,
         compareWith: 30,
-        currentLeadsCount: analytics.periodStats?.fortnight?.totalLeads || 0,
-        previousLeadsCount: (analytics.periodStats?.fortnight?.totalLeads || 0) - 10,
+        currentLeadsCount: analytics.summary?.totalLeads || 0,
+        previousLeadsCount: analytics.metadata?.previousLeadsCount || 0,
         dateRanges: {
           current: {
             start: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000).toISOString(),
@@ -64,7 +64,27 @@ export function useDashboardData() {
           }
         }
       },
-      vendorPerformance: analytics.vendorPerformance || []
+      vendorPerformance: analytics.vendorPerformance || [],
+      periodStats: {
+        day: {
+          totalLeads: analytics.periodStats?.day?.totalLeads || 0,
+          vendas: analytics.periodStats?.day?.purchases || 0,
+          valorVendas: `R$ ${analytics.periodStats?.day?.totalValue || 0}`,
+          taxaConversao: `${((analytics.periodStats?.day?.purchases || 0) / (analytics.periodStats?.day?.totalLeads || 1) * 100).toFixed(1)}%`
+        },
+        week: {
+          totalLeads: analytics.periodStats?.week?.totalLeads || 0,
+          vendas: analytics.periodStats?.week?.purchases || 0,
+          valorVendas: `R$ ${analytics.periodStats?.week?.totalValue || 0}`,
+          taxaConversao: `${((analytics.periodStats?.week?.purchases || 0) / (analytics.periodStats?.week?.totalLeads || 1) * 100).toFixed(1)}%`
+        },
+        fortnight: {
+          totalLeads: analytics.periodStats?.fortnight?.totalLeads || 0,
+          vendas: analytics.periodStats?.fortnight?.purchases || 0,
+          valorVendas: `R$ ${analytics.periodStats?.fortnight?.totalValue || 0}`,
+          taxaConversao: `${((analytics.periodStats?.fortnight?.purchases || 0) / (analytics.periodStats?.fortnight?.totalLeads || 1) * 100).toFixed(1)}%`
+        }
+      }
     } : null;
 
     const result = {
