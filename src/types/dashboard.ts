@@ -1,22 +1,8 @@
-export interface VendorPerformance {
-  totalAtendimentos: number;
-  propostas: number;
+export interface PeriodStats {
+  totalLeads: number;
   vendas: number;
   valorVendas: string;
   taxaConversao: string;
-  taxaPropostas: string;
-}
-
-export interface LeadInteraction {
-  id: number;
-  name: string;
-  value: string;
-  created_at: string;
-  updated_at: string;
-  status: string;
-  statusColor: string;
-  tipo: 'novo' | 'interacao';
-  vendedor: string;
 }
 
 export interface DailyMetrics {
@@ -25,36 +11,51 @@ export interface DailyMetrics {
   interacoes: number;
   propostas: number;
   vendas: number;
-  valorVendas: string;
-  taxaInteracao: string;
-  taxaVendas: string;
-  taxaPropostas: string;
+  valorVendas: number;
   leads: LeadInteraction[];
 }
 
-export interface PeriodStats {
-  totalLeads: number;
-  vendas: number;
-  valorVendas: string;
-  taxaConversao: string;
+export interface LeadInteraction {
+  id: string;
+  name: string;
+  status: string;
+  statusColor: string;
+  tipo: 'novo' | 'interacao';
+  vendedor: string;
+  value: string;
+  created_at: string;
 }
 
-export interface BasicStats {
-  periodStats: {
-    day: PeriodStats;
-    week: PeriodStats;
-    fortnight: PeriodStats;
+export interface VendorPerformance {
+  name: string;
+  metrics: {
+    atendimentos: number;
+    propostas: number;
+    vendas: number;
+    valor: string;
+    taxaConversao: number;
+    taxaPropostas: number;
+    tendencia: 'up' | 'down';
   };
+  historico: Array<{
+    data: string;
+    vendas: number;
+    valor: number;
+  }>;
 }
 
-export interface DetailedStats {
-  dailyStats: Record<string, DailyMetrics>;
-  vendorStats: Record<string, VendorPerformance>;
-  personaStats: Record<string, {
-    quantity: number;
-    totalValue: string;
-    percentage: string;
-  }>;
+export interface MarketingMetrics {
+  custoTotal: string;
+  custoPorLead: string;
+  roi: string;
+  leadsGerados: number;
+}
+
+export interface ServiceQualityMetrics {
+  tempoMedioResposta: number;
+  taxaResposta: number;
+  nps: number;
+  tempoMedioConversao: number;
 }
 
 export interface DashboardData {
@@ -72,11 +73,33 @@ export interface DashboardData {
     updatedAt: string;
   }>;
   kommoConfig: {
-    id: string;
     accountDomain: string;
-    clientId: string;
-    createdAt: string;
+    connectedAt: string;
+    isConnected: boolean;
   } | null;
-  kommoAnalytics: (BasicStats & Partial<DetailedStats>) | null;
   isKommoConnected: boolean;
+  kommoAnalytics: {
+    periodStats: {
+      day: PeriodStats;
+      week: PeriodStats;
+      fortnight: PeriodStats;
+    };
+    dailyStats: Record<string, DailyMetrics>;
+    vendorStats: Record<string, VendorPerformance>;
+    personaStats: Record<string, {
+      quantity: number;
+      totalValue: string;
+      vendas: number;
+      percentage: number;
+      averageTicket: string;
+      conversionRate: number;
+    }>;
+    funnelStages: Array<{
+      stage: string;
+      count: number;
+      conversionRate: number;
+    }>;
+    marketingMetrics: MarketingMetrics;
+    serviceQuality: ServiceQualityMetrics;
+  } | null;
 }

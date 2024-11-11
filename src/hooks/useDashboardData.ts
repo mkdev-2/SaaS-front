@@ -5,13 +5,6 @@ import { socketService } from '../lib/socket';
 import useAuthStore from '../store/authStore';
 import { DashboardData } from '../types/dashboard';
 
-const DEBUG = true;
-function debugLog(label: string, data: any) {
-  if (DEBUG) {
-    console.log(`[Dashboard Debug] ${label}:`, data);
-  }
-}
-
 export function useDashboardData() {
   const { isAuthenticated, user } = useAuthStore();
   const [data, setData] = useState<DashboardData | null>(null);
@@ -24,8 +17,6 @@ export function useDashboardData() {
   const dataRef = useRef<DashboardData | null>(null);
 
   const transformData = useCallback((responseData: any): DashboardData => {
-    debugLog('Raw Response Data', responseData);
-
     if (!responseData?.kommo) {
       return {
         projectCount: 0,
@@ -45,63 +36,45 @@ export function useDashboardData() {
     }
 
     const transformedAnalytics = analytics ? {
-      metrics: {
-        activeLeads: analytics.metrics?.activeLeads || 0,
-        qualificationRate: analytics.metrics?.qualificationRate || 0,
-        costPerLead: analytics.metrics?.costPerLead || 0,
-        conversionTime: analytics.metrics?.conversionTime || 0,
-        periodComparison: analytics.metrics?.periodComparison || {}
-      },
-      funnel: Array.isArray(analytics.funnel) ? analytics.funnel.map((stage: any) => ({
-        stage: stage.stage,
-        count: stage.count || 0,
-        conversionRate: stage.conversionRate || 0
-      })) : [],
-      sources: Array.isArray(analytics.sources) ? analytics.sources.map((source: any) => ({
-        name: source.name,
-        count: source.count || 0,
-        percentage: source.percentage || 0
-      })) : [],
-      metadata: {
-        period: analytics.metadata?.period || 15,
-        compareWith: analytics.metadata?.compareWith || 30,
-        currentLeadsCount: analytics.metadata?.currentLeadsCount || 0,
-        previousLeadsCount: analytics.metadata?.previousLeadsCount || 0,
-        dateRanges: {
-          current: {
-            start: analytics.metadata?.dateRanges?.current?.start || new Date().toISOString(),
-            end: analytics.metadata?.dateRanges?.current?.end || new Date().toISOString()
-          },
-          previous: {
-            start: analytics.metadata?.dateRanges?.previous?.start || new Date().toISOString(),
-            end: analytics.metadata?.dateRanges?.previous?.end || new Date().toISOString()
-          }
-        }
-      },
-      vendorPerformance: Array.isArray(analytics.vendorPerformance) ? analytics.vendorPerformance : [],
       periodStats: {
         day: {
-          totalLeads: analytics.periodStats?.day?.totalLeads || 0,
-          vendas: analytics.periodStats?.day?.purchases || 0,
-          valorVendas: `R$ ${analytics.periodStats?.day?.totalValue || 0}`,
-          taxaConversao: `${((analytics.periodStats?.day?.purchases || 0) / (analytics.periodStats?.day?.totalLeads || 1) * 100).toFixed(1)}%`
+          totalLeads: analytics.periodStats.day.totalLeads,
+          vendas: analytics.periodStats.day.purchases,
+          valorVendas: `R$ ${analytics.periodStats.day.totalValue.toLocaleString('pt-BR')}`,
+          taxaConversao: `${((analytics.periodStats.day.purchases / analytics.periodStats.day.totalLeads) * 100).toFixed(1)}%`
         },
         week: {
-          totalLeads: analytics.periodStats?.week?.totalLeads || 0,
-          vendas: analytics.periodStats?.week?.purchases || 0,
-          valorVendas: `R$ ${analytics.periodStats?.week?.totalValue || 0}`,
-          taxaConversao: `${((analytics.periodStats?.week?.purchases || 0) / (analytics.periodStats?.week?.totalLeads || 1) * 100).toFixed(1)}%`
+          totalLeads: analytics.periodStats.week.totalLeads,
+          vendas: analytics.periodStats.week.purchases,
+          valorVendas: `R$ ${analytics.periodStats.week.totalValue.toLocaleString('pt-BR')}`,
+          taxaConversao: `${((analytics.periodStats.week.purchases / analytics.periodStats.week.totalLeads) * 100).toFixed(1)}%`
         },
         fortnight: {
-          totalLeads: analytics.periodStats?.fortnight?.totalLeads || 0,
-          vendas: analytics.periodStats?.fortnight?.purchases || 0,
-          valorVendas: `R$ ${analytics.periodStats?.fortnight?.totalValue || 0}`,
-          taxaConversao: `${((analytics.periodStats?.fortnight?.purchases || 0) / (analytics.periodStats?.fortnight?.totalLeads || 1) * 100).toFixed(1)}%`
+          totalLeads: analytics.periodStats.fortnight.totalLeads,
+          vendas: analytics.periodStats.fortnight.purchases,
+          valorVendas: `R$ ${analytics.periodStats.fortnight.totalValue.toLocaleString('pt-BR')}`,
+          taxaConversao: `${((analytics.periodStats.fortnight.purchases / analytics.periodStats.fortnight.totalLeads) * 100).toFixed(1)}%`
         }
+      },
+      dailyStats: responseData.dailyStats || {},
+      vendorStats: responseData.vendorStats || {},
+      personaStats: responseData.personaStats || {},
+      funnelStages: responseData.funnelStages || [],
+      marketingMetrics: responseData.marketingMetrics || {
+        custoTotal: 0,
+        custoPorLead: 0,
+        roi: 0,
+        leadsGerados: 0
+      },
+      serviceQuality: responseData.serviceQuality || {
+        tempoMedioResposta: 0,
+        taxaResposta: 0,
+        nps: 0,
+        tempoMedioConversao: 0
       }
     } : null;
 
-    const result = {
+    return {
       projectCount: responseData.projects?.total || 0,
       recentProjects: responseData.projects?.recent || [],
       automationRules: responseData.recentRules || [],
@@ -110,12 +83,9 @@ export function useDashboardData() {
         connectedAt,
         isConnected
       },
-      isKommoConnected: isConnected || false,
+      isKommoConnected: isConnected,
       kommoAnalytics: transformedAnalytics
     };
-
-    debugLog('Transformed Data', result);
-    return result;
   }, []);
 
   const fetchDashboardData = useCallback(async (force = false) => {
@@ -132,7 +102,7 @@ export function useDashboardData() {
 
     try {
       setLoading(true);
-      const { data: response } = await api.get<ApiResponse<any>>('/dashboard/stats');
+      const { data: response } = await api.get<ApiResponse<any>>('/api/dashboard/stats');
       
       if (!isMounted.current) return;
 
@@ -180,7 +150,6 @@ export function useDashboardData() {
 
     const unsubscribeUpdates = socketService.onDashboardUpdate((socketData) => {
       if (!isMounted.current) return;
-      debugLog('Socket Update Received', socketData);
       
       if (socketData.status === 'success' && socketData.data) {
         const transformedData = transformData(socketData.data);
