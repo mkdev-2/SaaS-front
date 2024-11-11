@@ -27,13 +27,29 @@ export function useDashboardData() {
       };
     }
 
+    // Extrair dados do Kommo
+    const { analytics, isConnected, accountDomain, connectedAt } = responseData.kommo;
+
+    // Transformar analytics se existir
+    const transformedAnalytics = analytics ? {
+      metrics: analytics.metrics || {},
+      funnel: analytics.funnel || [],
+      sources: analytics.sources || [],
+      metadata: analytics.metadata || {},
+      vendorPerformance: analytics.vendorPerformance || []
+    } : null;
+
     return {
       projectCount: responseData.projects?.total || 0,
       recentProjects: responseData.projects?.recent || [],
       automationRules: responseData.recentRules || [],
-      kommoConfig: responseData.kommo || null,
-      isKommoConnected: responseData.kommo?.isConnected || false,
-      kommoAnalytics: responseData.kommo?.analytics || null
+      kommoConfig: {
+        accountDomain,
+        connectedAt,
+        isConnected
+      },
+      isKommoConnected: isConnected || false,
+      kommoAnalytics: transformedAnalytics
     };
   };
 
@@ -85,8 +101,9 @@ export function useDashboardData() {
     // Initial fetch with detailed data
     fetchDashboardData(true);
 
-    // Socket connection with detailed data subscription
+    // Socket connection
     socketService.connect();
+    socketService.requestData();
 
     const unsubscribeConnection = socketService.onConnectionChange((status) => {
       if (!isMounted.current) return;
@@ -119,7 +136,6 @@ export function useDashboardData() {
 
   const refresh = useCallback(() => {
     fetchDashboardData(true);
-    socketService.requestData();
   }, [fetchDashboardData]);
 
   return {
