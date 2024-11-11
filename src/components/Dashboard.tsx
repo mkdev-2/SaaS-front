@@ -1,4 +1,4 @@
-import React, { useState, Suspense } from 'react';
+import React, { useState, Suspense, useEffect } from 'react';
 import { Users, Box, RefreshCw, AlertCircle, FileText, CheckCircle, TrendingUp } from 'lucide-react';
 import { useDashboardData } from '../hooks/useDashboardData';
 import StatCard from './dashboard/StatCard';
@@ -8,6 +8,16 @@ const DailyLeadsChart = React.lazy(() => import('./dashboard/DailyLeadsChart'));
 const VendorStats = React.lazy(() => import('./dashboard/VendorStats'));
 const PersonaStats = React.lazy(() => import('./dashboard/PersonaStats'));
 const PeriodSelector = React.lazy(() => import('./dashboard/PeriodSelector'));
+
+// Adiciona uma função de debug que podemos ativar/desativar facilmente
+const DEBUG = true;
+function debugLog(label: string, data: any) {
+  if (DEBUG) {
+    console.group(`Dashboard Debug: ${label}`);
+    console.log(JSON.stringify(data, null, 2));
+    console.groupEnd();
+  }
+}
 
 function LoadingState() {
   return (
@@ -84,6 +94,18 @@ export default function Dashboard() {
   const { data, loading, error, refresh, isConnected } = useDashboardData();
   const [selectedPeriod, setSelectedPeriod] = useState('today');
 
+  // Log dos dados sempre que eles mudarem
+  useEffect(() => {
+    if (data?.kommo?.analytics) {
+      debugLog('Analytics Data', {
+        metrics: data.kommo.analytics.metrics,
+        funnel: data.kommo.analytics.funnel,
+        metadata: data.kommo.analytics.metadata,
+        fullData: data.kommo.analytics // log completo
+      });
+    }
+  }, [data]);
+
   // Render loading state only on initial load
   if (loading && !data) {
     return <LoadingState />;
@@ -97,6 +119,14 @@ export default function Dashboard() {
   const hasData = data?.kommo?.analytics !== null;
   const stats = hasData && data?.kommo?.analytics?.metrics ? getStats(data) : [];
   const analytics = data?.kommo?.analytics;
+
+  // Log do estado atual dos dados
+  debugLog('Current State', {
+    hasData,
+    hasMetrics: !!data?.kommo?.analytics?.metrics,
+    hasFunnel: !!analytics?.funnel,
+    analyticsKeys: analytics ? Object.keys(analytics) : [],
+  });
 
   return (
     <div className="p-6 space-y-6">
