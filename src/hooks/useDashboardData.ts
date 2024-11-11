@@ -52,25 +52,33 @@ export function useDashboardData() {
         conversionTime: analytics.metrics?.conversionTime || 0,
         periodComparison: analytics.metrics?.periodComparison || {}
       },
-      funnel: analytics.funnel || [],
-      sources: analytics.sources || [],
-      metadata: analytics.metadata || {
-        period: 15,
-        compareWith: 30,
-        currentLeadsCount: 0,
-        previousLeadsCount: 0,
+      funnel: Array.isArray(analytics.funnel) ? analytics.funnel.map((stage: any) => ({
+        stage: stage.stage,
+        count: stage.count || 0,
+        conversionRate: stage.conversionRate || 0
+      })) : [],
+      sources: Array.isArray(analytics.sources) ? analytics.sources.map((source: any) => ({
+        name: source.name,
+        count: source.count || 0,
+        percentage: source.percentage || 0
+      })) : [],
+      metadata: {
+        period: analytics.metadata?.period || 15,
+        compareWith: analytics.metadata?.compareWith || 30,
+        currentLeadsCount: analytics.metadata?.currentLeadsCount || 0,
+        previousLeadsCount: analytics.metadata?.previousLeadsCount || 0,
         dateRanges: {
           current: {
-            start: new Date().toISOString(),
-            end: new Date().toISOString()
+            start: analytics.metadata?.dateRanges?.current?.start || new Date().toISOString(),
+            end: analytics.metadata?.dateRanges?.current?.end || new Date().toISOString()
           },
           previous: {
-            start: new Date().toISOString(),
-            end: new Date().toISOString()
+            start: analytics.metadata?.dateRanges?.previous?.start || new Date().toISOString(),
+            end: analytics.metadata?.dateRanges?.previous?.end || new Date().toISOString()
           }
         }
       },
-      vendorPerformance: analytics.vendorPerformance || [],
+      vendorPerformance: Array.isArray(analytics.vendorPerformance) ? analytics.vendorPerformance : [],
       periodStats: {
         day: {
           totalLeads: analytics.periodStats?.day?.totalLeads || 0,
