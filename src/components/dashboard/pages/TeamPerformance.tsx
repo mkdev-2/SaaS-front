@@ -28,9 +28,25 @@ export default function TeamPerformance() {
   const analytics = data.kommoAnalytics;
   const vendorStats = analytics.vendorStats || {};
   
-  const totalAtendimentos = Object.values(vendorStats).reduce((sum, vendor: any) => sum + vendor.totalAtendimentos, 0);
-  const totalVendas = Object.values(vendorStats).reduce((sum, vendor: any) => sum + vendor.vendas, 0);
-  const mediaConversao = (totalVendas / totalAtendimentos * 100).toFixed(1);
+  // Calculate totals with safe defaults
+  const totalAtendimentos = Object.values(vendorStats).reduce((sum, vendor: any) => 
+    sum + (vendor.totalAtendimentos || 0), 0);
+  const totalVendas = Object.values(vendorStats).reduce((sum, vendor: any) => 
+    sum + (vendor.vendas || 0), 0);
+  const mediaConversao = totalAtendimentos > 0 
+    ? ((totalVendas / totalAtendimentos) * 100).toFixed(1) 
+    : '0.0';
+
+  // Transform vendor stats with safe defaults
+  const transformedVendorStats = Object.entries(vendorStats).map(([name, stats]: [string, any]) => ({
+    name,
+    atendimentos: stats.totalAtendimentos || 0,
+    propostas: stats.propostas || 0,
+    vendas: stats.vendas || 0,
+    valor: stats.valorVendas || 'R$ 0,00',
+    taxaConversao: stats.taxaConversao || '0%',
+    taxaPropostas: stats.taxaPropostas || '0%'
+  }));
 
   const stats = [
     {
@@ -83,15 +99,7 @@ export default function TeamPerformance() {
       </div>
 
       <div className="grid grid-cols-1 gap-6">
-        <VendorStats data={Object.entries(vendorStats).map(([name, stats]: [string, any]) => ({
-          name,
-          atendimentos: stats.totalAtendimentos,
-          propostas: stats.propostas,
-          vendas: stats.vendas,
-          valor: stats.valorVendas,
-          taxaConversao: stats.taxaConversao,
-          taxaPropostas: stats.taxaPropostas
-        }))} />
+        <VendorStats data={transformedVendorStats} />
         <PerformanceTable data={analytics} period={period} />
       </div>
     </div>
