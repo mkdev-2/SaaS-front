@@ -95,7 +95,7 @@ export function useDashboardData() {
 
   const fetchEndpoint = async (endpoint: string) => {
     try {
-      const response = await api.get<ApiResponse<any>>(`/api/dashboard/${endpoint}`);
+      const response = await api.get<ApiResponse<any>>(`/dashboard/${endpoint}`);
       return response.data?.data;
     } catch (err: any) {
       console.warn(`Failed to fetch ${endpoint} data:`, err);
