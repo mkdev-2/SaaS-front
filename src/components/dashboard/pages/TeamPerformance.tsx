@@ -6,6 +6,25 @@ import PerformanceTable from '../PerformanceTable';
 import PeriodSelector from '../PeriodSelector';
 import { useDashboardData } from '../../../hooks/useDashboardData';
 
+interface VendorStat {
+  totalAtendimentos?: number;
+  propostas?: number;
+  vendas?: number;
+  valorVendas?: string;
+  taxaConversao?: string;
+  taxaPropostas?: string;
+}
+
+interface TransformedVendorStat {
+  name: string;
+  atendimentos: number;
+  propostas: number;
+  vendas: number;
+  valor: string;
+  taxaConversao: string;
+  taxaPropostas: string;
+}
+
 export default function TeamPerformance() {
   const [period, setPeriod] = React.useState('today');
   const { data, loading, error, isConnected } = useDashboardData();
@@ -27,25 +46,27 @@ export default function TeamPerformance() {
 
   const analytics = data.kommoAnalytics;
   const vendorStats = analytics.vendorStats || {};
+
+  // Calculate totals with safe defaults and type checking
+  const totalAtendimentos = Object.values(vendorStats).reduce((sum, vendor: VendorStat) => 
+    sum + (typeof vendor.totalAtendimentos === 'number' ? vendor.totalAtendimentos : 0), 0);
   
-  // Calculate totals with safe defaults
-  const totalAtendimentos = Object.values(vendorStats).reduce((sum, vendor: any) => 
-    sum + (vendor.totalAtendimentos || 0), 0);
-  const totalVendas = Object.values(vendorStats).reduce((sum, vendor: any) => 
-    sum + (vendor.vendas || 0), 0);
+  const totalVendas = Object.values(vendorStats).reduce((sum, vendor: VendorStat) => 
+    sum + (typeof vendor.vendas === 'number' ? vendor.vendas : 0), 0);
+  
   const mediaConversao = totalAtendimentos > 0 
     ? ((totalVendas / totalAtendimentos) * 100).toFixed(1) 
     : '0.0';
 
-  // Transform vendor stats with safe defaults
-  const transformedVendorStats = Object.entries(vendorStats).map(([name, stats]: [string, any]) => ({
+  // Transform vendor stats with safe defaults and type checking
+  const transformedVendorStats: TransformedVendorStat[] = Object.entries(vendorStats).map(([name, stats]: [string, VendorStat]) => ({
     name,
-    atendimentos: stats.totalAtendimentos || 0,
-    propostas: stats.propostas || 0,
-    vendas: stats.vendas || 0,
-    valor: stats.valorVendas || 'R$ 0,00',
-    taxaConversao: stats.taxaConversao || '0%',
-    taxaPropostas: stats.taxaPropostas || '0%'
+    atendimentos: typeof stats.totalAtendimentos === 'number' ? stats.totalAtendimentos : 0,
+    propostas: typeof stats.propostas === 'number' ? stats.propostas : 0,
+    vendas: typeof stats.vendas === 'number' ? stats.vendas : 0,
+    valor: typeof stats.valorVendas === 'string' ? stats.valorVendas : 'R$ 0,00',
+    taxaConversao: typeof stats.taxaConversao === 'string' ? stats.taxaConversao : '0%',
+    taxaPropostas: typeof stats.taxaPropostas === 'string' ? stats.taxaPropostas : '0%'
   }));
 
   const stats = [
@@ -81,6 +102,11 @@ export default function TeamPerformance() {
             Análise detalhada do desempenho dos vendedores
             {!isConnected && ' (Reconectando...)'}
           </p>
+          {error && (
+            <p className="mt-2 text-sm text-red-600">
+              {error}
+            </p>
+          )}
         </div>
         <PeriodSelector value={period} onChange={setPeriod} />
       </div>
