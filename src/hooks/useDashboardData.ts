@@ -121,7 +121,7 @@ export function useDashboardData() {
 
   const fetchEndpoint = async (endpoint: string) => {
     try {
-      const { data: response } = await api.get<ApiResponse<any>>(`/api/dashboard/${endpoint}`);
+      const { data: response } = await api.get<ApiResponse<any>>(`/dashboard/${endpoint}`);
       if (response.status === 'success' && response.data) {
         return response.data;
       }
