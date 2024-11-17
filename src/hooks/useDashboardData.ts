@@ -17,7 +17,7 @@ export function useDashboardData() {
   const dataRef = useRef<DashboardData | null>(null);
 
   const transformData = useCallback((responseData: any): DashboardData => {
-    if (!responseData?.kommo) {
+    if (!responseData) {
       return {
         projectCount: 0,
         recentProjects: [],
@@ -28,45 +28,51 @@ export function useDashboardData() {
       };
     }
 
-    const { analytics, isConnected, accountDomain, connectedAt } = responseData.kommo;
+    const {
+      overview,
+      team,
+      marketing,
+      quality,
+      config
+    } = responseData;
 
     // Manter dados anteriores se não houver novos dados
-    if (!analytics && dataRef.current?.kommoAnalytics) {
+    if (!overview && dataRef.current?.kommoAnalytics) {
       return dataRef.current;
     }
 
-    const transformedAnalytics = analytics ? {
+    const transformedAnalytics = overview ? {
       periodStats: {
         day: {
-          totalLeads: analytics.periodStats.day.totalLeads,
-          vendas: analytics.periodStats.day.purchases,
-          valorVendas: `R$ ${analytics.periodStats.day.totalValue.toLocaleString('pt-BR')}`,
-          taxaConversao: `${((analytics.periodStats.day.purchases / analytics.periodStats.day.totalLeads) * 100).toFixed(1)}%`
+          totalLeads: overview.periodStats.day.totalLeads,
+          vendas: overview.periodStats.day.vendas,
+          valorVendas: overview.periodStats.day.valorVendas,
+          taxaConversao: overview.periodStats.day.taxaConversao
         },
         week: {
-          totalLeads: analytics.periodStats.week.totalLeads,
-          vendas: analytics.periodStats.week.purchases,
-          valorVendas: `R$ ${analytics.periodStats.week.totalValue.toLocaleString('pt-BR')}`,
-          taxaConversao: `${((analytics.periodStats.week.purchases / analytics.periodStats.week.totalLeads) * 100).toFixed(1)}%`
+          totalLeads: overview.periodStats.week.totalLeads,
+          vendas: overview.periodStats.week.vendas,
+          valorVendas: overview.periodStats.week.valorVendas,
+          taxaConversao: overview.periodStats.week.taxaConversao
         },
         fortnight: {
-          totalLeads: analytics.periodStats.fortnight.totalLeads,
-          vendas: analytics.periodStats.fortnight.purchases,
-          valorVendas: `R$ ${analytics.periodStats.fortnight.totalValue.toLocaleString('pt-BR')}`,
-          taxaConversao: `${((analytics.periodStats.fortnight.purchases / analytics.periodStats.fortnight.totalLeads) * 100).toFixed(1)}%`
+          totalLeads: overview.periodStats.fortnight.totalLeads,
+          vendas: overview.periodStats.fortnight.vendas,
+          valorVendas: overview.periodStats.fortnight.valorVendas,
+          taxaConversao: overview.periodStats.fortnight.taxaConversao
         }
       },
-      dailyStats: responseData.dailyStats || {},
-      vendorStats: responseData.vendorStats || {},
-      personaStats: responseData.personaStats || {},
-      funnelStages: responseData.funnelStages || [],
-      marketingMetrics: responseData.marketingMetrics || {
+      dailyStats: overview.dailyStats || {},
+      vendorStats: team?.vendorStats || {},
+      personaStats: marketing?.personaStats || {},
+      funnelStages: overview.funnelStages || [],
+      marketingMetrics: marketing?.metrics || {
         custoTotal: 0,
         custoPorLead: 0,
         roi: 0,
         leadsGerados: 0
       },
-      serviceQuality: responseData.serviceQuality || {
+      serviceQuality: quality?.metrics || {
         tempoMedioResposta: 0,
         taxaResposta: 0,
         nps: 0,
@@ -75,15 +81,11 @@ export function useDashboardData() {
     } : null;
 
     return {
-      projectCount: responseData.projects?.total || 0,
-      recentProjects: responseData.projects?.recent || [],
-      automationRules: responseData.recentRules || [],
-      kommoConfig: {
-        accountDomain,
-        connectedAt,
-        isConnected
-      },
-      isKommoConnected: isConnected,
+      projectCount: config?.projectCount || 0,
+      recentProjects: config?.recentProjects || [],
+      automationRules: config?.automationRules || [],
+      kommoConfig: config?.kommo || null,
+      isKommoConnected: config?.kommo?.isConnected || false,
       kommoAnalytics: transformedAnalytics
     };
   }, []);
@@ -99,24 +101,38 @@ export function useDashboardData() {
     if (!force && now - lastFetchTime.current < 5000) {
       return;
     }
+
     try {
       setLoading(true);
-      const { data: response } = await api.get<ApiResponse<any>>('/api/dashboard/overview', {
-        params: {
-          period: 'fortnight',
-          detailed: true
-        }
-      });
+      
+      const [
+        overviewResponse,
+        teamResponse,
+        marketingResponse,
+        qualityResponse,
+        configResponse
+      ] = await Promise.all([
+        api.get<ApiResponse<any>>('/api/dashboard/overview'),
+        api.get<ApiResponse<any>>('/api/dashboard/team'),
+        api.get<ApiResponse<any>>('/api/dashboard/marketing'),
+        api.get<ApiResponse<any>>('/api/dashboard/quality'),
+        api.get<ApiResponse<any>>('/api/dashboard/config')
+      ]);
       
       if (!isMounted.current) return;
-      if (response.status === 'success' && response.data) {
-        const transformedData = transformData(response.data);
-        dataRef.current = transformedData;
-        setData(transformedData);
-        setError(null);
-      } else {
-        throw new Error(response.message || 'Failed to fetch dashboard data');
-      }
+
+      const combinedData = {
+        overview: overviewResponse.data?.data,
+        team: teamResponse.data?.data,
+        marketing: marketingResponse.data?.data,
+        quality: qualityResponse.data?.data,
+        config: configResponse.data?.data
+      };
+
+      const transformedData = transformData(combinedData);
+      dataRef.current = transformedData;
+      setData(transformedData);
+      setError(null);
     } catch (err: any) {
       if (!isMounted.current) return;
       console.error('Dashboard fetch error:', err);
@@ -126,7 +142,7 @@ export function useDashboardData() {
         setLoading(false);
         lastFetchTime.current = Date.now();
       }
-    }    
+    }
   }, [isAuthenticated, user, transformData]);
 
   useEffect(() => {
