@@ -5,30 +5,68 @@ import { socketService } from '../lib/socket';
 import useAuthStore from '../store/authStore';
 import { DashboardData } from '../types/dashboard';
 
+const DEFAULT_PERIOD_STATS = {
+  totalLeads: 0,
+  vendas: 0,
+  valorVendas: 'R$ 0,00',
+  taxaConversao: '0%'
+};
+
+const DEFAULT_ANALYTICS = {
+  periodStats: {
+    day: DEFAULT_PERIOD_STATS,
+    week: DEFAULT_PERIOD_STATS,
+    fortnight: DEFAULT_PERIOD_STATS
+  },
+  dailyStats: {},
+  vendorStats: {},
+  personaStats: {},
+  funnelStages: [],
+  marketingMetrics: {
+    custoTotal: 0,
+    custoPorLead: 0,
+    roi: 0,
+    leadsGerados: 0
+  },
+  serviceQuality: {
+    tempoMedioResposta: 0,
+    taxaResposta: 0,
+    nps: 0,
+    tempoMedioConversao: 0
+  }
+};
+
+const DEFAULT_DATA: DashboardData = {
+  projectCount: 0,
+  recentProjects: [],
+  automationRules: [],
+  kommoConfig: null,
+  isKommoConnected: false,
+  kommoAnalytics: DEFAULT_ANALYTICS
+};
+
 export function useDashboardData() {
   const { isAuthenticated, user } = useAuthStore();
-  const [data, setData] = useState<DashboardData | null>(null);
+  const [data, setData] = useState<DashboardData>(DEFAULT_DATA);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   
   const isMounted = useRef(true);
   const lastFetchTime = useRef<number>(0);
-  const dataRef = useRef<DashboardData | null>(null);
+  const dataRef = useRef<DashboardData>(DEFAULT_DATA);
+
+  const transformPeriodStats = useCallback((stats: any) => ({
+    totalLeads: stats?.totalLeads || 0,
+    vendas: stats?.vendas || 0,
+    valorVendas: stats?.valorVendas || 'R$ 0,00',
+    taxaConversao: stats?.taxaConversao || '0%'
+  }), []);
 
   const transformData = useCallback((responseData: any): DashboardData => {
-    // Keep existing data if available
-    const existingData = dataRef.current || {
-      projectCount: 0,
-      recentProjects: [],
-      automationRules: [],
-      kommoConfig: null,
-      isKommoConnected: false,
-      kommoAnalytics: null
-    };
-
+    // Keep existing data if no new data
     if (!responseData) {
-      return existingData;
+      return dataRef.current;
     }
 
     const {
@@ -39,64 +77,56 @@ export function useDashboardData() {
       config
     } = responseData;
 
-    // If no new overview data, keep existing analytics
-    if (!overview && existingData.kommoAnalytics) {
-      return existingData;
+    // Transform overview data
+    const periodStats = overview?.periodStats || DEFAULT_ANALYTICS.periodStats;
+    const transformedAnalytics = {
+      periodStats: {
+        day: transformPeriodStats(periodStats.day),
+        week: transformPeriodStats(periodStats.week),
+        fortnight: transformPeriodStats(periodStats.fortnight)
+      },
+      dailyStats: overview?.dailyStats || {},
+      vendorStats: team?.vendorStats || {},
+      personaStats: marketing?.personaStats || {},
+      funnelStages: overview?.funnelStages || [],
+      marketingMetrics: marketing?.metrics || DEFAULT_ANALYTICS.marketingMetrics,
+      serviceQuality: quality?.metrics || DEFAULT_ANALYTICS.serviceQuality
+    };
+
+    // Transform vendor stats to ensure all required fields
+    if (transformedAnalytics.vendorStats) {
+      transformedAnalytics.vendorStats = Object.entries(transformedAnalytics.vendorStats)
+        .reduce((acc: any, [key, value]: [string, any]) => {
+          acc[key] = {
+            totalAtendimentos: value?.totalAtendimentos || 0,
+            propostas: value?.propostas || 0,
+            vendas: value?.vendas || 0,
+            valorVendas: value?.valorVendas || 'R$ 0,00',
+            taxaConversao: value?.taxaConversao || '0%',
+            taxaPropostas: value?.taxaPropostas || '0%'
+          };
+          return acc;
+        }, {});
     }
 
-    const transformedAnalytics = overview ? {
-      periodStats: {
-        day: {
-          totalLeads: overview.periodStats?.day?.totalLeads || 0,
-          vendas: overview.periodStats?.day?.vendas || 0,
-          valorVendas: overview.periodStats?.day?.valorVendas || 'R$ 0,00',
-          taxaConversao: overview.periodStats?.day?.taxaConversao || '0%'
-        },
-        week: {
-          totalLeads: overview.periodStats?.week?.totalLeads || 0,
-          vendas: overview.periodStats?.week?.vendas || 0,
-          valorVendas: overview.periodStats?.week?.valorVendas || 'R$ 0,00',
-          taxaConversao: overview.periodStats?.week?.taxaConversao || '0%'
-        },
-        fortnight: {
-          totalLeads: overview.periodStats?.fortnight?.totalLeads || 0,
-          vendas: overview.periodStats?.fortnight?.vendas || 0,
-          valorVendas: overview.periodStats?.fortnight?.valorVendas || 'R$ 0,00',
-          taxaConversao: overview.periodStats?.fortnight?.taxaConversao || '0%'
-        }
-      },
-      dailyStats: overview.dailyStats || existingData.kommoAnalytics?.dailyStats || {},
-      vendorStats: team?.vendorStats || existingData.kommoAnalytics?.vendorStats || {},
-      personaStats: marketing?.personaStats || existingData.kommoAnalytics?.personaStats || {},
-      funnelStages: overview.funnelStages || existingData.kommoAnalytics?.funnelStages || [],
-      marketingMetrics: marketing?.metrics || existingData.kommoAnalytics?.marketingMetrics || {
-        custoTotal: 0,
-        custoPorLead: 0,
-        roi: 0,
-        leadsGerados: 0
-      },
-      serviceQuality: quality?.metrics || existingData.kommoAnalytics?.serviceQuality || {
-        tempoMedioResposta: 0,
-        taxaResposta: 0,
-        nps: 0,
-        tempoMedioConversao: 0
-      }
-    } : existingData.kommoAnalytics;
-
     return {
-      projectCount: config?.projectCount || existingData.projectCount,
-      recentProjects: config?.recentProjects || existingData.recentProjects,
-      automationRules: config?.automationRules || existingData.automationRules,
-      kommoConfig: config?.kommo || existingData.kommoConfig,
-      isKommoConnected: config?.kommo?.isConnected || existingData.isKommoConnected,
+      projectCount: config?.projectCount || 0,
+      recentProjects: config?.recentProjects || [],
+      automationRules: config?.automationRules || [],
+      kommoConfig: config?.kommo || null,
+      isKommoConnected: config?.kommo?.isConnected || false,
       kommoAnalytics: transformedAnalytics
     };
-  }, []);
+  }, [transformPeriodStats]);
 
   const fetchEndpoint = async (endpoint: string) => {
     try {
-      const response = await api.get<ApiResponse<any>>(`/dashboard/${endpoint}`);
-      return response.data?.data;
+      const { data: response } = await api.get<ApiResponse<any>>(`/api/dashboard/${endpoint}`);
+      if (response.status === 'success' && response.data) {
+        return response.data;
+      }
+      console.warn(`Invalid response from ${endpoint}:`, response);
+      return null;
     } catch (err: any) {
       console.warn(`Failed to fetch ${endpoint} data:`, err);
       return null;
@@ -128,11 +158,6 @@ export function useDashboardData() {
       
       if (!isMounted.current) return;
 
-      // Only show error if all endpoints failed
-      if (!overview && !team && !marketing && !quality && !config) {
-        throw new Error('Failed to fetch dashboard data');
-      }
-
       const combinedData = {
         overview,
         team,
@@ -145,11 +170,16 @@ export function useDashboardData() {
       dataRef.current = transformedData;
       setData(transformedData);
       
-      // Clear error if we got at least some data
-      setError(null);
+      // Only show error if we got no data at all
+      if (!overview && !team && !marketing && !quality && !config) {
+        setError('Failed to fetch dashboard data');
+      } else {
+        setError(null);
+      }
     } catch (err: any) {
       if (!isMounted.current) return;
       console.error('Dashboard fetch error:', err);
+      // Keep existing data on error
       setError(err.response?.data?.message || err.message || 'Failed to connect to the server');
     } finally {
       if (isMounted.current) {
@@ -162,8 +192,8 @@ export function useDashboardData() {
   useEffect(() => {
     if (!isAuthenticated || !user) {
       socketService.disconnect();
-      setData(null);
-      dataRef.current = null;
+      setData(DEFAULT_DATA);
+      dataRef.current = DEFAULT_DATA;
       setLoading(false);
       return;
     }
