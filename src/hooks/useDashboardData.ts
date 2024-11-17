@@ -112,11 +112,11 @@ export function useDashboardData() {
         qualityResponse,
         configResponse
       ] = await Promise.all([
-        api.get<ApiResponse<any>>('/api/dashboard/overview'),
-        api.get<ApiResponse<any>>('/api/dashboard/team'),
-        api.get<ApiResponse<any>>('/api/dashboard/marketing'),
-        api.get<ApiResponse<any>>('/api/dashboard/quality'),
-        api.get<ApiResponse<any>>('/api/dashboard/config')
+        api.get<ApiResponse<any>>('/dashboard/overview'),
+        api.get<ApiResponse<any>>('/dashboard/team'),
+        api.get<ApiResponse<any>>('/dashboard/marketing'),
+        api.get<ApiResponse<any>>('/dashboard/quality'),
+        api.get<ApiResponse<any>>('/dashboard/config')
       ]);
       
       if (!isMounted.current) return;
