@@ -99,13 +99,16 @@ export function useDashboardData() {
     if (!force && now - lastFetchTime.current < 5000) {
       return;
     }
-
     try {
       setLoading(true);
-      const { data: response } = await api.get<ApiResponse<any>>('/kommo/analytics/index');
+      const { data: response } = await api.get<ApiResponse<any>>('/api/dashboard/overview', {
+        params: {
+          period: 'fortnight',
+          detailed: true
+        }
+      });
       
       if (!isMounted.current) return;
-
       if (response.status === 'success' && response.data) {
         const transformedData = transformData(response.data);
         dataRef.current = transformedData;
@@ -123,7 +126,7 @@ export function useDashboardData() {
         setLoading(false);
         lastFetchTime.current = Date.now();
       }
-    }
+    }    
   }, [isAuthenticated, user, transformData]);
 
   useEffect(() => {
