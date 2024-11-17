@@ -17,15 +17,18 @@ export function useDashboardData() {
   const dataRef = useRef<DashboardData | null>(null);
 
   const transformData = useCallback((responseData: any): DashboardData => {
+    // Keep existing data if available
+    const existingData = dataRef.current || {
+      projectCount: 0,
+      recentProjects: [],
+      automationRules: [],
+      kommoConfig: null,
+      isKommoConnected: false,
+      kommoAnalytics: null
+    };
+
     if (!responseData) {
-      return {
-        projectCount: 0,
-        recentProjects: [],
-        automationRules: [],
-        kommoConfig: null,
-        isKommoConnected: false,
-        kommoAnalytics: null
-      };
+      return existingData;
     }
 
     const {
@@ -36,59 +39,69 @@ export function useDashboardData() {
       config
     } = responseData;
 
-    // Manter dados anteriores se não houver novos dados
-    if (!overview && dataRef.current?.kommoAnalytics) {
-      return dataRef.current;
+    // If no new overview data, keep existing analytics
+    if (!overview && existingData.kommoAnalytics) {
+      return existingData;
     }
 
     const transformedAnalytics = overview ? {
       periodStats: {
         day: {
-          totalLeads: overview.periodStats.day.totalLeads,
-          vendas: overview.periodStats.day.vendas,
-          valorVendas: overview.periodStats.day.valorVendas,
-          taxaConversao: overview.periodStats.day.taxaConversao
+          totalLeads: overview.periodStats?.day?.totalLeads || 0,
+          vendas: overview.periodStats?.day?.vendas || 0,
+          valorVendas: overview.periodStats?.day?.valorVendas || 'R$ 0,00',
+          taxaConversao: overview.periodStats?.day?.taxaConversao || '0%'
         },
         week: {
-          totalLeads: overview.periodStats.week.totalLeads,
-          vendas: overview.periodStats.week.vendas,
-          valorVendas: overview.periodStats.week.valorVendas,
-          taxaConversao: overview.periodStats.week.taxaConversao
+          totalLeads: overview.periodStats?.week?.totalLeads || 0,
+          vendas: overview.periodStats?.week?.vendas || 0,
+          valorVendas: overview.periodStats?.week?.valorVendas || 'R$ 0,00',
+          taxaConversao: overview.periodStats?.week?.taxaConversao || '0%'
         },
         fortnight: {
-          totalLeads: overview.periodStats.fortnight.totalLeads,
-          vendas: overview.periodStats.fortnight.vendas,
-          valorVendas: overview.periodStats.fortnight.valorVendas,
-          taxaConversao: overview.periodStats.fortnight.taxaConversao
+          totalLeads: overview.periodStats?.fortnight?.totalLeads || 0,
+          vendas: overview.periodStats?.fortnight?.vendas || 0,
+          valorVendas: overview.periodStats?.fortnight?.valorVendas || 'R$ 0,00',
+          taxaConversao: overview.periodStats?.fortnight?.taxaConversao || '0%'
         }
       },
-      dailyStats: overview.dailyStats || {},
-      vendorStats: team?.vendorStats || {},
-      personaStats: marketing?.personaStats || {},
-      funnelStages: overview.funnelStages || [],
-      marketingMetrics: marketing?.metrics || {
+      dailyStats: overview.dailyStats || existingData.kommoAnalytics?.dailyStats || {},
+      vendorStats: team?.vendorStats || existingData.kommoAnalytics?.vendorStats || {},
+      personaStats: marketing?.personaStats || existingData.kommoAnalytics?.personaStats || {},
+      funnelStages: overview.funnelStages || existingData.kommoAnalytics?.funnelStages || [],
+      marketingMetrics: marketing?.metrics || existingData.kommoAnalytics?.marketingMetrics || {
         custoTotal: 0,
         custoPorLead: 0,
         roi: 0,
         leadsGerados: 0
       },
-      serviceQuality: quality?.metrics || {
+      serviceQuality: quality?.metrics || existingData.kommoAnalytics?.serviceQuality || {
         tempoMedioResposta: 0,
         taxaResposta: 0,
         nps: 0,
         tempoMedioConversao: 0
       }
-    } : null;
+    } : existingData.kommoAnalytics;
 
     return {
-      projectCount: config?.projectCount || 0,
-      recentProjects: config?.recentProjects || [],
-      automationRules: config?.automationRules || [],
-      kommoConfig: config?.kommo || null,
-      isKommoConnected: config?.kommo?.isConnected || false,
+      projectCount: config?.projectCount || existingData.projectCount,
+      recentProjects: config?.recentProjects || existingData.recentProjects,
+      automationRules: config?.automationRules || existingData.automationRules,
+      kommoConfig: config?.kommo || existingData.kommoConfig,
+      isKommoConnected: config?.kommo?.isConnected || existingData.isKommoConnected,
       kommoAnalytics: transformedAnalytics
     };
   }, []);
+
+  const fetchEndpoint = async (endpoint: string) => {
+    try {
+      const response = await api.get<ApiResponse<any>>(`/api/dashboard/${endpoint}`);
+      return response.data?.data;
+    } catch (err: any) {
+      console.warn(`Failed to fetch ${endpoint} data:`, err);
+      return null;
+    }
+  };
 
   const fetchDashboardData = useCallback(async (force = false) => {
     if (!isAuthenticated || !user) {
@@ -105,33 +118,34 @@ export function useDashboardData() {
     try {
       setLoading(true);
       
-      const [
-        overviewResponse,
-        teamResponse,
-        marketingResponse,
-        qualityResponse,
-        configResponse
-      ] = await Promise.all([
-        api.get<ApiResponse<any>>('/dashboard/overview'),
-        api.get<ApiResponse<any>>('/dashboard/team'),
-        api.get<ApiResponse<any>>('/dashboard/marketing'),
-        api.get<ApiResponse<any>>('/dashboard/quality'),
-        api.get<ApiResponse<any>>('/dashboard/config')
+      const [overview, team, marketing, quality, config] = await Promise.all([
+        fetchEndpoint('overview'),
+        fetchEndpoint('team'),
+        fetchEndpoint('marketing'),
+        fetchEndpoint('quality'),
+        fetchEndpoint('config')
       ]);
       
       if (!isMounted.current) return;
 
+      // Only show error if all endpoints failed
+      if (!overview && !team && !marketing && !quality && !config) {
+        throw new Error('Failed to fetch dashboard data');
+      }
+
       const combinedData = {
-        overview: overviewResponse.data?.data,
-        team: teamResponse.data?.data,
-        marketing: marketingResponse.data?.data,
-        quality: qualityResponse.data?.data,
-        config: configResponse.data?.data
+        overview,
+        team,
+        marketing,
+        quality,
+        config
       };
 
       const transformedData = transformData(combinedData);
       dataRef.current = transformedData;
       setData(transformedData);
+      
+      // Clear error if we got at least some data
       setError(null);
     } catch (err: any) {
       if (!isMounted.current) return;
