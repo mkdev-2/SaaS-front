@@ -102,7 +102,7 @@ export function useDashboardData() {
 
     try {
       setLoading(true);
-      const { data: response } = await api.get<ApiResponse<any>>('/dashboard/stats');
+      const { data: response } = await api.get<ApiResponse<any>>('/dashboard');
       
       if (!isMounted.current) return;
 
