@@ -116,7 +116,8 @@ export function useDashboardData() {
     try {
       setLoading(true);
       
-      const { data: response } = await api.get<ApiResponse<any>>('/dashboard/stats');
+      // Fixed API endpoint
+      const { data: response } = await api.get<ApiResponse<any>>('/kommo/dashboard/stats');
       
       if (!isMounted.current) return;
 
