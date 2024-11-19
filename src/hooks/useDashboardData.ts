@@ -83,21 +83,51 @@ export function useDashboardData() {
   const dataRef = useRef<DashboardData>(DEFAULT_DATA);
   const retryTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
+  const fetchEndpoint = async (endpoint: string) => {
+    try {
+      const { data: response } = await api.get<ApiResponse<any>>(`/api/dashboard/${endpoint}`);
+      
+      if (response.status === 'success' && response.data) {
+        setEndpointErrors(prev => prev.filter(e => e.endpoint !== endpoint));
+        return response.data;
+      }
+
+      const errorMessage = response.message || `Failed to fetch ${endpoint} data`;
+      setEndpointErrors(prev => [
+        ...prev.filter(e => e.endpoint !== endpoint),
+        { endpoint, message: errorMessage }
+      ]);
+      
+      return null;
+    } catch (err: any) {
+      const message = err.response?.data?.message || err.message;
+      setEndpointErrors(prev => [
+        ...prev.filter(e => e.endpoint !== endpoint),
+        { endpoint, message, status: err.response?.status }
+      ]);
+      return null;
+    }
+  };
+
   const transformData = useCallback((responseData: any): DashboardData => {
     if (!responseData) {
       return dataRef.current;
     }
 
-    // Handle the nested data structure from the API
-    const teamPerformance = responseData.data ? {
-      vendorStats: responseData.data.vendorStats || {},
-      history: responseData.data.history || [],
-      goals: responseData.data.goals || DEFAULT_TEAM_PERFORMANCE.goals
+    const teamData = responseData.team || responseData.data;
+    const teamPerformance = teamData ? {
+      vendorStats: teamData.vendorStats || {},
+      history: teamData.history || [],
+      goals: teamData.goals || DEFAULT_TEAM_PERFORMANCE.goals
     } : dataRef.current.teamPerformance;
 
     return {
       ...dataRef.current,
-      teamPerformance
+      teamPerformance,
+      kommoAnalytics: {
+        ...dataRef.current.kommoAnalytics,
+        ...responseData.overview
+      }
     };
   }, []);
 
@@ -116,13 +146,19 @@ export function useDashboardData() {
     try {
       setLoading(true);
       
-      // Fixed API endpoint
-      const { data: response } = await api.get<ApiResponse<any>>('/kommo/dashboard/stats');
+      const [teamData, overviewData] = await Promise.all([
+        fetchEndpoint('team'),
+        fetchEndpoint('overview')
+      ]);
       
       if (!isMounted.current) return;
 
-      if (response.status === 'success') {
-        const transformedData = transformData(response);
+      if (teamData || overviewData) {
+        const transformedData = transformData({
+          team: teamData,
+          overview: overviewData
+        });
+        
         dataRef.current = transformedData;
         setData(transformedData);
         setError(null);
