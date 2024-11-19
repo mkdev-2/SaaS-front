@@ -14,13 +14,13 @@ class SocketService {
   private reconnectTimer: NodeJS.Timeout | null = null;
   private isConnecting = false;
   private initialDataLoaded = false;
-  private lastDataTimestamp: number = 0;
-  private minUpdateInterval = 5000; // Minimum time between updates in milliseconds
+  private lastData: any = null;
+  private lastDataTimestamp = 0;
+  private minUpdateInterval = 5000; // 5 seconds minimum between updates
   private subscriptionParams = {
     detailed: true,
     period: 15
   };
-  private lastData: any = null;
 
   private constructor() {}
 
@@ -54,7 +54,7 @@ class SocketService {
 
       this.socket = io(baseUrl, {
         auth: { token },
-        transports: ['websocket', 'polling'],
+        transports: ['websocket'],
         reconnection: true,
         reconnectionAttempts: this.maxReconnectAttempts,
         reconnectionDelay: 1000,
@@ -79,9 +79,7 @@ class SocketService {
       this.isConnecting = false;
       this.reconnectAttempts = 0;
       this.notifyConnectionStatus(true);
-      
       this.socket?.emit('subscribe:dashboard', this.subscriptionParams);
-      this.requestData();
     });
 
     this.socket.on('connect_error', (error) => {
@@ -99,20 +97,21 @@ class SocketService {
     });
 
     this.socket.on('dashboard:update', (data: any) => {
-      const now = Date.now();
-      if (now - this.lastDataTimestamp < this.minUpdateInterval) {
-        return; // Ignore updates that come too quickly
-      }
-
       if (data.status === 'success' && data.data) {
-        // Deep compare relevant data to prevent unnecessary updates
-        const hasChanged = this.hasDataChanged(data.data, this.lastData);
-        
-        if (hasChanged || !this.initialDataLoaded) {
+        const now = Date.now();
+        if (now - this.lastDataTimestamp < this.minUpdateInterval) {
+          return; // Ignore updates that come too quickly
+        }
+
+        // Only update if data has actually changed
+        if (this.hasDataChanged(data.data)) {
           this.lastData = this.deepClone(data.data);
           this.lastDataTimestamp = now;
           this.initialDataLoaded = true;
-          this.dashboardCallbacks.forEach(callback => callback(data));
+          this.dashboardCallbacks.forEach(callback => callback({
+            status: 'success',
+            data: this.lastData
+          }));
         }
       } else {
         console.error('Invalid dashboard update:', data);
@@ -126,19 +125,19 @@ class SocketService {
     });
   }
 
-  private hasDataChanged(newData: any, oldData: any): boolean {
-    if (!oldData) return true;
-    
+  private hasDataChanged(newData: any): boolean {
+    if (!this.lastData) return true;
+
     // Compare specific fields that matter for updates
     const fieldsToCompare = [
-      'teamPerformance',
-      'kommoAnalytics.periodStats',
-      'kommoAnalytics.dailyStats'
+      'teamPerformance.vendorStats',
+      'teamPerformance.goals',
+      'teamPerformance.history'
     ];
 
     return fieldsToCompare.some(field => {
       const newValue = this.getNestedValue(newData, field);
-      const oldValue = this.getNestedValue(oldData, field);
+      const oldValue = this.getNestedValue(this.lastData, field);
       return JSON.stringify(newValue) !== JSON.stringify(oldValue);
     });
   }
@@ -147,7 +146,7 @@ class SocketService {
     return path.split('.').reduce((acc, part) => acc && acc[part], obj);
   }
 
-  private deepClone(obj: any): any {
+  private deepClone<T>(obj: T): T {
     return JSON.parse(JSON.stringify(obj));
   }
 
@@ -183,7 +182,10 @@ class SocketService {
   onDashboardUpdate(callback: DashboardCallback) {
     this.dashboardCallbacks.add(callback);
     if (this.lastData && this.initialDataLoaded) {
-      callback({ status: 'success', data: this.lastData });
+      callback({
+        status: 'success',
+        data: this.lastData
+      });
     }
     return () => this.dashboardCallbacks.delete(callback);
   }
@@ -199,11 +201,9 @@ class SocketService {
   }
 
   requestData() {
-    if (this.socket?.connected) {
-      const now = Date.now();
-      if (now - this.lastDataTimestamp >= this.minUpdateInterval) {
-        this.socket.emit('dashboard:request');
-      }
+    const now = Date.now();
+    if (this.socket?.connected && now - this.lastDataTimestamp >= this.minUpdateInterval) {
+      this.socket.emit('dashboard:request');
     }
   }
 
