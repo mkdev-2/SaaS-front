@@ -54,16 +54,11 @@ export function useDashboardData() {
 
   const fetchEndpoint = async (endpoint: string) => {
     try {
-      const headers: Record<string, string> = {
-        'Cache-Control': 'no-cache',
-        'Pragma': 'no-cache'
-      };
-
-      // Add timestamp to URL to prevent 304 responses
+      // Add timestamp to URL to prevent caching
       const timestamp = Date.now();
       const url = `/dashboard/${endpoint}${endpoint.includes('?') ? '&' : '?'}_t=${timestamp}`;
       
-      const { data: response } = await api.get<ApiResponse<any>>(url, { headers });
+      const { data: response } = await api.get<ApiResponse<any>>(url);
       
       if (response.status === 'success' && response.data) {
         setEndpointErrors(prev => prev.filter(e => e.endpoint !== endpoint));
@@ -130,10 +125,12 @@ export function useDashboardData() {
 
       if (teamData) {
         const transformedData = transformData({ data: teamData });
-        dataRef.current = transformedData;
-        setData(transformedData);
-        setError(null);
-        initialLoadRef.current = true;
+        if (Object.keys(transformedData.teamPerformance?.vendorStats || {}).length > 0) {
+          dataRef.current = transformedData;
+          setData(transformedData);
+          setError(null);
+          initialLoadRef.current = true;
+        }
       } else {
         if (!initialLoadRef.current) {
           setError('Failed to fetch initial dashboard data');

@@ -3,7 +3,7 @@ import useAuthStore from '../store/authStore';
 import { ApiResponse } from '../types/api';
 
 const api = axios.create({
-  baseURL: 'https://saas-backend-production-8b94.up.railway.app/api',
+  baseURL: import.meta.env.VITE_API_URL || 'https://saas-backend-production-8b94.up.railway.app/api',
   headers: {
     'Content-Type': 'application/json',
   },
