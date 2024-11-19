@@ -50,10 +50,20 @@ export function useDashboardData() {
   const lastFetchTime = useRef<number>(0);
   const dataRef = useRef<DashboardData>(DEFAULT_DATA);
   const retryTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const initialLoadRef = useRef(false);
 
   const fetchEndpoint = async (endpoint: string) => {
     try {
-      const { data: response } = await api.get<ApiResponse<any>>(`/dashboard/${endpoint}`);
+      const headers: Record<string, string> = {
+        'Cache-Control': 'no-cache',
+        'Pragma': 'no-cache'
+      };
+
+      // Add timestamp to URL to prevent 304 responses
+      const timestamp = Date.now();
+      const url = `/dashboard/${endpoint}${endpoint.includes('?') ? '&' : '?'}_t=${timestamp}`;
+      
+      const { data: response } = await api.get<ApiResponse<any>>(url, { headers });
       
       if (response.status === 'success' && response.data) {
         setEndpointErrors(prev => prev.filter(e => e.endpoint !== endpoint));
@@ -83,11 +93,15 @@ export function useDashboardData() {
     }
 
     const teamData = responseData.team || responseData.data;
-    const teamPerformance = teamData ? {
+    if (!teamData) {
+      return dataRef.current;
+    }
+
+    const teamPerformance = {
       vendorStats: teamData.vendorStats || {},
       history: teamData.history || [],
       goals: teamData.goals || DEFAULT_TEAM_PERFORMANCE.goals
-    } : dataRef.current.teamPerformance;
+    };
 
     return {
       ...dataRef.current,
@@ -103,7 +117,7 @@ export function useDashboardData() {
     }
 
     const now = Date.now();
-    if (!force && now - lastFetchTime.current < 5000) {
+    if (!force && !initialLoadRef.current && now - lastFetchTime.current < 5000) {
       return;
     }
 
@@ -119,8 +133,11 @@ export function useDashboardData() {
         dataRef.current = transformedData;
         setData(transformedData);
         setError(null);
+        initialLoadRef.current = true;
       } else {
-        setError('Failed to fetch dashboard data');
+        if (!initialLoadRef.current) {
+          setError('Failed to fetch initial dashboard data');
+        }
         
         if (retryTimeoutRef.current) {
           clearTimeout(retryTimeoutRef.current);
@@ -148,11 +165,15 @@ export function useDashboardData() {
       socketService.disconnect();
       setData(DEFAULT_DATA);
       dataRef.current = DEFAULT_DATA;
+      initialLoadRef.current = false;
       setLoading(false);
       return;
     }
 
+    // Fetch initial data immediately
     fetchDashboardData(true);
+
+    // Setup socket connection after initial fetch
     socketService.connect();
 
     const unsubscribeConnection = socketService.onConnectionChange((status) => {
@@ -160,7 +181,10 @@ export function useDashboardData() {
       setIsConnected(status);
       if (status) {
         setError(null);
-        socketService.requestData();
+        // Only request socket data if we already have initial data
+        if (initialLoadRef.current) {
+          socketService.requestData();
+        }
       }
       setLoading(false);
     });
@@ -168,17 +192,22 @@ export function useDashboardData() {
     const unsubscribeUpdates = socketService.onDashboardUpdate((socketData) => {
       if (!isMounted.current) return;
       
-      if (socketData.status === 'success') {
+      if (socketData.status === 'success' && socketData.data) {
         const transformedData = transformData(socketData);
-        dataRef.current = transformedData;
-        setData(transformedData);
-        setError(null);
-        lastFetchTime.current = Date.now();
+        // Only update if we have meaningful data
+        if (Object.keys(transformedData.teamPerformance?.vendorStats || {}).length > 0) {
+          dataRef.current = transformedData;
+          setData(transformedData);
+          setError(null);
+          lastFetchTime.current = Date.now();
+          initialLoadRef.current = true;
+        }
       }
     });
 
     return () => {
       isMounted.current = false;
+      initialLoadRef.current = false;
       if (retryTimeoutRef.current) {
         clearTimeout(retryTimeoutRef.current);
       }
@@ -192,6 +221,7 @@ export function useDashboardData() {
     if (retryTimeoutRef.current) {
       clearTimeout(retryTimeoutRef.current);
     }
+    initialLoadRef.current = false;
     fetchDashboardData(true);
   }, [fetchDashboardData]);
 
