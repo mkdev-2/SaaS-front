@@ -1,36 +1,28 @@
 import React from 'react';
 import { TrendingUp, TrendingDown } from 'lucide-react';
+import { TeamPerformanceData } from '../../types/dashboard';
 
 interface PerformanceTableProps {
-  data: any;
+  data: TeamPerformanceData;
   period: string;
 }
 
 export default function PerformanceTable({ data, period }: PerformanceTableProps) {
-  const performanceData = React.useMemo(() => {
-    if (!data.vendorStats) return [];
+  const vendorData = React.useMemo(() => {
+    return Object.values(data.vendorStats)
+      .filter(vendor => vendor.name !== 'Não atribuído')
+      .sort((a, b) => b.totalLeads - a.totalLeads);
+  }, [data.vendorStats]);
 
-    return Object.entries(data.vendorStats).map(([name, stats]: [string, any]) => ({
-      vendedor: name,
-      leads: stats.totalAtendimentos,
-      propostas: stats.propostas,
-      vendas: stats.vendas,
-      valor: stats.valorVendas,
-      conversao: stats.taxaConversao,
-      propostas_taxa: stats.taxaPropostas,
-      tendencia: stats.vendas > (stats.totalAtendimentos * 0.3) ? 'up' : 'down'
-    }));
-  }, [data]);
-
-  if (!performanceData.length) {
+  if (!vendorData.length) {
     return null;
   }
 
   return (
     <div className="bg-white rounded-xl shadow-sm overflow-hidden">
       <div className="p-6 border-b border-gray-200">
-        <h2 className="text-lg font-semibold text-gray-900">Performance da Equipe</h2>
-        <p className="text-sm text-gray-500">Análise detalhada por vendedor</p>
+        <h2 className="text-lg font-semibold text-gray-900">Métricas Detalhadas</h2>
+        <p className="text-sm text-gray-500">Análise completa por vendedor</p>
       </div>
       <div className="overflow-x-auto">
         <table className="min-w-full divide-y divide-gray-200">
@@ -40,7 +32,10 @@ export default function PerformanceTable({ data, period }: PerformanceTableProps
                 Vendedor
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Leads
+                Leads Ativos
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Total Leads
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Propostas
@@ -49,52 +44,62 @@ export default function PerformanceTable({ data, period }: PerformanceTableProps
                 Vendas
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Valor Total
+                Receita
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Taxa Conv.
+                Ticket Médio
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Taxa Prop.
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Tendência
+                Conversão
               </th>
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
-            {performanceData.map((row, index) => (
-              <tr key={index} className="hover:bg-gray-50">
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="text-sm font-medium text-gray-900">{row.vendedor}</div>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="text-sm text-gray-900">{row.leads}</div>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="text-sm text-gray-900">{row.propostas}</div>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="text-sm text-gray-900">{row.vendas}</div>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="text-sm text-gray-900">{row.valor}</div>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="text-sm text-gray-900">{row.conversao}</div>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="text-sm text-gray-900">{row.propostas_taxa}</div>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  {row.tendencia === 'up' ? (
-                    <TrendingUp className="h-5 w-5 text-green-500" />
-                  ) : (
-                    <TrendingDown className="h-5 w-5 text-red-500" />
-                  )}
-                </td>
-              </tr>
-            ))}
+            {vendorData.map((vendor) => {
+              const hasConversion = parseFloat(vendor.conversionRate) > 0;
+              
+              return (
+                <tr key={vendor.name} className="hover:bg-gray-50">
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="flex items-center">
+                      <div className="text-sm font-medium text-gray-900">{vendor.name}</div>
+                      <div className="ml-2">
+                        {hasConversion ? (
+                          <TrendingUp className="h-4 w-4 text-green-500" />
+                        ) : (
+                          <TrendingDown className="h-4 w-4 text-red-500" />
+                        )}
+                      </div>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    {vendor.activeLeads}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    {vendor.totalLeads}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    {vendor.proposals}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    {vendor.sales}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    {vendor.revenue}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    {vendor.averageTicket}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <span className={`text-sm font-medium ${
+                      hasConversion ? 'text-green-600' : 'text-gray-600'
+                    }`}>
+                      {vendor.conversionRate}
+                    </span>
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>

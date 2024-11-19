@@ -42,7 +42,23 @@ const DEFAULT_DATA: DashboardData = {
   automationRules: [],
   kommoConfig: null,
   isKommoConnected: false,
-  kommoAnalytics: DEFAULT_ANALYTICS
+  kommoAnalytics: DEFAULT_ANALYTICS,
+  teamPerformance: {
+    vendorStats: {},
+    history: [],
+    goals: {
+      monthly: {
+        leads: 0,
+        sales: 0,
+        revenue: 0
+      },
+      completion: {
+        leads: '0%',
+        sales: '0%',
+        revenue: '0%'
+      }
+    }
+  }
 };
 
 interface EndpointError {
@@ -65,101 +81,17 @@ export function useDashboardData() {
   const dataRef = useRef<DashboardData>(DEFAULT_DATA);
   const retryTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  const transformPeriodStats = useCallback((stats: any) => ({
-    totalLeads: stats?.totalLeads || 0,
-    vendas: stats?.vendas || 0,
-    valorVendas: stats?.valorVendas || 'R$ 0,00',
-    taxaConversao: stats?.taxaConversao || '0%'
-  }), []);
-
   const transformData = useCallback((responseData: any): DashboardData => {
     if (!responseData) {
       return dataRef.current;
     }
 
-    const {
-      overview,
-      team,
-      marketing,
-      quality,
-      config
-    } = responseData;
-
-    // Transform overview data with fallbacks
-    const periodStats = overview?.periodStats || DEFAULT_ANALYTICS.periodStats;
-    const transformedAnalytics = {
-      periodStats: {
-        day: transformPeriodStats(periodStats.day),
-        week: transformPeriodStats(periodStats.week),
-        fortnight: transformPeriodStats(periodStats.fortnight)
-      },
-      dailyStats: overview?.dailyStats || {},
-      vendorStats: team?.vendorStats || {},
-      personaStats: marketing?.personaStats || {},
-      funnelStages: overview?.funnelStages || [],
-      marketingMetrics: marketing?.metrics || DEFAULT_ANALYTICS.marketingMetrics,
-      serviceQuality: quality?.metrics || DEFAULT_ANALYTICS.serviceQuality
-    };
-
-    // Transform vendor stats with strict type checking
-    if (transformedAnalytics.vendorStats) {
-      transformedAnalytics.vendorStats = Object.entries(transformedAnalytics.vendorStats)
-        .reduce((acc: any, [key, value]: [string, any]) => {
-          acc[key] = {
-            totalAtendimentos: value?.totalAtendimentos || 0,
-            propostas: value?.propostas || 0,
-            vendas: value?.vendas || 0,
-            valorVendas: value?.valorVendas || 'R$ 0,00',
-            taxaConversao: value?.taxaConversao || '0%',
-            taxaPropostas: value?.taxaPropostas || '0%'
-          };
-          return acc;
-        }, {});
-    }
-
     return {
-      projectCount: config?.projectCount || 0,
-      recentProjects: config?.recentProjects || [],
-      automationRules: config?.automationRules || [],
-      kommoConfig: config?.kommo || null,
-      isKommoConnected: config?.kommo?.isConnected || false,
-      kommoAnalytics: transformedAnalytics
+      ...dataRef.current,
+      ...responseData,
+      teamPerformance: responseData.data || dataRef.current.teamPerformance
     };
-  }, [transformPeriodStats]);
-
-  const fetchEndpoint = async (endpoint: string) => {
-    try {
-      const { data: response } = await api.get<ApiResponse<any>>(`/dashboard/${endpoint}`);
-      
-      if (response.status === 'success' && response.data) {
-        // Clear any previous error for this endpoint
-        setEndpointErrors(prev => prev.filter(e => e.endpoint !== endpoint));
-        return response.data;
-      }
-
-      // Handle error response
-      const errorMessage = response.message || `Failed to fetch ${endpoint} data`;
-      setEndpointErrors(prev => [
-        ...prev.filter(e => e.endpoint !== endpoint),
-        { endpoint, message: errorMessage, code: response.code }
-      ]);
-      
-      console.warn(`Invalid response from ${endpoint}:`, response);
-      return null;
-    } catch (err: any) {
-      const status = err.response?.status;
-      const message = err.response?.data?.message || err.message || `Failed to fetch ${endpoint} data`;
-      const code = err.response?.data?.code;
-
-      setEndpointErrors(prev => [
-        ...prev.filter(e => e.endpoint !== endpoint),
-        { endpoint, message, code, status }
-      ]);
-
-      console.warn(`Failed to fetch ${endpoint} data:`, err);
-      return null;
-    }
-  };
+  }, []);
 
   const fetchDashboardData = useCallback(async (force = false) => {
     if (!isAuthenticated || !user) {
@@ -176,35 +108,18 @@ export function useDashboardData() {
     try {
       setLoading(true);
       
-      const [overview, team, marketing, quality, config] = await Promise.all([
-        fetchEndpoint('overview'),
-        fetchEndpoint('team'),
-        fetchEndpoint('marketing'),
-        fetchEndpoint('quality'),
-        fetchEndpoint('config')
-      ]);
+      const { data: response } = await api.get<ApiResponse<DashboardData>>('/dashboard/stats');
       
       if (!isMounted.current) return;
 
-      const combinedData = {
-        overview,
-        team,
-        marketing,
-        quality,
-        config
-      };
-
-      const transformedData = transformData(combinedData);
-      dataRef.current = transformedData;
-      setData(transformedData);
-
-      // Check if we got any data at all
-      const hasAnyData = overview || team || marketing || quality || config;
-      
-      if (!hasAnyData) {
-        setError('Failed to fetch dashboard data. Please try again later.');
+      if (response.status === 'success' && response.data) {
+        const transformedData = transformData(response);
+        dataRef.current = transformedData;
+        setData(transformedData);
+        setError(null);
+      } else {
+        setError('Failed to fetch dashboard data');
         
-        // Schedule retry after 30 seconds
         if (retryTimeoutRef.current) {
           clearTimeout(retryTimeoutRef.current);
         }
@@ -213,8 +128,6 @@ export function useDashboardData() {
             fetchDashboardData(true);
           }
         }, 30000);
-      } else {
-        setError(null);
       }
     } catch (err: any) {
       if (!isMounted.current) return;
@@ -254,7 +167,7 @@ export function useDashboardData() {
       if (!isMounted.current) return;
       
       if (socketData.status === 'success' && socketData.data) {
-        const transformedData = transformData(socketData.data);
+        const transformedData = transformData(socketData);
         dataRef.current = transformedData;
         setData(transformedData);
         setError(null);

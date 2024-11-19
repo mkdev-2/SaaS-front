@@ -17,7 +17,7 @@ interface VendorStatsProps {
 
 export default function VendorStats({ data }: VendorStatsProps) {
   const sortedData = React.useMemo(() => {
-    return [...data].sort((a, b) => b.vendas - a.vendas);
+    return [...data].sort((a, b) => b.atendimentos - a.atendimentos);
   }, [data]);
 
   const totalAtendimentos = React.useMemo(() => {
