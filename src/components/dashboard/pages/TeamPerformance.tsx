@@ -25,7 +25,7 @@ export default function TeamPerformance() {
     );
   }
 
-  const { vendorStats = {}, goals = { monthly: {}, completion: {} } } = data.teamPerformance || {};
+  const { vendorStats = {}, goals = { monthly: {}, completion: {} } } = data.teamPerformance;
 
   // Calculate totals with safe defaults
   const totalLeads = Object.values(vendorStats).reduce((sum, vendor) => 
@@ -59,16 +59,16 @@ export default function TeamPerformance() {
   ];
 
   // Transform vendor stats for the VendorStats component
-  const transformedVendorStats = Object.values(vendorStats)
-    .filter(vendor => vendor.name && vendor.name !== 'Não atribuído')
-    .map(vendor => ({
-      name: vendor.name,
-      atendimentos: vendor.totalLeads || 0,
-      propostas: vendor.proposals || 0,
-      vendas: vendor.sales || 0,
-      valor: vendor.revenue || 'R$ 0,00',
-      taxaConversao: vendor.conversionRate || '0%',
-      taxaPropostas: vendor.proposalRate || '0%'
+  const transformedVendorStats = Object.entries(vendorStats)
+    .filter(([name]) => name !== 'Não atribuído')
+    .map(([name, stats]) => ({
+      name,
+      atendimentos: stats.totalLeads || 0,
+      propostas: stats.proposals || 0,
+      vendas: stats.sales || 0,
+      valor: stats.revenue || 'R$ 0,00',
+      taxaConversao: stats.conversionRate || '0%',
+      taxaPropostas: stats.proposalRate || '0%'
     }));
 
   return (
