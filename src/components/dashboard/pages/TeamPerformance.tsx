@@ -5,7 +5,6 @@ import VendorStats from '../VendorStats';
 import PerformanceTable from '../PerformanceTable';
 import PeriodSelector from '../PeriodSelector';
 import { useDashboardData } from '../../../hooks/useDashboardData';
-import { VendorStats as IVendorStats } from '../../../types/dashboard';
 
 export default function TeamPerformance() {
   const [period, setPeriod] = React.useState('today');
@@ -26,14 +25,14 @@ export default function TeamPerformance() {
     );
   }
 
-  const { vendorStats, goals } = data.teamPerformance;
+  const { vendorStats = {}, goals = { monthly: {}, completion: {} } } = data.teamPerformance || {};
 
-  // Calculate totals
+  // Calculate totals with safe defaults
   const totalLeads = Object.values(vendorStats).reduce((sum, vendor) => 
-    sum + vendor.totalLeads, 0);
+    sum + (vendor.totalLeads || 0), 0);
   
   const totalSales = Object.values(vendorStats).reduce((sum, vendor) => 
-    sum + vendor.sales, 0);
+    sum + (vendor.sales || 0), 0);
 
   const stats = [
     {
@@ -41,35 +40,35 @@ export default function TeamPerformance() {
       value: totalLeads,
       icon: Users,
       color: "blue",
-      subtitle: `Meta: ${goals.monthly.leads} leads`
+      subtitle: `Meta: ${goals.monthly.leads || 0} leads`
     },
     {
       title: "Meta Atingida (Leads)",
-      value: goals.completion.leads,
+      value: goals.completion.leads || '0%',
       icon: Target,
       color: "green",
       subtitle: `${totalSales} vendas realizadas`
     },
     {
       title: "Meta de Vendas",
-      value: goals.completion.sales,
+      value: goals.completion.sales || '0%',
       icon: TrendingUp,
       color: "indigo",
-      subtitle: `Meta mensal: ${goals.monthly.sales} vendas`
+      subtitle: `Meta mensal: ${goals.monthly.sales || 0} vendas`
     }
   ];
 
   // Transform vendor stats for the VendorStats component
   const transformedVendorStats = Object.values(vendorStats)
-    .filter(vendor => vendor.name !== 'Não atribuído') // Filter out unassigned leads
+    .filter(vendor => vendor.name && vendor.name !== 'Não atribuído')
     .map(vendor => ({
       name: vendor.name,
-      atendimentos: vendor.totalLeads,
-      propostas: vendor.proposals,
-      vendas: vendor.sales,
-      valor: vendor.revenue,
-      taxaConversao: vendor.conversionRate,
-      taxaPropostas: vendor.proposalRate
+      atendimentos: vendor.totalLeads || 0,
+      propostas: vendor.proposals || 0,
+      vendas: vendor.sales || 0,
+      valor: vendor.revenue || 'R$ 0,00',
+      taxaConversao: vendor.conversionRate || '0%',
+      taxaPropostas: vendor.proposalRate || '0%'
     }));
 
   return (
@@ -104,8 +103,12 @@ export default function TeamPerformance() {
       </div>
 
       <div className="grid grid-cols-1 gap-6">
-        <VendorStats data={transformedVendorStats} />
-        <PerformanceTable data={data.teamPerformance} period={period} />
+        {transformedVendorStats.length > 0 && (
+          <VendorStats data={transformedVendorStats} />
+        )}
+        {data.teamPerformance && (
+          <PerformanceTable data={data.teamPerformance} period={period} />
+        )}
       </div>
     </div>
   );

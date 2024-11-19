@@ -36,6 +36,23 @@ const DEFAULT_ANALYTICS = {
   }
 };
 
+const DEFAULT_TEAM_PERFORMANCE = {
+  vendorStats: {},
+  history: [],
+  goals: {
+    monthly: {
+      leads: 0,
+      sales: 0,
+      revenue: 0
+    },
+    completion: {
+      leads: '0%',
+      sales: '0%',
+      revenue: '0%'
+    }
+  }
+};
+
 const DEFAULT_DATA: DashboardData = {
   projectCount: 0,
   recentProjects: [],
@@ -43,22 +60,7 @@ const DEFAULT_DATA: DashboardData = {
   kommoConfig: null,
   isKommoConnected: false,
   kommoAnalytics: DEFAULT_ANALYTICS,
-  teamPerformance: {
-    vendorStats: {},
-    history: [],
-    goals: {
-      monthly: {
-        leads: 0,
-        sales: 0,
-        revenue: 0
-      },
-      completion: {
-        leads: '0%',
-        sales: '0%',
-        revenue: '0%'
-      }
-    }
-  }
+  teamPerformance: DEFAULT_TEAM_PERFORMANCE
 };
 
 interface EndpointError {
@@ -86,10 +88,16 @@ export function useDashboardData() {
       return dataRef.current;
     }
 
+    // Handle the nested data structure from the API
+    const teamPerformance = responseData.data ? {
+      vendorStats: responseData.data.vendorStats || {},
+      history: responseData.data.history || [],
+      goals: responseData.data.goals || DEFAULT_TEAM_PERFORMANCE.goals
+    } : dataRef.current.teamPerformance;
+
     return {
       ...dataRef.current,
-      ...responseData,
-      teamPerformance: responseData.data || dataRef.current.teamPerformance
+      teamPerformance
     };
   }, []);
 
@@ -108,11 +116,11 @@ export function useDashboardData() {
     try {
       setLoading(true);
       
-      const { data: response } = await api.get<ApiResponse<DashboardData>>('/dashboard/stats');
+      const { data: response } = await api.get<ApiResponse<any>>('/dashboard/stats');
       
       if (!isMounted.current) return;
 
-      if (response.status === 'success' && response.data) {
+      if (response.status === 'success') {
         const transformedData = transformData(response);
         dataRef.current = transformedData;
         setData(transformedData);
@@ -166,7 +174,7 @@ export function useDashboardData() {
     const unsubscribeUpdates = socketService.onDashboardUpdate((socketData) => {
       if (!isMounted.current) return;
       
-      if (socketData.status === 'success' && socketData.data) {
+      if (socketData.status === 'success') {
         const transformedData = transformData(socketData);
         dataRef.current = transformedData;
         setData(transformedData);
