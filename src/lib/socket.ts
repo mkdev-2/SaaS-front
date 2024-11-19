@@ -14,13 +14,13 @@ class SocketService {
   private reconnectTimer: NodeJS.Timeout | null = null;
   private isConnecting = false;
   private initialDataLoaded = false;
+  private lastDataTimestamp: number = 0;
+  private minUpdateInterval = 5000; // Minimum time between updates in milliseconds
   private subscriptionParams = {
     detailed: true,
     period: 15
   };
   private lastData: any = null;
-  private lastDataTimestamp: number = 0;
-  private minUpdateInterval = 5000; // Minimum time between updates in milliseconds
 
   private constructor() {}
 
@@ -80,7 +80,6 @@ class SocketService {
       this.reconnectAttempts = 0;
       this.notifyConnectionStatus(true);
       
-      // Resubscribe and request initial data
       this.socket?.emit('subscribe:dashboard', this.subscriptionParams);
       this.requestData();
     });
