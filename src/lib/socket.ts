@@ -19,6 +19,8 @@ class SocketService {
     period: 15
   };
   private lastData: any = null;
+  private lastDataTimestamp: number = 0;
+  private minUpdateInterval = 5000; // Minimum time between updates in milliseconds
 
   private constructor() {}
 
@@ -98,10 +100,21 @@ class SocketService {
     });
 
     this.socket.on('dashboard:update', (data: any) => {
+      const now = Date.now();
+      if (now - this.lastDataTimestamp < this.minUpdateInterval) {
+        return; // Ignore updates that come too quickly
+      }
+
       if (data.status === 'success' && data.data) {
-        this.lastData = data;
-        this.initialDataLoaded = true;
-        this.dashboardCallbacks.forEach(callback => callback(data));
+        // Deep compare relevant data to prevent unnecessary updates
+        const hasChanged = this.hasDataChanged(data.data, this.lastData);
+        
+        if (hasChanged || !this.initialDataLoaded) {
+          this.lastData = this.deepClone(data.data);
+          this.lastDataTimestamp = now;
+          this.initialDataLoaded = true;
+          this.dashboardCallbacks.forEach(callback => callback(data));
+        }
       } else {
         console.error('Invalid dashboard update:', data);
       }
@@ -112,6 +125,31 @@ class SocketService {
       this.isConnecting = false;
       this.notifyConnectionStatus(false);
     });
+  }
+
+  private hasDataChanged(newData: any, oldData: any): boolean {
+    if (!oldData) return true;
+    
+    // Compare specific fields that matter for updates
+    const fieldsToCompare = [
+      'teamPerformance',
+      'kommoAnalytics.periodStats',
+      'kommoAnalytics.dailyStats'
+    ];
+
+    return fieldsToCompare.some(field => {
+      const newValue = this.getNestedValue(newData, field);
+      const oldValue = this.getNestedValue(oldData, field);
+      return JSON.stringify(newValue) !== JSON.stringify(oldValue);
+    });
+  }
+
+  private getNestedValue(obj: any, path: string): any {
+    return path.split('.').reduce((acc, part) => acc && acc[part], obj);
+  }
+
+  private deepClone(obj: any): any {
+    return JSON.parse(JSON.stringify(obj));
   }
 
   private handleReconnect() {
@@ -146,7 +184,7 @@ class SocketService {
   onDashboardUpdate(callback: DashboardCallback) {
     this.dashboardCallbacks.add(callback);
     if (this.lastData && this.initialDataLoaded) {
-      callback(this.lastData);
+      callback({ status: 'success', data: this.lastData });
     }
     return () => this.dashboardCallbacks.delete(callback);
   }
@@ -163,7 +201,10 @@ class SocketService {
 
   requestData() {
     if (this.socket?.connected) {
-      this.socket.emit('dashboard:request');
+      const now = Date.now();
+      if (now - this.lastDataTimestamp >= this.minUpdateInterval) {
+        this.socket.emit('dashboard:request');
+      }
     }
   }
 
@@ -171,6 +212,7 @@ class SocketService {
     this.isConnecting = false;
     this.initialDataLoaded = false;
     this.lastData = null;
+    this.lastDataTimestamp = 0;
     
     if (this.reconnectTimer) {
       clearTimeout(this.reconnectTimer);

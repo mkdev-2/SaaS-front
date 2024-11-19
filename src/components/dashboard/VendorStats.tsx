@@ -38,7 +38,7 @@ export default function VendorStats({ data }: VendorStatsProps) {
 
       <div className="space-y-4">
         {sortedData.map((vendor) => {
-          const isHighPerformer = parseFloat(vendor.taxaConversao.replace('%', '')) > 30;
+          const isHighPerformer = parseFloat(vendor.taxaConversao.replace('%', '')) > 0;
 
           return (
             <div key={vendor.name} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">

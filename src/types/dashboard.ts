@@ -58,6 +58,47 @@ export interface ServiceQualityMetrics {
   tempoMedioConversao: number;
 }
 
+export interface VendorStats {
+  name: string;
+  activeLeads: number;
+  totalLeads: number;
+  proposals: number;
+  sales: number;
+  revenue: string;
+  averageTicket: string;
+  conversionRate: string;
+  proposalRate: string;
+}
+
+export interface VendorHistory {
+  date: string;
+  vendorName: string;
+  metrics: {
+    leads: number;
+    sales: number;
+    revenue: string;
+  };
+}
+
+export interface Goals {
+  monthly: {
+    leads: number;
+    sales: number;
+    revenue: number;
+  };
+  completion: {
+    leads: string;
+    sales: string;
+    revenue: string;
+  };
+}
+
+export interface TeamPerformanceData {
+  vendorStats: Record<string, VendorStats>;
+  history: VendorHistory[];
+  goals: Goals;
+}
+
 export interface DashboardData {
   projectCount: number;
   recentProjects: Array<{
@@ -102,4 +143,5 @@ export interface DashboardData {
     marketingMetrics: MarketingMetrics;
     serviceQuality: ServiceQualityMetrics;
   } | null;
+  teamPerformance?: TeamPerformanceData;
 }

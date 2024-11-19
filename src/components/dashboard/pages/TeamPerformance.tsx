@@ -5,31 +5,13 @@ import VendorStats from '../VendorStats';
 import PerformanceTable from '../PerformanceTable';
 import PeriodSelector from '../PeriodSelector';
 import { useDashboardData } from '../../../hooks/useDashboardData';
-
-interface VendorStat {
-  totalAtendimentos?: number;
-  propostas?: number;
-  vendas?: number;
-  valorVendas?: string;
-  taxaConversao?: string;
-  taxaPropostas?: string;
-}
-
-interface TransformedVendorStat {
-  name: string;
-  atendimentos: number;
-  propostas: number;
-  vendas: number;
-  valor: string;
-  taxaConversao: string;
-  taxaPropostas: string;
-}
+import { VendorStats as IVendorStats } from '../../../types/dashboard';
 
 export default function TeamPerformance() {
   const [period, setPeriod] = React.useState('today');
   const { data, loading, error, isConnected } = useDashboardData();
 
-  if (loading || !data?.kommoAnalytics) {
+  if (loading || !data?.teamPerformance) {
     return (
       <div className="p-6">
         <div className="animate-pulse space-y-4">
@@ -44,54 +26,51 @@ export default function TeamPerformance() {
     );
   }
 
-  const analytics = data.kommoAnalytics;
-  const vendorStats = analytics.vendorStats || {};
+  const { vendorStats, goals } = data.teamPerformance;
 
-  // Calculate totals with safe defaults and type checking
-  const totalAtendimentos = Object.values(vendorStats).reduce((sum, vendor: VendorStat) => 
-    sum + (typeof vendor.totalAtendimentos === 'number' ? vendor.totalAtendimentos : 0), 0);
+  // Calculate totals
+  const totalLeads = Object.values(vendorStats).reduce((sum, vendor) => 
+    sum + vendor.totalLeads, 0);
   
-  const totalVendas = Object.values(vendorStats).reduce((sum, vendor: VendorStat) => 
-    sum + (typeof vendor.vendas === 'number' ? vendor.vendas : 0), 0);
-  
-  const mediaConversao = totalAtendimentos > 0 
-    ? ((totalVendas / totalAtendimentos) * 100).toFixed(1) 
-    : '0.0';
-
-  // Transform vendor stats with safe defaults and type checking
-  const transformedVendorStats: TransformedVendorStat[] = Object.entries(vendorStats).map(([name, stats]: [string, VendorStat]) => ({
-    name,
-    atendimentos: typeof stats.totalAtendimentos === 'number' ? stats.totalAtendimentos : 0,
-    propostas: typeof stats.propostas === 'number' ? stats.propostas : 0,
-    vendas: typeof stats.vendas === 'number' ? stats.vendas : 0,
-    valor: typeof stats.valorVendas === 'string' ? stats.valorVendas : 'R$ 0,00',
-    taxaConversao: typeof stats.taxaConversao === 'string' ? stats.taxaConversao : '0%',
-    taxaPropostas: typeof stats.taxaPropostas === 'string' ? stats.taxaPropostas : '0%'
-  }));
+  const totalSales = Object.values(vendorStats).reduce((sum, vendor) => 
+    sum + vendor.sales, 0);
 
   const stats = [
     {
       title: "Total de Atendimentos",
-      value: totalAtendimentos,
+      value: totalLeads,
       icon: Users,
       color: "blue",
-      subtitle: "No período"
+      subtitle: `Meta: ${goals.monthly.leads} leads`
     },
     {
-      title: "Média de Conversão",
-      value: `${mediaConversao}%`,
+      title: "Meta Atingida (Leads)",
+      value: goals.completion.leads,
       icon: Target,
       color: "green",
-      subtitle: `${totalVendas} vendas realizadas`
+      subtitle: `${totalSales} vendas realizadas`
     },
     {
-      title: "Meta Atingida",
-      value: "87%",
+      title: "Meta de Vendas",
+      value: goals.completion.sales,
       icon: TrendingUp,
       color: "indigo",
-      subtitle: "Meta mensal: R$ 100.000"
+      subtitle: `Meta mensal: ${goals.monthly.sales} vendas`
     }
   ];
+
+  // Transform vendor stats for the VendorStats component
+  const transformedVendorStats = Object.values(vendorStats)
+    .filter(vendor => vendor.name !== 'Não atribuído') // Filter out unassigned leads
+    .map(vendor => ({
+      name: vendor.name,
+      atendimentos: vendor.totalLeads,
+      propostas: vendor.proposals,
+      vendas: vendor.sales,
+      valor: vendor.revenue,
+      taxaConversao: vendor.conversionRate,
+      taxaPropostas: vendor.proposalRate
+    }));
 
   return (
     <div className="p-6 space-y-6">
@@ -126,7 +105,7 @@ export default function TeamPerformance() {
 
       <div className="grid grid-cols-1 gap-6">
         <VendorStats data={transformedVendorStats} />
-        <PerformanceTable data={analytics} period={period} />
+        <PerformanceTable data={data.teamPerformance} period={period} />
       </div>
     </div>
   );
