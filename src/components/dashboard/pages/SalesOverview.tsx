@@ -3,33 +3,38 @@ import { DollarSign, TrendingUp, Users, ShoppingBag } from 'lucide-react';
 import StatCard from '../StatCard';
 import LeadsList from '../LeadsList';
 import DaySelector from '../DaySelector';
+import LoadingOverlay from '../../LoadingOverlay';
 import { useDashboardData } from '../../../hooks/useDashboardData';
 
 export default function SalesOverview() {
   const { data, loading, error, isConnected, dateRange, setDateRange } = useDashboardData();
 
   if (loading || !data?.currentStats) {
-    return (
-      <div className="p-4 sm:p-6">
-        <div className="animate-pulse space-y-4">
-          <div className="h-8 bg-gray-200 rounded w-1/4"></div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
-            {[...Array(4)].map((_, i) => (
-              <div key={i} className="h-32 bg-gray-200 rounded-xl"></div>
-            ))}
-          </div>
-        </div>
-      </div>
-    );
+    return <LoadingOverlay />;
   }
 
   const { currentStats, comparisonStats } = data;
+
+  const getComparisonValue = (current: number | string, comparison: number | string | undefined) => {
+    if (!comparison || !dateRange.comparison) return undefined;
+    
+    const currentValue = typeof current === 'string' ? 
+      parseFloat(current.replace(/[^0-9.-]+/g, "")) : 
+      current;
+    
+    const comparisonValue = typeof comparison === 'string' ? 
+      parseFloat(comparison.replace(/[^0-9.-]+/g, "")) : 
+      comparison;
+
+    const diff = ((currentValue - comparisonValue) / comparisonValue) * 100;
+    return `${diff >= 0 ? '+' : ''}${diff.toFixed(1)}%`;
+  };
 
   const statsConfig = [
     {
       title: "Receita Total",
       value: currentStats.valorTotal || "R$ 0,00",
-      change: comparisonStats ? undefined : undefined,
+      change: getComparisonValue(currentStats.valorTotal, comparisonStats?.valorTotal),
       icon: DollarSign,
       color: "green",
       subtitle: `${currentStats.totalVendas} vendas realizadas`
@@ -37,7 +42,7 @@ export default function SalesOverview() {
     {
       title: "Ticket Médio",
       value: currentStats.ticketMedio || "R$ 0,00",
-      change: comparisonStats ? undefined : undefined,
+      change: getComparisonValue(currentStats.ticketMedio, comparisonStats?.ticketMedio),
       icon: ShoppingBag,
       color: "blue",
       subtitle: "Por venda"
@@ -45,7 +50,7 @@ export default function SalesOverview() {
     {
       title: "Taxa de Conversão",
       value: currentStats.taxaConversao || "0%",
-      change: comparisonStats ? undefined : undefined,
+      change: getComparisonValue(currentStats.taxaConversao, comparisonStats?.taxaConversao),
       icon: TrendingUp,
       color: "indigo",
       subtitle: `De ${currentStats.totalLeads} leads`
@@ -53,7 +58,7 @@ export default function SalesOverview() {
     {
       title: "Leads Ativos",
       value: currentStats.totalLeads || 0,
-      change: comparisonStats ? undefined : undefined,
+      change: getComparisonValue(currentStats.totalLeads, comparisonStats?.totalLeads),
       icon: Users,
       color: "purple",
       subtitle: "No período selecionado"

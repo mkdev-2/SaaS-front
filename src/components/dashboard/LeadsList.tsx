@@ -1,10 +1,12 @@
 import React from 'react';
 import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
+import { STATUS_NAMES, STATUS_COLORS, PIPELINE_STATUS } from '../../lib/kommo/constants';
 
 interface Lead {
   id: number;
   name: string;
   status: string;
+  status_id: number;
   statusColor: string;
   tipo: string;
   vendedor: string;
@@ -16,27 +18,31 @@ interface LeadsListProps {
   leads: Lead[];
 }
 
-const LEAD_STATUSES = {
-  'Primeiro Contato': { color: '#E5F6FD', textColor: '#0369A1' },
-  'Qualificação': { color: '#F0F9FF', textColor: '#0284C7' },
-  'Apresentação': { color: '#F0FDFB', textColor: '#0D9488' },
-  'Proposta': { color: '#ECFDF5', textColor: '#059669' },
-  'Negociação': { color: '#FEF9C3', textColor: '#CA8A04' },
-  'Fechamento': { color: '#DCF9E6', textColor: '#16A34A' },
-  'Perdido': { color: '#FEE2E2', textColor: '#DC2626' },
-  'Status Desconhecido': { color: '#F3F4F6', textColor: '#4B5563' }
+const DEFAULT_STATUS = {
+  color: '#F3F4F6',
+  textColor: '#4B5563'
 };
 
 export default function LeadsList({ leads }: LeadsListProps) {
   const groupedLeads = React.useMemo(() => {
     const groups: Record<string, Lead[]> = {};
-    leads.forEach(lead => {
-      if (!groups[lead.status]) {
-        groups[lead.status] = [];
-      }
-      groups[lead.status].push(lead);
+    
+    // Initialize all status groups
+    Object.values(STATUS_NAMES).forEach(status => {
+      groups[status] = [];
     });
-    return groups;
+    groups['Não Categorizado'] = [];
+
+    // Group leads by status
+    leads.forEach(lead => {
+      const statusName = STATUS_NAMES[lead.status_id] || 'Não Categorizado';
+      groups[statusName].push(lead);
+    });
+
+    // Remove empty groups
+    return Object.fromEntries(
+      Object.entries(groups).filter(([_, leads]) => leads.length > 0)
+    );
   }, [leads]);
 
   if (!leads || leads.length === 0) {
@@ -64,37 +70,41 @@ export default function LeadsList({ leads }: LeadsListProps) {
           </div>
 
           <div className="p-2 space-y-2 min-h-[200px]">
-            {statusLeads.map((lead) => (
-              <div
-                key={lead.id}
-                className="p-3 bg-white rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow"
-                style={{
-                  backgroundColor: LEAD_STATUSES[lead.status]?.color || LEAD_STATUSES['Status Desconhecido'].color
-                }}
-              >
-                <div className="space-y-2">
-                  <div className="flex justify-between items-start">
-                    <h4 className="text-sm font-medium" style={{
-                      color: LEAD_STATUSES[lead.status]?.textColor || LEAD_STATUSES['Status Desconhecido'].textColor
-                    }}>
-                      {lead.name}
-                    </h4>
-                  </div>
-                  
-                  <div className="flex flex-col space-y-1">
-                    <p className="text-xs text-gray-600">
-                      Vendedor: {lead.vendedor || 'Não atribuído'}
-                    </p>
-                    <p className="text-xs text-gray-600">
-                      Valor: {lead.value}
-                    </p>
-                    <p className="text-xs text-gray-500">
-                      {new Date(lead.created_at).toLocaleString('pt-BR')}
-                    </p>
+            {statusLeads.map((lead) => {
+              const statusStyle = STATUS_COLORS[lead.status_id] || DEFAULT_STATUS;
+              
+              return (
+                <div
+                  key={lead.id}
+                  className="p-3 bg-white rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow"
+                  style={{
+                    backgroundColor: statusStyle.color
+                  }}
+                >
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-start">
+                      <h4 className="text-sm font-medium" style={{
+                        color: statusStyle.textColor
+                      }}>
+                        {lead.name}
+                      </h4>
+                    </div>
+                    
+                    <div className="flex flex-col space-y-1">
+                      <p className="text-xs text-gray-600">
+                        Vendedor: {lead.vendedor || 'Não atribuído'}
+                      </p>
+                      <p className="text-xs text-gray-600">
+                        Valor: {lead.value}
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        {new Date(lead.created_at).toLocaleString('pt-BR')}
+                      </p>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       ))}

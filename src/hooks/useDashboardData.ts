@@ -14,12 +14,10 @@ export function useDashboardData() {
   const isMounted = useRef(true);
   const lastUpdateRef = useRef<number>(0);
 
-  // Update data ref when data changes
   useEffect(() => {
     dataRef.current = data;
   }, [data]);
 
-  // Cleanup on unmount
   useEffect(() => {
     return () => {
       isMounted.current = false;
@@ -31,12 +29,10 @@ export function useDashboardData() {
     
     if (update.status === 'success' && update.data) {
       const now = Date.now();
-      // Prevent updates too close together (within 1 second)
       if (now - lastUpdateRef.current < 1000) {
         return;
       }
       lastUpdateRef.current = now;
-
       setData(update.data);
       setError(null);
     } else {
@@ -54,18 +50,13 @@ export function useDashboardData() {
     }
   }, []);
 
-  // Setup socket connection and subscriptions
   useEffect(() => {
     socketService.connect();
-    
-    // Update subscription with current date range
     socketService.updateSubscription({ dateRange });
 
-    // Setup event listeners
     const unsubscribeConnection = socketService.onConnectionChange(handleConnectionChange);
     const unsubscribeDashboard = socketService.onDashboardUpdate(handleDashboardUpdate);
 
-    // Request initial data
     socketService.requestData();
 
     return () => {
@@ -75,18 +66,15 @@ export function useDashboardData() {
   }, [dateRange, handleConnectionChange, handleDashboardUpdate]);
 
   const refresh = useCallback(() => {
-    const now = Date.now();
-    if (now - lastUpdateRef.current >= 1000) {
-      lastUpdateRef.current = now;
+    if (Date.now() - lastUpdateRef.current >= 1000) {
+      lastUpdateRef.current = Date.now();
       socketService.requestData();
     }
   }, []);
 
   const handleDateRangeChange = useCallback((newRange: DateRange) => {
-    setDateRange(newRange);
     setLoading(true);
-    
-    // Update subscription and request new data
+    setDateRange(newRange);
     socketService.updateSubscription({ dateRange: newRange });
     socketService.requestData();
   }, []);
