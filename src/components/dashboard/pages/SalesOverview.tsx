@@ -26,37 +26,42 @@ export default function SalesOverview() {
   }
 
   const analytics = data.kommoAnalytics;
-  const { currentStats, comparisonStats } = analytics;
+  const { stats, comparisonStats } = analytics;
 
-  const stats = [
+  const getChangePercentage = (current: number, previous: number) => {
+    if (!previous) return undefined;
+    return `${((current - previous) / previous * 100).toFixed(1)}%`;
+  };
+
+  const statsConfig = [
     {
       title: "Receita Total",
-      value: currentStats.valorVendas,
-      change: comparisonStats ? `${((currentStats.valorVendas - comparisonStats.valorVendas) / comparisonStats.valorVendas * 100).toFixed(1)}%` : undefined,
+      value: stats.valorVendas.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }),
+      change: comparisonStats ? getChangePercentage(stats.valorVendas, comparisonStats.valorVendas) : undefined,
       icon: DollarSign,
       color: "green",
-      subtitle: `${currentStats.vendas} vendas realizadas`
+      subtitle: `${stats.vendas} vendas realizadas`
     },
     {
       title: "Ticket Médio",
-      value: currentStats.ticketMedio,
-      change: comparisonStats ? `${((currentStats.ticketMedio - comparisonStats.ticketMedio) / comparisonStats.ticketMedio * 100).toFixed(1)}%` : undefined,
+      value: stats.ticketMedio.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }),
+      change: comparisonStats ? getChangePercentage(stats.ticketMedio, comparisonStats.ticketMedio) : undefined,
       icon: ShoppingBag,
       color: "blue",
       subtitle: "Por venda"
     },
     {
       title: "Taxa de Conversão",
-      value: currentStats.taxaConversao,
-      change: comparisonStats ? `${(currentStats.taxaConversao - comparisonStats.taxaConversao).toFixed(1)}%` : undefined,
+      value: `${stats.taxaConversao.toFixed(1)}%`,
+      change: comparisonStats ? `${(stats.taxaConversao - comparisonStats.taxaConversao).toFixed(1)}%` : undefined,
       icon: TrendingUp,
       color: "indigo",
-      subtitle: `De ${currentStats.totalLeads} leads`
+      subtitle: `De ${stats.totalLeads} leads`
     },
     {
       title: "Leads Ativos",
-      value: currentStats.totalLeads,
-      change: comparisonStats ? `${((currentStats.totalLeads - comparisonStats.totalLeads) / comparisonStats.totalLeads * 100).toFixed(1)}%` : undefined,
+      value: stats.totalLeads,
+      change: comparisonStats ? getChangePercentage(stats.totalLeads, comparisonStats.totalLeads) : undefined,
       icon: Users,
       color: "purple",
       subtitle: "No período selecionado"
@@ -77,15 +82,10 @@ export default function SalesOverview() {
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
-        {stats.map((stat, index) => (
+        {statsConfig.map((stat, index) => (
           <StatCard
             key={index}
-            title={stat.title}
-            value={stat.value}
-            change={stat.change}
-            icon={stat.icon}
-            color={stat.color}
-            subtitle={stat.subtitle}
+            {...stat}
           />
         ))}
       </div>

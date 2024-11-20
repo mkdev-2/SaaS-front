@@ -42,7 +42,7 @@ class SocketService {
 
     const kommoData = rawData.kommo || {};
     const analytics = kommoData.analytics || {};
-    const periodStats = analytics.periodStats || {};
+    const stats = analytics.stats || {};
     const dailyStats = analytics.dailyStats || {};
 
     return {
@@ -56,24 +56,24 @@ class SocketService {
       } : null,
       isKommoConnected: kommoData.isConnected || false,
       kommoAnalytics: {
-        currentStats: {
-          totalLeads: periodStats.day?.totalLeads || 0,
-          vendas: periodStats.day?.purchases || 0,
-          valorVendas: periodStats.day?.totalValue || 0,
-          ticketMedio: periodStats.day?.totalValue && periodStats.day?.purchases ? 
-            periodStats.day.totalValue / periodStats.day.purchases : 0,
-          taxaConversao: periodStats.day?.totalLeads ? 
-            (periodStats.day.purchases / periodStats.day.totalLeads) * 100 : 0
+        stats: {
+          totalLeads: stats.totalLeads || 0,
+          vendas: stats.purchases || 0,
+          valorVendas: stats.totalValue || 0,
+          ticketMedio: stats.totalValue && stats.purchases ? 
+            stats.totalValue / stats.purchases : 0,
+          taxaConversao: stats.totalLeads ? 
+            (stats.purchases / stats.totalLeads) * 100 : 0
         },
-        comparisonStats: {
-          totalLeads: periodStats.week?.totalLeads || 0,
-          vendas: periodStats.week?.purchases || 0,
-          valorVendas: periodStats.week?.totalValue || 0,
-          ticketMedio: periodStats.week?.totalValue && periodStats.week?.purchases ? 
-            periodStats.week.totalValue / periodStats.week.purchases : 0,
-          taxaConversao: periodStats.week?.totalLeads ? 
-            (periodStats.week.purchases / periodStats.week.totalLeads) * 100 : 0
-        },
+        comparisonStats: analytics.comparisonStats ? {
+          totalLeads: analytics.comparisonStats.totalLeads || 0,
+          vendas: analytics.comparisonStats.purchases || 0,
+          valorVendas: analytics.comparisonStats.totalValue || 0,
+          ticketMedio: analytics.comparisonStats.totalValue && analytics.comparisonStats.purchases ? 
+            analytics.comparisonStats.totalValue / analytics.comparisonStats.purchases : 0,
+          taxaConversao: analytics.comparisonStats.totalLeads ? 
+            (analytics.comparisonStats.purchases / analytics.comparisonStats.totalLeads) * 100 : 0
+        } : undefined,
         leads: Object.entries(dailyStats).flatMap(([date, stats]: [string, any]) => 
           (stats.leads || []).map((lead: any) => ({
             id: lead.id,
@@ -96,8 +96,8 @@ class SocketService {
     return {
       startDate: dateRange.start.toISOString(),
       endDate: dateRange.end.toISOString(),
-      compareStartDate: dateRange.compareStart.toISOString(),
-      compareEndDate: dateRange.compareEnd.toISOString(),
+      compareStartDate: dateRange.comparison ? dateRange.compareStart.toISOString() : undefined,
+      compareEndDate: dateRange.comparison ? dateRange.compareEnd.toISOString() : undefined,
       comparison: dateRange.comparison
     };
   }
@@ -217,7 +217,7 @@ class SocketService {
     if (!this.lastData) return true;
 
     const fieldsToCompare = [
-      'kommoAnalytics.currentStats',
+      'kommoAnalytics.stats',
       'kommoAnalytics.leads'
     ];
 
