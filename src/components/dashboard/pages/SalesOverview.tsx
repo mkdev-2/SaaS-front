@@ -4,12 +4,11 @@ import StatCard from '../StatCard';
 import ConversionFunnelChart from '../ConversionFunnelChart';
 import DailyLeadsChart from '../DailyLeadsChart';
 import LeadsList from '../LeadsList';
-import PeriodSelector from '../PeriodSelector';
+import DateRangeSelector from '../DateRangeSelector';
 import { useDashboardData } from '../../../hooks/useDashboardData';
 
 export default function SalesOverview() {
-  const [period, setPeriod] = React.useState('today');
-  const { data, loading, error, isConnected } = useDashboardData();
+  const { data, loading, error, isConnected, dateRange, setDateRange } = useDashboardData();
 
   if (loading || !data?.kommoAnalytics) {
     return (
@@ -27,50 +26,42 @@ export default function SalesOverview() {
   }
 
   const analytics = data.kommoAnalytics;
-  const periodStats = analytics.periodStats[period === 'today' ? 'day' : period === 'week' ? 'week' : 'fortnight'];
-  const dailyStats = analytics.dailyStats || {};
+  const { currentStats, comparisonStats } = analytics;
 
   const stats = [
     {
       title: "Receita Total",
-      value: periodStats.valorVendas,
+      value: currentStats.valorVendas,
+      change: comparisonStats ? `${((currentStats.valorVendas - comparisonStats.valorVendas) / comparisonStats.valorVendas * 100).toFixed(1)}%` : undefined,
       icon: DollarSign,
       color: "green",
-      subtitle: `${periodStats.vendas} vendas realizadas`
+      subtitle: `${currentStats.vendas} vendas realizadas`
     },
     {
       title: "Ticket Médio",
-      value: `R$ ${(parseFloat(periodStats.valorVendas.replace('R$ ', '').replace('.', '').replace(',', '.')) / periodStats.vendas).toFixed(2)}`,
+      value: currentStats.ticketMedio,
+      change: comparisonStats ? `${((currentStats.ticketMedio - comparisonStats.ticketMedio) / comparisonStats.ticketMedio * 100).toFixed(1)}%` : undefined,
       icon: ShoppingBag,
       color: "blue",
       subtitle: "Por venda"
     },
     {
       title: "Taxa de Conversão",
-      value: periodStats.taxaConversao,
+      value: currentStats.taxaConversao,
+      change: comparisonStats ? `${(currentStats.taxaConversao - comparisonStats.taxaConversao).toFixed(1)}%` : undefined,
       icon: TrendingUp,
       color: "indigo",
-      subtitle: `De ${periodStats.totalLeads} leads`
+      subtitle: `De ${currentStats.totalLeads} leads`
     },
     {
       title: "Leads Ativos",
-      value: periodStats.totalLeads,
+      value: currentStats.totalLeads,
+      change: comparisonStats ? `${((currentStats.totalLeads - comparisonStats.totalLeads) / comparisonStats.totalLeads * 100).toFixed(1)}%` : undefined,
       icon: Users,
       color: "purple",
-      subtitle: "No período atual"
+      subtitle: "No período selecionado"
     }
   ];
-
-  const recentLeads = Object.entries(dailyStats)
-    .flatMap(([date, stats]: [string, any]) => {
-      if (!stats.leads) return [];
-      return stats.leads.map((lead: any) => ({
-        ...lead,
-        created_at: date
-      }));
-    })
-    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-    .slice(0, 10);
 
   return (
     <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
@@ -82,7 +73,7 @@ export default function SalesOverview() {
             {!isConnected && ' (Reconectando...)'}
           </p>
         </div>
-        <PeriodSelector value={period} onChange={setPeriod} />
+        <DateRangeSelector value={dateRange} onChange={setDateRange} />
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
@@ -91,6 +82,7 @@ export default function SalesOverview() {
             key={index}
             title={stat.title}
             value={stat.value}
+            change={stat.change}
             icon={stat.icon}
             color={stat.color}
             subtitle={stat.subtitle}
@@ -99,16 +91,16 @@ export default function SalesOverview() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
-        <DailyLeadsChart data={analytics} period={period} />
-        <ConversionFunnelChart data={analytics} period={period} />
+        <DailyLeadsChart data={analytics} dateRange={dateRange} />
+        <ConversionFunnelChart data={analytics} dateRange={dateRange} />
       </div>
 
       <div className="bg-white rounded-xl shadow-sm">
         <div className="p-4 sm:p-6 border-b border-gray-200">
-          <h2 className="text-lg font-semibold text-gray-900">Leads Recentes</h2>
+          <h2 className="text-lg font-semibold text-gray-900">Leads do Período</h2>
         </div>
         <div className="p-4 sm:p-6 overflow-x-auto">
-          <LeadsList leads={recentLeads} />
+          <LeadsList leads={analytics.leads} />
         </div>
       </div>
     </div>

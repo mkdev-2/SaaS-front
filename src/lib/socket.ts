@@ -1,8 +1,13 @@
 import { io, Socket } from 'socket.io-client';
-import { DashboardData } from '../types/dashboard';
+import { DashboardData, DateRange } from '../types/dashboard';
 
 type DashboardCallback = (data: any) => void;
 type ConnectionCallback = (status: boolean) => void;
+
+interface SubscriptionParams {
+  detailed?: boolean;
+  dateRange?: DateRange;
+}
 
 class SocketService {
   private static instance: SocketService;
@@ -16,10 +21,9 @@ class SocketService {
   private initialDataLoaded = false;
   private lastData: any = null;
   private lastDataTimestamp = 0;
-  private minUpdateInterval = 5000; // 5 seconds minimum between updates
-  private subscriptionParams = {
-    detailed: true,
-    period: 15
+  private minUpdateInterval = 5000;
+  private subscriptionParams: SubscriptionParams = {
+    detailed: true
   };
 
   private constructor() {}
@@ -32,9 +36,7 @@ class SocketService {
   }
 
   connect() {
-    if (this.isConnecting || this.socket?.connected) {
-      return;
-    }
+    if (this.isConnecting || this.socket?.connected) return;
 
     const token = localStorage.getItem('auth_token');
     if (!token) {
@@ -60,7 +62,7 @@ class SocketService {
         reconnectionDelay: 1000,
         reconnectionDelayMax: 5000,
         timeout: 10000,
-        query: this.subscriptionParams
+        query: this.getQueryParams()
       });
 
       this.setupEventListeners();
@@ -69,6 +71,25 @@ class SocketService {
       this.isConnecting = false;
       this.notifyConnectionStatus(false);
     }
+  }
+
+  private getQueryParams(): Record<string, string> {
+    const params: Record<string, string> = {
+      detailed: String(this.subscriptionParams.detailed)
+    };
+
+    if (this.subscriptionParams.dateRange) {
+      const { start, end, compareStart, compareEnd, comparison } = this.subscriptionParams.dateRange;
+      params.startDate = start.toISOString();
+      params.endDate = end.toISOString();
+      
+      if (comparison) {
+        params.compareStartDate = compareStart.toISOString();
+        params.compareEndDate = compareEnd.toISOString();
+      }
+    }
+
+    return params;
   }
 
   private setupEventListeners() {
@@ -100,10 +121,9 @@ class SocketService {
       if (data.status === 'success' && data.data) {
         const now = Date.now();
         if (now - this.lastDataTimestamp < this.minUpdateInterval) {
-          return; // Ignore updates that come too quickly
+          return;
         }
 
-        // Only update if data has actually changed
         if (this.hasDataChanged(data.data)) {
           this.lastData = this.deepClone(data.data);
           this.lastDataTimestamp = now;
@@ -125,10 +145,9 @@ class SocketService {
     });
   }
 
-  private hasDataChanged(newData: any): boolean {
+  private hasDataChanged(newData: DashboardData): boolean {
     if (!this.lastData) return true;
 
-    // Compare specific fields that matter for updates
     const fieldsToCompare = [
       'teamPerformance.vendorStats',
       'teamPerformance.goals',
@@ -167,7 +186,7 @@ class SocketService {
     }
   }
 
-  updateSubscription(params: { detailed?: boolean; period?: number }) {
+  updateSubscription(params: SubscriptionParams) {
     this.subscriptionParams = {
       ...this.subscriptionParams,
       ...params
