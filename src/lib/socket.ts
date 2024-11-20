@@ -42,9 +42,9 @@ class SocketService {
 
     const kommoData = rawData.kommo || {};
     const analytics = kommoData.analytics || {};
-    const stats = analytics.stats || {};
-    const dailyStats = analytics.dailyStats || {};
-    const teamPerformance = analytics.teamPerformance || {};
+    const teamData = rawData.team || {};
+    const vendorStats = teamData.vendorStats || {};
+    const goals = teamData.goals || {};
 
     return {
       projectCount: rawData.projects?.total || 0,
@@ -57,46 +57,23 @@ class SocketService {
       } : null,
       isKommoConnected: kommoData.isConnected || false,
       teamPerformance: {
-        vendorStats: teamPerformance.vendorStats || {},
-        history: teamPerformance.history || [],
-        goals: teamPerformance.goals || {
-          monthly: { leads: 0, sales: 0, revenue: 0 },
-          completion: { leads: '0%', sales: '0%', revenue: '0%' }
+        vendorStats,
+        history: teamData.history || [],
+        goals: {
+          monthly: goals.monthly || { leads: 0, sales: 0, revenue: 0 },
+          completion: goals.completion || { leads: '0%', sales: '0%', revenue: '0%' }
         }
       },
       kommoAnalytics: {
         stats: {
-          totalLeads: stats.totalLeads || 0,
-          vendas: stats.purchases || 0,
-          valorVendas: stats.totalValue || 0,
-          ticketMedio: stats.totalValue && stats.purchases ? 
-            stats.totalValue / stats.purchases : 0,
-          taxaConversao: stats.totalLeads ? 
-            (stats.purchases / stats.totalLeads) * 100 : 0
+          totalLeads: analytics.totalLeads || 0,
+          vendas: analytics.vendas || 0,
+          valorVendas: analytics.valorVendas || 0,
+          ticketMedio: analytics.ticketMedio || 0,
+          taxaConversao: analytics.taxaConversao || 0
         },
-        comparisonStats: analytics.comparisonStats ? {
-          totalLeads: analytics.comparisonStats.totalLeads || 0,
-          vendas: analytics.comparisonStats.purchases || 0,
-          valorVendas: analytics.comparisonStats.totalValue || 0,
-          ticketMedio: analytics.comparisonStats.totalValue && analytics.comparisonStats.purchases ? 
-            analytics.comparisonStats.totalValue / analytics.comparisonStats.purchases : 0,
-          taxaConversao: analytics.comparisonStats.totalLeads ? 
-            (analytics.comparisonStats.purchases / analytics.comparisonStats.totalLeads) * 100 : 0
-        } : undefined,
-        leads: Object.entries(dailyStats).flatMap(([date, stats]: [string, any]) => 
-          (stats.leads || []).map((lead: any) => ({
-            id: lead.id,
-            name: lead.name,
-            status: lead.status,
-            statusColor: lead.statusColor || '#718096',
-            tipo: lead.tipo || 'novo',
-            vendedor: lead.vendedor || 'Não atribuído',
-            value: typeof lead.value === 'number' ? 
-              lead.value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : 
-              'R$ 0,00',
-            created_at: date
-          }))
-        ),
+        comparisonStats: analytics.comparisonStats,
+        leads: analytics.leads || [],
         vendorStats: analytics.vendorStats || {},
         personaStats: analytics.personaStats || {},
         sourceStats: analytics.sourceStats || {}
@@ -220,7 +197,9 @@ class SocketService {
       const dateParams = this.getDateParams(this.subscriptionParams.dateRange);
       this.socket.emit('subscribe:dashboard', {
         detailed: this.subscriptionParams.detailed,
-        ...dateParams
+        ...dateParams,
+        includeTeam: true,
+        includeAnalytics: true
       });
     }
   }
@@ -309,7 +288,11 @@ class SocketService {
     const now = Date.now();
     if (this.socket?.connected && now - this.lastDataTimestamp >= this.minUpdateInterval) {
       const dateParams = this.getDateParams(this.subscriptionParams.dateRange);
-      this.socket.emit('dashboard:request', dateParams);
+      this.socket.emit('dashboard:request', {
+        ...dateParams,
+        includeTeam: true,
+        includeAnalytics: true
+      });
     }
   }
 
