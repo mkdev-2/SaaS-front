@@ -31,7 +31,7 @@ export default function DaySelector({ value, onChange }: DaySelectorProps) {
         end,
         compareStart,
         compareEnd,
-        comparison: value.comparison
+        comparison: true
       });
     }
   };
@@ -40,14 +40,18 @@ export default function DaySelector({ value, onChange }: DaySelectorProps) {
     onChange(getDefaultDateRange());
   };
 
+  const formatDateForInput = (date: Date) => {
+    return date.toISOString().split('T')[0];
+  };
+
   return (
     <div className="flex items-center space-x-2">
       <div className="relative">
         <input
           type="date"
-          value={value.start.toISOString().split('T')[0]}
+          value={formatDateForInput(value.start)}
           onChange={handleDateChange}
-          max={new Date().toISOString().split('T')[0]}
+          max={formatDateForInput(new Date())}
           className="pl-10 pr-4 py-2 border border-gray-300 rounded-md text-sm focus:ring-indigo-500 focus:border-indigo-500"
         />
         <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
