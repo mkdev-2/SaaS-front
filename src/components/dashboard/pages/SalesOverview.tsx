@@ -1,7 +1,6 @@
 import React from 'react';
 import { DollarSign, TrendingUp, Users, ShoppingBag } from 'lucide-react';
 import StatCard from '../StatCard';
-import ConversionFunnelChart from '../ConversionFunnelChart';
 import DailyLeadsChart from '../DailyLeadsChart';
 import LeadsList from '../LeadsList';
 import DaySelector from '../DaySelector';
@@ -10,7 +9,7 @@ import { useDashboardData } from '../../../hooks/useDashboardData';
 export default function SalesOverview() {
   const { data, loading, error, isConnected, dateRange, setDateRange } = useDashboardData();
 
-  if (loading || !data?.kommoAnalytics) {
+  if (loading || !data?.currentStats) {
     return (
       <div className="p-4 sm:p-6">
         <div className="animate-pulse space-y-4">
@@ -25,43 +24,37 @@ export default function SalesOverview() {
     );
   }
 
-  const analytics = data.kommoAnalytics;
-  const { stats, comparisonStats } = analytics;
-
-  const getChangePercentage = (current: number, previous: number) => {
-    if (!previous) return undefined;
-    return `${((current - previous) / previous * 100).toFixed(1)}%`;
-  };
+  const { currentStats, comparisonStats } = data;
 
   const statsConfig = [
     {
       title: "Receita Total",
-      value: stats.valorVendas.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }),
-      change: comparisonStats ? getChangePercentage(stats.valorVendas, comparisonStats.valorVendas) : undefined,
+      value: currentStats.valorTotal || "R$ 0,00",
+      change: comparisonStats ? undefined : undefined,
       icon: DollarSign,
       color: "green",
-      subtitle: `${stats.vendas} vendas realizadas`
+      subtitle: `${currentStats.totalVendas} vendas realizadas`
     },
     {
       title: "Ticket Médio",
-      value: stats.ticketMedio.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }),
-      change: comparisonStats ? getChangePercentage(stats.ticketMedio, comparisonStats.ticketMedio) : undefined,
+      value: currentStats.ticketMedio || "R$ 0,00",
+      change: comparisonStats ? undefined : undefined,
       icon: ShoppingBag,
       color: "blue",
       subtitle: "Por venda"
     },
     {
       title: "Taxa de Conversão",
-      value: `${stats.taxaConversao.toFixed(1)}%`,
-      change: comparisonStats ? `${(stats.taxaConversao - comparisonStats.taxaConversao).toFixed(1)}%` : undefined,
+      value: currentStats.taxaConversao || "0%",
+      change: comparisonStats ? undefined : undefined,
       icon: TrendingUp,
       color: "indigo",
-      subtitle: `De ${stats.totalLeads} leads`
+      subtitle: `De ${currentStats.totalLeads} leads`
     },
     {
       title: "Leads Ativos",
-      value: stats.totalLeads,
-      change: comparisonStats ? getChangePercentage(stats.totalLeads, comparisonStats.totalLeads) : undefined,
+      value: currentStats.totalLeads || 0,
+      change: comparisonStats ? undefined : undefined,
       icon: Users,
       color: "purple",
       subtitle: "No período selecionado"
@@ -88,16 +81,24 @@ export default function SalesOverview() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
-        <DailyLeadsChart data={analytics} dateRange={dateRange} />
-        <ConversionFunnelChart data={analytics} dateRange={dateRange} />
+        <DailyLeadsChart data={currentStats} dateRange={dateRange} />
       </div>
 
       <div className="bg-white rounded-xl shadow-sm">
         <div className="p-4 sm:p-6 border-b border-gray-200">
           <h2 className="text-lg font-semibold text-gray-900">Leads do Período</h2>
         </div>
-        <div className="p-4 sm:p-6 overflow-x-auto">
-          <LeadsList leads={analytics.leads} />
+        <div className="p-4 sm:p-6">
+          <LeadsList leads={currentStats.leads.map(lead => ({
+            id: lead.id,
+            name: lead.nome,
+            status: lead.status,
+            statusColor: lead.statusCor,
+            tipo: 'novo',
+            vendedor: lead.vendedor,
+            value: lead.valor,
+            created_at: lead.created_at
+          }))} />
         </div>
       </div>
     </div>

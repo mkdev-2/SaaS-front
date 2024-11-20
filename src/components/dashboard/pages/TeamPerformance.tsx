@@ -9,7 +9,7 @@ import { useDashboardData } from '../../../hooks/useDashboardData';
 export default function TeamPerformance() {
   const { data, loading, error, isConnected, dateRange, setDateRange } = useDashboardData();
 
-  if (loading || !data?.teamPerformance) {
+  if (loading || !data?.currentStats) {
     return (
       <div className="p-6">
         <div className="animate-pulse space-y-4">
@@ -24,12 +24,13 @@ export default function TeamPerformance() {
     );
   }
 
-  const { vendorStats = {}, goals = { monthly: {}, completion: {} } } = data.teamPerformance;
+  const { currentStats } = data;
+  const vendedores = currentStats.vendedores || {};
 
-  const totalLeads = Object.values(vendorStats).reduce((sum, vendor) => 
+  const totalLeads = Object.values(vendedores).reduce((sum: number, vendor: any) => 
     sum + (vendor.totalLeads || 0), 0);
   
-  const totalSales = Object.values(vendorStats).reduce((sum, vendor) => 
+  const totalVendas = Object.values(vendedores).reduce((sum: number, vendor: any) => 
     sum + (vendor.sales || 0), 0);
 
   const stats = [
@@ -38,34 +39,34 @@ export default function TeamPerformance() {
       value: totalLeads,
       icon: Users,
       color: "blue",
-      subtitle: `Meta: ${goals.monthly.leads || 0} leads`
+      subtitle: `${Object.keys(vendedores).length} vendedores ativos`
     },
     {
-      title: "Meta Atingida (Leads)",
-      value: goals.completion.leads || '0%',
+      title: "Vendas Realizadas",
+      value: totalVendas,
       icon: Target,
       color: "green",
-      subtitle: `${totalSales} vendas realizadas`
+      subtitle: currentStats.valorTotal
     },
     {
-      title: "Meta de Vendas",
-      value: goals.completion.sales || '0%',
+      title: "Taxa de Conversão",
+      value: currentStats.taxaConversao,
       icon: TrendingUp,
       color: "indigo",
-      subtitle: `Meta mensal: ${goals.monthly.sales || 0} vendas`
+      subtitle: `${currentStats.totalVendas} de ${currentStats.totalLeads} leads`
     }
   ];
 
-  const transformedVendorStats = Object.entries(vendorStats)
+  const transformedVendorStats = Object.entries(vendedores)
     .filter(([name]) => name !== 'Não atribuído')
-    .map(([name, stats]) => ({
+    .map(([name, stats]: [string, any]) => ({
       name,
       atendimentos: stats.totalLeads || 0,
       propostas: stats.proposals || 0,
       vendas: stats.sales || 0,
-      valor: stats.revenue || 'R$ 0,00',
-      taxaConversao: stats.conversionRate || '0%',
-      taxaPropostas: stats.proposalRate || '0%'
+      valor: stats.valorVendas || 'R$ 0,00',
+      taxaConversao: stats.taxaConversao || '0%',
+      taxaPropostas: stats.taxaPropostas || '0%'
     }));
 
   return (
@@ -77,11 +78,6 @@ export default function TeamPerformance() {
             Análise detalhada do desempenho dos vendedores
             {!isConnected && ' (Reconectando...)'}
           </p>
-          {error && (
-            <p className="mt-2 text-sm text-red-600">
-              {error}
-            </p>
-          )}
         </div>
         <DaySelector value={dateRange} onChange={setDateRange} />
       </div>
@@ -95,9 +91,6 @@ export default function TeamPerformance() {
       <div className="grid grid-cols-1 gap-6">
         {transformedVendorStats.length > 0 && (
           <VendorStats data={transformedVendorStats} />
-        )}
-        {data.teamPerformance && (
-          <PerformanceTable data={data.teamPerformance} dateRange={dateRange} />
         )}
       </div>
     </div>

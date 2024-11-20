@@ -1,10 +1,10 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { socketService } from '../lib/socket';
-import { DashboardData, DateRange } from '../types/dashboard';
+import { DateRange } from '../types/dashboard';
 import { getDefaultDateRange } from '../utils/dateUtils';
 
 export function useDashboardData() {
-  const [data, setData] = useState<DashboardData | null>(null);
+  const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isConnected, setIsConnected] = useState(false);
@@ -12,7 +12,6 @@ export function useDashboardData() {
 
   const dataRef = useRef(data);
   const isMounted = useRef(true);
-  const initialLoadRef = useRef(false);
 
   useEffect(() => {
     dataRef.current = data;
@@ -34,7 +33,6 @@ export function useDashboardData() {
       if (update.status === 'success' && update.data) {
         setData(update.data);
         setError(null);
-        initialLoadRef.current = true;
       } else {
         setError(update.message || 'Failed to update dashboard data');
       }
@@ -59,45 +57,12 @@ export function useDashboardData() {
   }, []);
 
   const handleDateRangeChange = useCallback((newRange: DateRange) => {
-    try {
-      // Ensure all dates are valid
-      const validatedRange = {
-        start: new Date(newRange.start),
-        end: new Date(newRange.end),
-        compareStart: new Date(newRange.compareStart),
-        compareEnd: new Date(newRange.compareEnd),
-        comparison: newRange.comparison
-      };
-
-      // Validate that all dates are valid
-      if (
-        isNaN(validatedRange.start.getTime()) ||
-        isNaN(validatedRange.end.getTime()) ||
-        isNaN(validatedRange.compareStart.getTime()) ||
-        isNaN(validatedRange.compareEnd.getTime())
-      ) {
-        throw new Error('Invalid date format');
-      }
-
-      // Ensure start date is at beginning of day and end date is at end of day
-      validatedRange.start.setHours(0, 0, 0, 0);
-      validatedRange.end.setHours(23, 59, 59, 999);
-      validatedRange.compareStart.setHours(0, 0, 0, 0);
-      validatedRange.compareEnd.setHours(23, 59, 59, 999);
-
-      setDateRange(validatedRange);
-      socketService.updateSubscription({ dateRange: validatedRange });
-    } catch (err) {
-      console.error('Error validating date range:', err);
-      // Reset to default range if there's an error
-      const defaultRange = getDefaultDateRange();
-      setDateRange(defaultRange);
-      socketService.updateSubscription({ dateRange: defaultRange });
-    }
+    setDateRange(newRange);
+    socketService.updateSubscription({ dateRange: newRange });
   }, []);
 
   return {
-    data: data || dataRef.current,
+    data,
     loading,
     error,
     isConnected,
