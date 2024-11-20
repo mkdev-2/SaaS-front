@@ -22,10 +22,17 @@ export default function DateRangeSelector({ value, onChange, showComparison = tr
 
   const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>, field: 'start' | 'end' | 'compareStart' | 'compareEnd') => {
     const newDate = new Date(e.target.value);
-    onChange({
-      ...value,
-      [field]: newDate
-    });
+    if (!isNaN(newDate.getTime())) {
+      if (field === 'start' || field === 'compareStart') {
+        newDate.setHours(0, 0, 0, 0);
+      } else {
+        newDate.setHours(23, 59, 59, 999);
+      }
+      onChange({
+        ...value,
+        [field]: newDate
+      });
+    }
   };
 
   const toggleComparison = () => {
@@ -37,6 +44,7 @@ export default function DateRangeSelector({ value, onChange, showComparison = tr
 
   const resetToDefault = () => {
     onChange(getDefaultDateRange());
+    setIsOpen(false);
   };
 
   return (
@@ -65,6 +73,7 @@ export default function DateRangeSelector({ value, onChange, showComparison = tr
                 value={value.start.toISOString().split('T')[0]}
                 onChange={(e) => handleDateChange(e, 'start')}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                max={new Date().toISOString().split('T')[0]}
               />
             </div>
 
@@ -92,6 +101,7 @@ export default function DateRangeSelector({ value, onChange, showComparison = tr
                       value={value.compareStart.toISOString().split('T')[0]}
                       onChange={(e) => handleDateChange(e, 'compareStart')}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                      max={value.start.toISOString().split('T')[0]}
                     />
                   </div>
                 )}
@@ -103,7 +113,7 @@ export default function DateRangeSelector({ value, onChange, showComparison = tr
                 onClick={resetToDefault}
                 className="flex-1 px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50"
               >
-                Reset
+                Hoje
               </button>
               <button
                 onClick={() => setIsOpen(false)}

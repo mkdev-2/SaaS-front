@@ -1,5 +1,6 @@
 import { io, Socket } from 'socket.io-client';
 import { DashboardData, DateRange } from '../types/dashboard';
+import { getDefaultDateRange } from '../hooks/useDashboardData';
 
 type DashboardCallback = (data: any) => void;
 type ConnectionCallback = (status: boolean) => void;
@@ -24,13 +25,7 @@ class SocketService {
   private minUpdateInterval = 5000;
   private subscriptionParams: SubscriptionParams = {
     detailed: true,
-    dateRange: {
-      start: new Date(),
-      end: new Date(),
-      compareStart: new Date(),
-      compareEnd: new Date(),
-      comparison: false
-    }
+    dateRange: getDefaultDateRange()
   };
 
   private constructor() {}
@@ -158,14 +153,15 @@ class SocketService {
 
   private emitSubscription() {
     if (this.socket?.connected) {
+      const dateRange = this.subscriptionParams.dateRange || getDefaultDateRange();
       this.socket.emit('subscribe:dashboard', {
         ...this.subscriptionParams,
         dateRange: {
-          ...this.subscriptionParams.dateRange,
-          start: this.subscriptionParams.dateRange?.start.toISOString(),
-          end: this.subscriptionParams.dateRange?.end.toISOString(),
-          compareStart: this.subscriptionParams.dateRange?.compareStart.toISOString(),
-          compareEnd: this.subscriptionParams.dateRange?.compareEnd.toISOString()
+          ...dateRange,
+          start: dateRange.start.toISOString(),
+          end: dateRange.end.toISOString(),
+          compareStart: dateRange.compareStart.toISOString(),
+          compareEnd: dateRange.compareEnd.toISOString()
         }
       });
     }
@@ -215,7 +211,8 @@ class SocketService {
   updateSubscription(params: SubscriptionParams) {
     this.subscriptionParams = {
       ...this.subscriptionParams,
-      ...params
+      ...params,
+      dateRange: params.dateRange || getDefaultDateRange()
     };
 
     if (this.socket?.connected) {
@@ -248,13 +245,14 @@ class SocketService {
   requestData() {
     const now = Date.now();
     if (this.socket?.connected && now - this.lastDataTimestamp >= this.minUpdateInterval) {
+      const dateRange = this.subscriptionParams.dateRange || getDefaultDateRange();
       this.socket.emit('dashboard:request', {
         dateRange: {
-          ...this.subscriptionParams.dateRange,
-          start: this.subscriptionParams.dateRange?.start.toISOString(),
-          end: this.subscriptionParams.dateRange?.end.toISOString(),
-          compareStart: this.subscriptionParams.dateRange?.compareStart.toISOString(),
-          compareEnd: this.subscriptionParams.dateRange?.compareEnd.toISOString()
+          ...dateRange,
+          start: dateRange.start.toISOString(),
+          end: dateRange.end.toISOString(),
+          compareStart: dateRange.compareStart.toISOString(),
+          compareEnd: dateRange.compareEnd.toISOString()
         }
       });
     }
