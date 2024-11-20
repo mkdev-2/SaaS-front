@@ -112,6 +112,7 @@ class SocketService {
 
   private getDateParams(dateRange: DateRange = getDefaultDateRange()) {
     return {
+      date: dateRange.start.toISOString().split('T')[0],
       startDate: dateRange.start.toISOString(),
       endDate: dateRange.end.toISOString(),
       compareStartDate: dateRange.comparison ? dateRange.compareStart.toISOString() : undefined,
