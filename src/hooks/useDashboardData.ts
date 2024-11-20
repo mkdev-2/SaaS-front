@@ -3,7 +3,7 @@ import { socketService } from '../lib/socket';
 import { DateRange } from '../types/dashboard';
 import { getDefaultDateRange } from '../utils/dateUtils';
 
-const DEFAULT_STATS = {
+const DEFAULT_DATA = {
   currentStats: {
     totalLeads: 0,
     totalVendas: 0,
@@ -13,11 +13,16 @@ const DEFAULT_STATS = {
     vendedores: {},
     leads: []
   },
-  comparisonStats: null
+  comparisonStats: null,
+  kommo: {
+    isConnected: false,
+    accountDomain: "",
+    connectedAt: ""
+  }
 };
 
 export function useDashboardData() {
-  const [data, setData] = useState<any>(DEFAULT_STATS);
+  const [data, setData] = useState<any>(DEFAULT_DATA);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isConnected, setIsConnected] = useState(false);
@@ -44,11 +49,15 @@ export function useDashboardData() {
       if (!isMounted.current) return;
       
       if (update.status === 'success') {
-        setData(update.data || DEFAULT_STATS);
+        // Merge with default data to ensure all properties exist
+        setData({
+          ...DEFAULT_DATA,
+          ...update.data
+        });
         setError(null);
       } else {
         setError(update.message || 'Failed to update dashboard data');
-        setData(DEFAULT_STATS);
+        setData(DEFAULT_DATA);
       }
       setLoading(false);
     };
@@ -77,12 +86,12 @@ export function useDashboardData() {
     setDateRange(newRange);
     socketService.updateSubscription({ 
       dateRange: newRange,
-      detailed: true
+      detailed: true 
     });
   }, []);
 
   return {
-    data: data || DEFAULT_STATS,
+    data: data || DEFAULT_DATA,
     loading,
     error,
     isConnected,
