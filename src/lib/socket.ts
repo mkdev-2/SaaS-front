@@ -23,7 +23,14 @@ class SocketService {
   private lastDataTimestamp = 0;
   private minUpdateInterval = 5000;
   private subscriptionParams: SubscriptionParams = {
-    detailed: true
+    detailed: true,
+    dateRange: {
+      start: new Date(),
+      end: new Date(),
+      compareStart: new Date(),
+      compareEnd: new Date(),
+      comparison: false
+    }
   };
 
   private constructor() {}
@@ -100,7 +107,7 @@ class SocketService {
       this.isConnecting = false;
       this.reconnectAttempts = 0;
       this.notifyConnectionStatus(true);
-      this.socket?.emit('subscribe:dashboard', this.subscriptionParams);
+      this.emitSubscription();
     });
 
     this.socket.on('connect_error', (error) => {
@@ -135,6 +142,10 @@ class SocketService {
         }
       } else {
         console.error('Invalid dashboard update:', data);
+        this.dashboardCallbacks.forEach(callback => callback({
+          status: 'error',
+          message: data.message || 'Failed to update dashboard data'
+        }));
       }
     });
 
@@ -143,6 +154,21 @@ class SocketService {
       this.isConnecting = false;
       this.notifyConnectionStatus(false);
     });
+  }
+
+  private emitSubscription() {
+    if (this.socket?.connected) {
+      this.socket.emit('subscribe:dashboard', {
+        ...this.subscriptionParams,
+        dateRange: {
+          ...this.subscriptionParams.dateRange,
+          start: this.subscriptionParams.dateRange?.start.toISOString(),
+          end: this.subscriptionParams.dateRange?.end.toISOString(),
+          compareStart: this.subscriptionParams.dateRange?.compareStart.toISOString(),
+          compareEnd: this.subscriptionParams.dateRange?.compareEnd.toISOString()
+        }
+      });
+    }
   }
 
   private hasDataChanged(newData: DashboardData): boolean {
@@ -193,7 +219,7 @@ class SocketService {
     };
 
     if (this.socket?.connected) {
-      this.socket.emit('subscribe:dashboard', this.subscriptionParams);
+      this.emitSubscription();
       this.requestData();
     }
   }
@@ -222,7 +248,15 @@ class SocketService {
   requestData() {
     const now = Date.now();
     if (this.socket?.connected && now - this.lastDataTimestamp >= this.minUpdateInterval) {
-      this.socket.emit('dashboard:request');
+      this.socket.emit('dashboard:request', {
+        dateRange: {
+          ...this.subscriptionParams.dateRange,
+          start: this.subscriptionParams.dateRange?.start.toISOString(),
+          end: this.subscriptionParams.dateRange?.end.toISOString(),
+          compareStart: this.subscriptionParams.dateRange?.compareStart.toISOString(),
+          compareEnd: this.subscriptionParams.dateRange?.compareEnd.toISOString()
+        }
+      });
     }
   }
 

@@ -1,4 +1,3 @@
-// src/hooks/useDashboardData.ts
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { socketService } from '../lib/socket';
 import { DashboardData, DateRange } from '../types/dashboard';
@@ -74,8 +73,15 @@ export function useDashboardData() {
   }, []);
 
   const handleDateRangeChange = useCallback((newRange: DateRange) => {
-    setDateRange(newRange);
-    socketService.updateSubscription({ dateRange: newRange });
+    const validatedRange = {
+      ...newRange,
+      start: new Date(newRange.start),
+      end: new Date(newRange.end),
+      compareStart: new Date(newRange.compareStart),
+      compareEnd: new Date(newRange.compareEnd)
+    };
+    setDateRange(validatedRange);
+    socketService.updateSubscription({ dateRange: validatedRange });
   }, []);
 
   return {
