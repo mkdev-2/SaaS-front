@@ -3,12 +3,11 @@ import { Target, TrendingUp, DollarSign } from 'lucide-react';
 import StatCard from '../StatCard';
 import LeadSourceChart from '../LeadSourceChart';
 import PersonaStats from '../PersonaStats';
-import PeriodSelector from '../PeriodSelector';
+import DaySelector from '../DaySelector';
 import { useDashboardData } from '../../../hooks/useDashboardData';
 
 export default function MarketingAnalytics() {
-  const [period, setPeriod] = React.useState('today');
-  const { data, loading, error, isConnected } = useDashboardData();
+  const { data, loading, error, isConnected, dateRange, setDateRange } = useDashboardData();
 
   if (loading || !data?.kommoAnalytics) {
     return (
@@ -26,13 +25,13 @@ export default function MarketingAnalytics() {
   }
 
   const analytics = data.kommoAnalytics;
-  const periodStats = analytics.periodStats[period === 'today' ? 'day' : period === 'week' ? 'week' : 'fortnight'];
+  const { stats } = analytics;
   
   const custoPorLead = 25; // Exemplo fixo, idealmente viria da API
-  const custoTotal = periodStats.totalLeads * custoPorLead;
-  const roi = ((parseFloat(periodStats.valorVendas.replace('R$ ', '').replace('.', '').replace(',', '.')) - custoTotal) / custoTotal * 100).toFixed(1);
+  const custoTotal = stats.totalLeads * custoPorLead;
+  const roi = ((stats.valorVendas - custoTotal) / custoTotal * 100).toFixed(1);
 
-  const stats = [
+  const statsConfig = [
     {
       title: "ROI das Campanhas",
       value: `${roi}%`,
@@ -45,11 +44,11 @@ export default function MarketingAnalytics() {
       value: `R$ ${custoPorLead.toFixed(2)}`,
       icon: DollarSign,
       color: "blue",
-      subtitle: `${periodStats.totalLeads} leads gerados`
+      subtitle: `${stats.totalLeads} leads gerados`
     },
     {
       title: "Taxa de Conversão",
-      value: periodStats.taxaConversao,
+      value: `${stats.taxaConversao.toFixed(1)}%`,
       icon: Target,
       color: "indigo",
       subtitle: "Lead para Venda"
@@ -66,24 +65,17 @@ export default function MarketingAnalytics() {
             {!isConnected && ' (Reconectando...)'}
           </p>
         </div>
-        <PeriodSelector value={period} onChange={setPeriod} />
+        <DaySelector value={dateRange} onChange={setDateRange} />
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {stats.map((stat, index) => (
-          <StatCard
-            key={index}
-            title={stat.title}
-            value={stat.value}
-            icon={stat.icon}
-            color={stat.color}
-            subtitle={stat.subtitle}
-          />
+        {statsConfig.map((stat, index) => (
+          <StatCard key={index} {...stat} />
         ))}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <LeadSourceChart data={analytics} period={period} />
+        <LeadSourceChart data={analytics} dateRange={dateRange} />
         <PersonaStats data={Object.entries(analytics.personaStats || {}).map(([name, stats]: [string, any]) => ({
           name,
           quantity: stats.quantity,

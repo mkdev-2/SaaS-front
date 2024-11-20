@@ -4,7 +4,7 @@ import StatCard from '../StatCard';
 import ConversionFunnelChart from '../ConversionFunnelChart';
 import DailyLeadsChart from '../DailyLeadsChart';
 import LeadsList from '../LeadsList';
-import DateRangeSelector from '../DateRangeSelector';
+import DaySelector from '../DaySelector';
 import { useDashboardData } from '../../../hooks/useDashboardData';
 
 export default function SalesOverview() {
@@ -78,15 +78,12 @@ export default function SalesOverview() {
             {!isConnected && ' (Reconectando...)'}
           </p>
         </div>
-        <DateRangeSelector value={dateRange} onChange={setDateRange} />
+        <DaySelector value={dateRange} onChange={setDateRange} />
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
         {statsConfig.map((stat, index) => (
-          <StatCard
-            key={index}
-            {...stat}
-          />
+          <StatCard key={index} {...stat} />
         ))}
       </div>
 

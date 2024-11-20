@@ -3,12 +3,11 @@ import { Users, Target, TrendingUp } from 'lucide-react';
 import StatCard from '../StatCard';
 import VendorStats from '../VendorStats';
 import PerformanceTable from '../PerformanceTable';
-import PeriodSelector from '../PeriodSelector';
+import DaySelector from '../DaySelector';
 import { useDashboardData } from '../../../hooks/useDashboardData';
 
 export default function TeamPerformance() {
-  const [period, setPeriod] = React.useState('today');
-  const { data, loading, error, isConnected } = useDashboardData();
+  const { data, loading, error, isConnected, dateRange, setDateRange } = useDashboardData();
 
   if (loading || !data?.teamPerformance) {
     return (
@@ -27,7 +26,6 @@ export default function TeamPerformance() {
 
   const { vendorStats = {}, goals = { monthly: {}, completion: {} } } = data.teamPerformance;
 
-  // Calculate totals with safe defaults
   const totalLeads = Object.values(vendorStats).reduce((sum, vendor) => 
     sum + (vendor.totalLeads || 0), 0);
   
@@ -58,7 +56,6 @@ export default function TeamPerformance() {
     }
   ];
 
-  // Transform vendor stats for the VendorStats component
   const transformedVendorStats = Object.entries(vendorStats)
     .filter(([name]) => name !== 'Não atribuído')
     .map(([name, stats]) => ({
@@ -86,19 +83,12 @@ export default function TeamPerformance() {
             </p>
           )}
         </div>
-        <PeriodSelector value={period} onChange={setPeriod} />
+        <DaySelector value={dateRange} onChange={setDateRange} />
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {stats.map((stat, index) => (
-          <StatCard
-            key={index}
-            title={stat.title}
-            value={stat.value}
-            icon={stat.icon}
-            color={stat.color}
-            subtitle={stat.subtitle}
-          />
+          <StatCard key={index} {...stat} />
         ))}
       </div>
 
@@ -107,7 +97,7 @@ export default function TeamPerformance() {
           <VendorStats data={transformedVendorStats} />
         )}
         {data.teamPerformance && (
-          <PerformanceTable data={data.teamPerformance} period={period} />
+          <PerformanceTable data={data.teamPerformance} dateRange={dateRange} />
         )}
       </div>
     </div>
