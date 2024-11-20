@@ -1,6 +1,6 @@
 import { io, Socket } from 'socket.io-client';
 import { DashboardData, DateRange } from '../types/dashboard';
-import { getDefaultDateRange, formatDateForAPI, isValidDate } from '../utils/dateUtils';
+import { getDefaultDateRange } from '../utils/dateUtils';
 
 type DashboardCallback = (data: any) => void;
 type ConnectionCallback = (status: boolean) => void;
@@ -25,7 +25,7 @@ class SocketService {
   private minUpdateInterval = 5000;
   private subscriptionParams: SubscriptionParams = {
     detailed: true,
-    dateRange: getDefaultDateRange() // Initialize with today's date
+    dateRange: getDefaultDateRange()
   };
 
   private constructor() {}
@@ -37,28 +37,14 @@ class SocketService {
     return SocketService.instance;
   }
 
-  private formatDateRange(dateRange: DateRange) {
-    // Ensure we have valid dates, fallback to default if not
-    if (!dateRange || !this.validateDateRange(dateRange)) {
-      dateRange = getDefaultDateRange();
-    }
-
+  private getDateParams(dateRange: DateRange = getDefaultDateRange()) {
     return {
-      start: formatDateForAPI(dateRange.start),
-      end: formatDateForAPI(dateRange.end),
-      compareStart: formatDateForAPI(dateRange.compareStart),
-      compareEnd: formatDateForAPI(dateRange.compareEnd),
+      startDate: dateRange.start.toISOString(),
+      endDate: dateRange.end.toISOString(),
+      compareStartDate: dateRange.compareStart.toISOString(),
+      compareEndDate: dateRange.compareEnd.toISOString(),
       comparison: dateRange.comparison
     };
-  }
-
-  private validateDateRange(dateRange: DateRange): boolean {
-    return (
-      isValidDate(dateRange.start) &&
-      isValidDate(dateRange.end) &&
-      isValidDate(dateRange.compareStart) &&
-      isValidDate(dateRange.compareEnd)
-    );
   }
 
   connect() {
@@ -79,7 +65,7 @@ class SocketService {
 
     try {
       const baseUrl = import.meta.env.VITE_API_URL.replace('/api', '');
-      const dateRange = this.subscriptionParams.dateRange || getDefaultDateRange();
+      const dateParams = this.getDateParams(this.subscriptionParams.dateRange);
 
       this.socket = io(baseUrl, {
         auth: { token },
@@ -90,8 +76,8 @@ class SocketService {
         reconnectionDelayMax: 5000,
         timeout: 10000,
         query: {
-          detailed: String(this.subscriptionParams.detailed),
-          dateRange: JSON.stringify(this.formatDateRange(dateRange))
+          ...dateParams,
+          detailed: String(this.subscriptionParams.detailed)
         }
       });
 
@@ -162,10 +148,10 @@ class SocketService {
 
   private emitSubscription() {
     if (this.socket?.connected) {
-      const dateRange = this.subscriptionParams.dateRange || getDefaultDateRange();
+      const dateParams = this.getDateParams(this.subscriptionParams.dateRange);
       this.socket.emit('subscribe:dashboard', {
         detailed: this.subscriptionParams.detailed,
-        dateRange: this.formatDateRange(dateRange)
+        ...dateParams
       });
     }
   }
@@ -248,10 +234,8 @@ class SocketService {
   requestData() {
     const now = Date.now();
     if (this.socket?.connected && now - this.lastDataTimestamp >= this.minUpdateInterval) {
-      const dateRange = this.subscriptionParams.dateRange || getDefaultDateRange();
-      this.socket.emit('dashboard:request', {
-        dateRange: this.formatDateRange(dateRange)
-      });
+      const dateParams = this.getDateParams(this.subscriptionParams.dateRange);
+      this.socket.emit('dashboard:request', dateParams);
     }
   }
 
