@@ -38,18 +38,24 @@ class SocketService {
   }
 
   private transformData(rawData: any): DashboardData {
-    if (!rawData?.currentStats) return {} as DashboardData;
-  
-    const { currentStats } = rawData;
-    
+    if (!rawData) return {} as DashboardData;
+
+    // Handle the current data structure from backend
+    const currentStats = rawData.data?.currentStats || {};
+    const vendorStats = currentStats.vendedores || {};
+
     return {
       projectCount: 0,
       recentProjects: [],
       automationRules: [],
-      kommoConfig: null,
-      isKommoConnected: true,
+      kommoConfig: {
+        accountDomain: rawData.data?.kommo?.accountDomain || '',
+        connectedAt: rawData.data?.kommo?.connectedAt || '',
+        isConnected: rawData.data?.kommo?.isConnected || false
+      },
+      isKommoConnected: rawData.data?.kommo?.isConnected || false,
       teamPerformance: {
-        vendorStats: Object.entries(currentStats.vendedores || {}).reduce((acc, [name, data]: [string, any]) => {
+        vendorStats: Object.entries(vendorStats).reduce((acc: any, [name, data]: [string, any]) => {
           acc[name] = {
             totalLeads: data.totalLeads || 0,
             activeLeads: data.activeLeads || 0,
@@ -72,11 +78,11 @@ class SocketService {
         stats: {
           totalLeads: currentStats.totalLeads || 0,
           vendas: currentStats.totalVendas || 0,
-          valorVendas: parseFloat(currentStats.valorTotal?.replace('R$ ', '').replace('.', '').replace(',', '.')) || 0,
-          ticketMedio: parseFloat(currentStats.ticketMedio?.replace('R$ ', '').replace('.', '').replace(',', '.')) || 0,
-          taxaConversao: parseFloat(currentStats.taxaConversao?.replace('%', '')) || 0
+          valorVendas: this.parseCurrency(currentStats.valorTotal),
+          ticketMedio: this.parseCurrency(currentStats.ticketMedio),
+          taxaConversao: this.parsePercentage(currentStats.taxaConversao)
         },
-        comparisonStats: rawData.comparisonStats,
+        comparisonStats: rawData.data?.comparisonStats,
         leads: (currentStats.leads || []).map((lead: any) => ({
           id: lead.id,
           name: lead.nome,
@@ -87,13 +93,23 @@ class SocketService {
           value: lead.valor,
           created_at: lead.created_at
         })),
-        vendorStats: currentStats.vendedores || {},
+        vendorStats: vendorStats,
         personaStats: {},
         sourceStats: {}
       }
     };
   }
-  
+
+  private parseCurrency(value: string): number {
+    if (!value) return 0;
+    return parseFloat(value.replace('R$ ', '').replace('.', '').replace(',', '.')) || 0;
+  }
+
+  private parsePercentage(value: string): number {
+    if (!value) return 0;
+    return parseFloat(value.replace('%', '')) || 0;
+  }
+
   private getDateParams(dateRange: DateRange = getDefaultDateRange()) {
     return {
       startDate: dateRange.start.toISOString(),
@@ -172,13 +188,13 @@ class SocketService {
     });
 
     this.socket.on('dashboard:update', (data: any) => {
-      if (data.status === 'success' && data.data) {
+      if (data.status === 'success') {
         const now = Date.now();
         if (now - this.lastDataTimestamp < this.minUpdateInterval) {
           return;
         }
 
-        const transformedData = this.transformData(data.data);
+        const transformedData = this.transformData(data);
         
         if (this.hasDataChanged(transformedData)) {
           this.lastData = this.deepClone(transformedData);
@@ -210,9 +226,7 @@ class SocketService {
       const dateParams = this.getDateParams(this.subscriptionParams.dateRange);
       this.socket.emit('subscribe:dashboard', {
         detailed: this.subscriptionParams.detailed,
-        ...dateParams,
-        includeTeam: true,
-        includeAnalytics: true
+        ...dateParams
       });
     }
   }
@@ -301,11 +315,7 @@ class SocketService {
     const now = Date.now();
     if (this.socket?.connected && now - this.lastDataTimestamp >= this.minUpdateInterval) {
       const dateParams = this.getDateParams(this.subscriptionParams.dateRange);
-      this.socket.emit('dashboard:request', {
-        ...dateParams,
-        includeTeam: true,
-        includeAnalytics: true
-      });
+      this.socket.emit('dashboard:request', dateParams);
     }
   }
 
