@@ -1,6 +1,6 @@
 import { io, Socket } from 'socket.io-client';
 import { DashboardData, DateRange } from '../types/dashboard';
-import { getDefaultDateRange } from '../hooks/useDashboardData';
+import { getDefaultDateRange } from '../utils/dateUtils';
 
 type DashboardCallback = (data: any) => void;
 type ConnectionCallback = (status: boolean) => void;

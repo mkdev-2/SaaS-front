@@ -1,7 +1,7 @@
 import React from 'react';
 import { Calendar, ChevronDown } from 'lucide-react';
 import { DateRange } from '../../types/dashboard';
-import { getDefaultDateRange } from '../../hooks/useDashboardData';
+import { getDefaultDateRange } from '../../utils/dateUtils';
 
 interface DateRangeSelectorProps {
   value: DateRange;
