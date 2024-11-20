@@ -38,49 +38,62 @@ class SocketService {
   }
 
   private transformData(rawData: any): DashboardData {
-    if (!rawData) return {} as DashboardData;
-
-    const kommoData = rawData.kommo || {};
-    const analytics = kommoData.analytics || {};
-    const teamData = rawData.team || {};
-    const vendorStats = teamData.vendorStats || {};
-    const goals = teamData.goals || {};
-
+    if (!rawData?.currentStats) return {} as DashboardData;
+  
+    const { currentStats } = rawData;
+    
     return {
-      projectCount: rawData.projects?.total || 0,
-      recentProjects: rawData.projects?.recent || [],
+      projectCount: 0,
+      recentProjects: [],
       automationRules: [],
-      kommoConfig: kommoData ? {
-        accountDomain: kommoData.accountDomain,
-        connectedAt: kommoData.connectedAt,
-        isConnected: kommoData.isConnected
-      } : null,
-      isKommoConnected: kommoData.isConnected || false,
+      kommoConfig: null,
+      isKommoConnected: true,
       teamPerformance: {
-        vendorStats,
-        history: teamData.history || [],
+        vendorStats: Object.entries(currentStats.vendedores || {}).reduce((acc, [name, data]: [string, any]) => {
+          acc[name] = {
+            totalLeads: data.totalLeads || 0,
+            activeLeads: data.activeLeads || 0,
+            proposals: data.proposals || 0,
+            sales: data.sales || 0,
+            revenue: data.valorVendas || 'R$ 0,00',
+            averageTicket: data.valorMedioVenda || 'R$ 0,00',
+            conversionRate: data.taxaConversao || '0%',
+            proposalRate: data.taxaPropostas || '0%'
+          };
+          return acc;
+        }, {}),
+        history: [],
         goals: {
-          monthly: goals.monthly || { leads: 0, sales: 0, revenue: 0 },
-          completion: goals.completion || { leads: '0%', sales: '0%', revenue: '0%' }
+          monthly: { leads: 0, sales: 0, revenue: 0 },
+          completion: { leads: '0%', sales: '0%', revenue: '0%' }
         }
       },
       kommoAnalytics: {
         stats: {
-          totalLeads: analytics.totalLeads || 0,
-          vendas: analytics.vendas || 0,
-          valorVendas: analytics.valorVendas || 0,
-          ticketMedio: analytics.ticketMedio || 0,
-          taxaConversao: analytics.taxaConversao || 0
+          totalLeads: currentStats.totalLeads || 0,
+          vendas: currentStats.totalVendas || 0,
+          valorVendas: parseFloat(currentStats.valorTotal?.replace('R$ ', '').replace('.', '').replace(',', '.')) || 0,
+          ticketMedio: parseFloat(currentStats.ticketMedio?.replace('R$ ', '').replace('.', '').replace(',', '.')) || 0,
+          taxaConversao: parseFloat(currentStats.taxaConversao?.replace('%', '')) || 0
         },
-        comparisonStats: analytics.comparisonStats,
-        leads: analytics.leads || [],
-        vendorStats: analytics.vendorStats || {},
-        personaStats: analytics.personaStats || {},
-        sourceStats: analytics.sourceStats || {}
+        comparisonStats: rawData.comparisonStats,
+        leads: (currentStats.leads || []).map((lead: any) => ({
+          id: lead.id,
+          name: lead.nome,
+          status: lead.status,
+          statusColor: lead.statusCor,
+          tipo: 'novo',
+          vendedor: lead.vendedor,
+          value: lead.valor,
+          created_at: lead.created_at
+        })),
+        vendorStats: currentStats.vendedores || {},
+        personaStats: {},
+        sourceStats: {}
       }
     };
   }
-
+  
   private getDateParams(dateRange: DateRange = getDefaultDateRange()) {
     return {
       startDate: dateRange.start.toISOString(),
