@@ -22,7 +22,7 @@ class SocketService {
   private initialDataLoaded = false;
   private lastData: any = null;
   private lastDataTimestamp = 0;
-  private minUpdateInterval = 5000;
+  private minUpdateInterval = 1000; // 1 second minimum between updates
   private subscriptionParams: SubscriptionParams = {
     detailed: true,
     dateRange: getDefaultDateRange()
@@ -35,90 +35,6 @@ class SocketService {
       SocketService.instance = new SocketService();
     }
     return SocketService.instance;
-  }
-
-  private transformData(rawData: any): DashboardData {
-    if (!rawData) return {} as DashboardData;
-
-    // Handle the current data structure from backend
-    const currentStats = rawData.data?.currentStats || {};
-    const vendorStats = currentStats.vendedores || {};
-
-    return {
-      projectCount: 0,
-      recentProjects: [],
-      automationRules: [],
-      kommoConfig: {
-        accountDomain: rawData.data?.kommo?.accountDomain || '',
-        connectedAt: rawData.data?.kommo?.connectedAt || '',
-        isConnected: rawData.data?.kommo?.isConnected || false
-      },
-      isKommoConnected: rawData.data?.kommo?.isConnected || false,
-      teamPerformance: {
-        vendorStats: Object.entries(vendorStats).reduce((acc: any, [name, data]: [string, any]) => {
-          acc[name] = {
-            totalLeads: data.totalLeads || 0,
-            activeLeads: data.activeLeads || 0,
-            proposals: data.proposals || 0,
-            sales: data.sales || 0,
-            revenue: data.valorVendas || 'R$ 0,00',
-            averageTicket: data.valorMedioVenda || 'R$ 0,00',
-            conversionRate: data.taxaConversao || '0%',
-            proposalRate: data.taxaPropostas || '0%'
-          };
-          return acc;
-        }, {}),
-        history: [],
-        goals: {
-          monthly: { leads: 0, sales: 0, revenue: 0 },
-          completion: { leads: '0%', sales: '0%', revenue: '0%' }
-        }
-      },
-      kommoAnalytics: {
-        stats: {
-          totalLeads: currentStats.totalLeads || 0,
-          vendas: currentStats.totalVendas || 0,
-          valorVendas: this.parseCurrency(currentStats.valorTotal),
-          ticketMedio: this.parseCurrency(currentStats.ticketMedio),
-          taxaConversao: this.parsePercentage(currentStats.taxaConversao)
-        },
-        comparisonStats: rawData.data?.comparisonStats,
-        leads: (currentStats.leads || []).map((lead: any) => ({
-          id: lead.id,
-          name: lead.nome,
-          status: lead.status,
-          statusColor: lead.statusCor,
-          tipo: 'novo',
-          vendedor: lead.vendedor,
-          value: lead.valor,
-          created_at: lead.created_at
-        })),
-        vendorStats: vendorStats,
-        personaStats: {},
-        sourceStats: {}
-      }
-    };
-  }
-
-  private parseCurrency(value: string): number {
-    if (!value) return 0;
-    return parseFloat(value.replace('R$ ', '').replace('.', '').replace(',', '.')) || 0;
-  }
-
-  private parsePercentage(value: string): number {
-    if (!value) return 0;
-    return parseFloat(value.replace('%', '')) || 0;
-  }
-
-  private getDateParams(dateRange: DateRange = getDefaultDateRange()) {
-    return {
-      date: dateRange.start.toISOString().split('T')[0],
-      startDate: dateRange.start.toISOString(),
-      endDate: dateRange.end.toISOString(),
-      compareStartDate: dateRange.comparison ? dateRange.compareStart.toISOString() : undefined,
-      compareEndDate: dateRange.comparison ? dateRange.compareEnd.toISOString() : undefined,
-      comparison: dateRange.comparison
-    };
   }
 
   connect() {
@@ -163,6 +79,16 @@ class SocketService {
     }
   }
 
+  private getDateParams(dateRange: DateRange = getDefaultDateRange()) {
+    return {
+      startDate: dateRange.start.toISOString(),
+      endDate: dateRange.end.toISOString(),
+      compareStartDate: dateRange.comparison ? dateRange.compareStart.toISOString() : undefined,
+      compareEndDate: dateRange.comparison ? dateRange.compareEnd.toISOString() : undefined,
+      comparison: dateRange.comparison
+    };
+  }
+
   private setupEventListeners() {
     if (!this.socket) return;
 
@@ -174,15 +100,8 @@ class SocketService {
       this.emitSubscription();
     });
 
-    this.socket.on('connect_error', (error) => {
-      console.error('Socket connection error:', error);
-      this.isConnecting = false;
-      this.notifyConnectionStatus(false);
-      this.handleReconnect();
-    });
-
-    this.socket.on('disconnect', (reason) => {
-      console.log('Socket disconnected:', reason);
+    this.socket.on('disconnect', () => {
+      console.log('Socket disconnected');
       this.isConnecting = false;
       this.notifyConnectionStatus(false);
       this.handleReconnect();
@@ -195,17 +114,10 @@ class SocketService {
           return;
         }
 
-        const transformedData = this.transformData(data);
-        
-        if (this.hasDataChanged(transformedData)) {
-          this.lastData = this.deepClone(transformedData);
-          this.lastDataTimestamp = now;
-          this.initialDataLoaded = true;
-          this.dashboardCallbacks.forEach(callback => callback({
-            status: 'success',
-            data: this.lastData
-          }));
-        }
+        this.lastData = data;
+        this.lastDataTimestamp = now;
+        this.initialDataLoaded = true;
+        this.dashboardCallbacks.forEach(callback => callback(data));
       } else {
         console.error('Invalid dashboard update:', data);
         this.dashboardCallbacks.forEach(callback => callback({
@@ -213,12 +125,6 @@ class SocketService {
           message: data.message || 'Failed to update dashboard data'
         }));
       }
-    });
-
-    this.socket.on('error', (error: Error) => {
-      console.error('Socket error:', error);
-      this.isConnecting = false;
-      this.notifyConnectionStatus(false);
     });
   }
 
@@ -232,33 +138,22 @@ class SocketService {
     }
   }
 
-  private hasDataChanged(newData: DashboardData): boolean {
-    if (!this.lastData) return true;
+  updateSubscription(params: SubscriptionParams) {
+    this.subscriptionParams = {
+      ...this.subscriptionParams,
+      ...params
+    };
 
-    const fieldsToCompare = [
-      'kommoAnalytics.stats',
-      'kommoAnalytics.leads',
-      'kommoAnalytics.vendorStats',
-      'kommoAnalytics.personaStats',
-      'kommoAnalytics.sourceStats',
-      'teamPerformance.vendorStats',
-      'teamPerformance.history',
-      'teamPerformance.goals'
-    ];
-
-    return fieldsToCompare.some(field => {
-      const newValue = this.getNestedValue(newData, field);
-      const oldValue = this.getNestedValue(this.lastData, field);
-      return JSON.stringify(newValue) !== JSON.stringify(oldValue);
-    });
+    if (this.socket?.connected) {
+      this.emitSubscription();
+    }
   }
 
-  private getNestedValue(obj: any, path: string): any {
-    return path.split('.').reduce((acc, part) => acc && acc[part], obj);
-  }
-
-  private deepClone<T>(obj: T): T {
-    return JSON.parse(JSON.stringify(obj));
+  requestData() {
+    if (this.socket?.connected) {
+      const dateParams = this.getDateParams(this.subscriptionParams.dateRange);
+      this.socket.emit('dashboard:request', dateParams);
+    }
   }
 
   private handleReconnect() {
@@ -278,26 +173,10 @@ class SocketService {
     }
   }
 
-  updateSubscription(params: SubscriptionParams) {
-    this.subscriptionParams = {
-      ...this.subscriptionParams,
-      ...params,
-      dateRange: params.dateRange || getDefaultDateRange()
-    };
-
-    if (this.socket?.connected) {
-      this.emitSubscription();
-      this.requestData();
-    }
-  }
-
   onDashboardUpdate(callback: DashboardCallback) {
     this.dashboardCallbacks.add(callback);
     if (this.lastData && this.initialDataLoaded) {
-      callback({
-        status: 'success',
-        data: this.lastData
-      });
+      callback(this.lastData);
     }
     return () => this.dashboardCallbacks.delete(callback);
   }
@@ -310,14 +189,6 @@ class SocketService {
 
   private notifyConnectionStatus(status: boolean) {
     this.connectionCallbacks.forEach(callback => callback(status));
-  }
-
-  requestData() {
-    const now = Date.now();
-    if (this.socket?.connected && now - this.lastDataTimestamp >= this.minUpdateInterval) {
-      const dateParams = this.getDateParams(this.subscriptionParams.dateRange);
-      this.socket.emit('dashboard:request', dateParams);
-    }
   }
 
   disconnect() {

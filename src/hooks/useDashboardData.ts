@@ -3,26 +3,8 @@ import { socketService } from '../lib/socket';
 import { DateRange } from '../types/dashboard';
 import { getDefaultDateRange } from '../utils/dateUtils';
 
-const DEFAULT_DATA = {
-  currentStats: {
-    totalLeads: 0,
-    totalVendas: 0,
-    valorTotal: "R$ 0,00",
-    ticketMedio: "R$ 0,00",
-    taxaConversao: "0%",
-    vendedores: {},
-    leads: []
-  },
-  comparisonStats: null,
-  kommo: {
-    isConnected: false,
-    accountDomain: "",
-    connectedAt: ""
-  }
-};
-
 export function useDashboardData() {
-  const [data, setData] = useState<any>(DEFAULT_DATA);
+  const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isConnected, setIsConnected] = useState(false);
@@ -31,7 +13,6 @@ export function useDashboardData() {
   const dataRef = useRef(data);
   const isMounted = useRef(true);
   const lastUpdateRef = useRef<number>(0);
-  const updateTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Update data ref when data changes
   useEffect(() => {
@@ -42,16 +23,13 @@ export function useDashboardData() {
   useEffect(() => {
     return () => {
       isMounted.current = false;
-      if (updateTimeoutRef.current) {
-        clearTimeout(updateTimeoutRef.current);
-      }
     };
   }, []);
 
   const handleDashboardUpdate = useCallback((update: any) => {
     if (!isMounted.current) return;
     
-    if (update.status === 'success') {
+    if (update.status === 'success' && update.data) {
       const now = Date.now();
       // Prevent updates too close together (within 1 second)
       if (now - lastUpdateRef.current < 1000) {
@@ -59,15 +37,10 @@ export function useDashboardData() {
       }
       lastUpdateRef.current = now;
 
-      // Merge with default data to ensure all properties exist
-      setData({
-        ...DEFAULT_DATA,
-        ...update.data
-      });
+      setData(update.data);
       setError(null);
     } else {
       setError(update.message || 'Failed to update dashboard data');
-      setData(DEFAULT_DATA);
     }
     setLoading(false);
   }, []);
@@ -77,10 +50,7 @@ export function useDashboardData() {
     setIsConnected(status);
     if (status) {
       setError(null);
-      // Delay the initial data request slightly to ensure connection is stable
-      updateTimeoutRef.current = setTimeout(() => {
-        socketService.requestData();
-      }, 100);
+      socketService.requestData();
     }
   }, []);
 
@@ -89,10 +59,7 @@ export function useDashboardData() {
     socketService.connect();
     
     // Update subscription with current date range
-    socketService.updateSubscription({ 
-      dateRange,
-      detailed: true 
-    });
+    socketService.updateSubscription({ dateRange });
 
     // Setup event listeners
     const unsubscribeConnection = socketService.onConnectionChange(handleConnectionChange);
@@ -101,11 +68,7 @@ export function useDashboardData() {
     // Request initial data
     socketService.requestData();
 
-    // Cleanup subscriptions
     return () => {
-      if (updateTimeoutRef.current) {
-        clearTimeout(updateTimeoutRef.current);
-      }
       unsubscribeConnection();
       unsubscribeDashboard();
     };
@@ -113,7 +76,6 @@ export function useDashboardData() {
 
   const refresh = useCallback(() => {
     const now = Date.now();
-    // Prevent manual refresh too close to last update
     if (now - lastUpdateRef.current >= 1000) {
       lastUpdateRef.current = now;
       socketService.requestData();
@@ -122,20 +84,15 @@ export function useDashboardData() {
 
   const handleDateRangeChange = useCallback((newRange: DateRange) => {
     setDateRange(newRange);
-    setLoading(true); // Show loading state while fetching new data
+    setLoading(true);
     
     // Update subscription and request new data
-    socketService.updateSubscription({ 
-      dateRange: newRange,
-      detailed: true 
-    });
-    
-    // Immediate data request
+    socketService.updateSubscription({ dateRange: newRange });
     socketService.requestData();
   }, []);
 
   return {
-    data: data || DEFAULT_DATA,
+    data,
     loading,
     error,
     isConnected,
