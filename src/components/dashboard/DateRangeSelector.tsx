@@ -1,6 +1,7 @@
 import React from 'react';
 import { Calendar, ChevronDown } from 'lucide-react';
 import { DateRange } from '../../types/dashboard';
+import { getDefaultDateRange } from '../../hooks/useDashboardData';
 
 interface DateRangeSelectorProps {
   value: DateRange;
@@ -32,6 +33,10 @@ export default function DateRangeSelector({ value, onChange, showComparison = tr
       ...value,
       comparison: !value.comparison
     });
+  };
+
+  const resetToDefault = () => {
+    onChange(getDefaultDateRange());
   };
 
   return (
@@ -93,12 +98,20 @@ export default function DateRangeSelector({ value, onChange, showComparison = tr
               </>
             )}
 
-            <button
-              onClick={() => setIsOpen(false)}
-              className="w-full px-4 py-2 bg-indigo-600 text-white rounded-md text-sm font-medium hover:bg-indigo-700"
-            >
-              Aplicar
-            </button>
+            <div className="flex space-x-2">
+              <button
+                onClick={resetToDefault}
+                className="flex-1 px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50"
+              >
+                Reset
+              </button>
+              <button
+                onClick={() => setIsOpen(false)}
+                className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-md text-sm font-medium hover:bg-indigo-700"
+              >
+                Aplicar
+              </button>
+            </div>
           </div>
         </div>
       )}

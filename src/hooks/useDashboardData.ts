@@ -3,53 +3,20 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { socketService } from '../lib/socket';
 import { DashboardData, DateRange } from '../types/dashboard';
 
-function transformBackendData(data: any): DashboardData {
-  const { projects, kommo } = data;
-
-  // Transform analytics data
-  const analytics = kommo?.analytics;
-  const currentStats = {
-    totalLeads: analytics?.periodStats?.day?.totalLeads || 0,
-    vendas: analytics?.periodStats?.day?.purchases || 0,
-    valorVendas: analytics?.periodStats?.day?.totalValue || 0,
-    ticketMedio: analytics?.periodStats?.day?.purchases ? 
-      analytics.periodStats.day.totalValue / analytics.periodStats.day.purchases : 0,
-    taxaConversao: analytics?.periodStats?.day?.totalLeads ? 
-      (analytics.periodStats.day.purchases / analytics.periodStats.day.totalLeads) * 100 : 0
-  };
-
-  // Transform leads data
-  const leads = Object.entries(analytics?.dailyStats || {}).flatMap(([date, dayData]: [string, any]) => 
-    (dayData.leads || []).map((lead: any) => ({
-      id: lead.id,
-      name: lead.name,
-      status: lead.status,
-      statusColor: lead.statusColor || '#666',
-      tipo: lead.tipo || 'novo',
-      vendedor: lead.vendedor || 'Não atribuído',
-      value: typeof lead.value === 'number' ? 
-        new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(lead.value) : 
-        lead.value || 'R$ 0,00',
-      created_at: date
-    }))
-  );
+export const getDefaultDateRange = (): DateRange => {
+  const end = new Date();
+  end.setHours(23, 59, 59, 999);
+  const start = new Date();
+  start.setHours(0, 0, 0, 0);
 
   return {
-    projectCount: projects?.total || 0,
-    recentProjects: projects?.recent || [],
-    automationRules: [],
-    kommoConfig: kommo ? {
-      accountDomain: kommo.accountDomain,
-      connectedAt: kommo.connectedAt,
-      isConnected: kommo.isConnected
-    } : null,
-    isKommoConnected: kommo?.isConnected || false,
-    kommoAnalytics: {
-      currentStats,
-      leads
-    }
+    start,
+    end,
+    compareStart: new Date(start.getTime() - (end.getTime() - start.getTime())),
+    compareEnd: new Date(start),
+    comparison: false
   };
-}
+};
 
 export function useDashboardData() {
   const [data, setData] = useState<DashboardData | null>(null);
@@ -80,8 +47,7 @@ export function useDashboardData() {
       if (!isMounted.current) return;
       
       if (update.status === 'success' && update.data) {
-        const transformedData = transformBackendData(update.data);
-        setData(transformedData);
+        setData(update.data);
         setError(null);
         initialLoadRef.current = true;
       } else {
