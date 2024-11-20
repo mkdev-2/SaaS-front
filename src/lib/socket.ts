@@ -44,6 +44,7 @@ class SocketService {
     const analytics = kommoData.analytics || {};
     const stats = analytics.stats || {};
     const dailyStats = analytics.dailyStats || {};
+    const teamPerformance = analytics.teamPerformance || {};
 
     return {
       projectCount: rawData.projects?.total || 0,
@@ -55,6 +56,14 @@ class SocketService {
         isConnected: kommoData.isConnected
       } : null,
       isKommoConnected: kommoData.isConnected || false,
+      teamPerformance: {
+        vendorStats: teamPerformance.vendorStats || {},
+        history: teamPerformance.history || [],
+        goals: teamPerformance.goals || {
+          monthly: { leads: 0, sales: 0, revenue: 0 },
+          completion: { leads: '0%', sales: '0%', revenue: '0%' }
+        }
+      },
       kommoAnalytics: {
         stats: {
           totalLeads: stats.totalLeads || 0,
@@ -87,7 +96,10 @@ class SocketService {
               'R$ 0,00',
             created_at: date
           }))
-        )
+        ),
+        vendorStats: analytics.vendorStats || {},
+        personaStats: analytics.personaStats || {},
+        sourceStats: analytics.sourceStats || {}
       }
     };
   }
@@ -218,7 +230,13 @@ class SocketService {
 
     const fieldsToCompare = [
       'kommoAnalytics.stats',
-      'kommoAnalytics.leads'
+      'kommoAnalytics.leads',
+      'kommoAnalytics.vendorStats',
+      'kommoAnalytics.personaStats',
+      'kommoAnalytics.sourceStats',
+      'teamPerformance.vendorStats',
+      'teamPerformance.history',
+      'teamPerformance.goals'
     ];
 
     return fieldsToCompare.some(field => {
