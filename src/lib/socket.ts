@@ -37,6 +37,16 @@ class SocketService {
     return SocketService.instance;
   }
 
+  private formatDateRange(dateRange: DateRange) {
+    return {
+      start: dateRange.start.toISOString(),
+      end: dateRange.end.toISOString(),
+      compareStart: dateRange.compareStart.toISOString(),
+      compareEnd: dateRange.compareEnd.toISOString(),
+      comparison: dateRange.comparison
+    };
+  }
+
   connect() {
     if (this.isConnecting || this.socket?.connected) return;
 
@@ -55,6 +65,7 @@ class SocketService {
 
     try {
       const baseUrl = import.meta.env.VITE_API_URL.replace('/api', '');
+      const dateRange = this.subscriptionParams.dateRange || getDefaultDateRange();
 
       this.socket = io(baseUrl, {
         auth: { token },
@@ -64,7 +75,10 @@ class SocketService {
         reconnectionDelay: 1000,
         reconnectionDelayMax: 5000,
         timeout: 10000,
-        query: this.getQueryParams()
+        query: {
+          ...this.getQueryParams(),
+          dateRange: JSON.stringify(this.formatDateRange(dateRange))
+        }
       });
 
       this.setupEventListeners();
@@ -81,14 +95,8 @@ class SocketService {
     };
 
     if (this.subscriptionParams.dateRange) {
-      const { start, end, compareStart, compareEnd, comparison } = this.subscriptionParams.dateRange;
-      params.startDate = start.toISOString();
-      params.endDate = end.toISOString();
-      
-      if (comparison) {
-        params.compareStartDate = compareStart.toISOString();
-        params.compareEndDate = compareEnd.toISOString();
-      }
+      const dateRange = this.formatDateRange(this.subscriptionParams.dateRange);
+      params.dateRange = JSON.stringify(dateRange);
     }
 
     return params;
@@ -156,13 +164,7 @@ class SocketService {
       const dateRange = this.subscriptionParams.dateRange || getDefaultDateRange();
       this.socket.emit('subscribe:dashboard', {
         ...this.subscriptionParams,
-        dateRange: {
-          ...dateRange,
-          start: dateRange.start.toISOString(),
-          end: dateRange.end.toISOString(),
-          compareStart: dateRange.compareStart.toISOString(),
-          compareEnd: dateRange.compareEnd.toISOString()
-        }
+        dateRange: this.formatDateRange(dateRange)
       });
     }
   }
@@ -247,13 +249,7 @@ class SocketService {
     if (this.socket?.connected && now - this.lastDataTimestamp >= this.minUpdateInterval) {
       const dateRange = this.subscriptionParams.dateRange || getDefaultDateRange();
       this.socket.emit('dashboard:request', {
-        dateRange: {
-          ...dateRange,
-          start: dateRange.start.toISOString(),
-          end: dateRange.end.toISOString(),
-          compareStart: dateRange.compareStart.toISOString(),
-          compareEnd: dateRange.compareEnd.toISOString()
-        }
+        dateRange: this.formatDateRange(dateRange)
       });
     }
   }
