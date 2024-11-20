@@ -1,7 +1,6 @@
 import React from 'react';
 import { DollarSign, TrendingUp, Users, ShoppingBag } from 'lucide-react';
 import StatCard from '../StatCard';
-import DailyLeadsChart from '../DailyLeadsChart';
 import LeadsList from '../LeadsList';
 import DaySelector from '../DaySelector';
 import { useDashboardData } from '../../../hooks/useDashboardData';
@@ -80,26 +79,20 @@ export default function SalesOverview() {
         ))}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
-        <DailyLeadsChart data={currentStats} dateRange={dateRange} />
-      </div>
-
-      <div className="bg-white rounded-xl shadow-sm">
+      <div className="bg-gray-50 rounded-xl">
         <div className="p-4 sm:p-6 border-b border-gray-200">
           <h2 className="text-lg font-semibold text-gray-900">Leads do Período</h2>
         </div>
-        <div className="p-4 sm:p-6">
-          <LeadsList leads={currentStats.leads.map(lead => ({
-            id: lead.id,
-            name: lead.nome,
-            status: lead.status,
-            statusColor: lead.statusCor,
-            tipo: 'novo',
-            vendedor: lead.vendedor,
-            value: lead.valor,
-            created_at: lead.created_at
-          }))} />
-        </div>
+        <LeadsList leads={currentStats.leads.map(lead => ({
+          id: lead.id,
+          name: lead.nome,
+          status: lead.status,
+          statusColor: lead.statusCor,
+          tipo: 'novo',
+          vendedor: lead.vendedor,
+          value: lead.valor,
+          created_at: lead.created_at
+        }))} />
       </div>
     </div>
   );
