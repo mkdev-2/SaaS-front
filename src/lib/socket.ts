@@ -37,6 +37,61 @@ class SocketService {
     return SocketService.instance;
   }
 
+  private transformData(rawData: any): DashboardData {
+    if (!rawData) return {} as DashboardData;
+
+    const kommoData = rawData.kommo || {};
+    const analytics = kommoData.analytics || {};
+    const periodStats = analytics.periodStats || {};
+    const dailyStats = analytics.dailyStats || {};
+
+    return {
+      projectCount: rawData.projects?.total || 0,
+      recentProjects: rawData.projects?.recent || [],
+      automationRules: [],
+      kommoConfig: kommoData ? {
+        accountDomain: kommoData.accountDomain,
+        connectedAt: kommoData.connectedAt,
+        isConnected: kommoData.isConnected
+      } : null,
+      isKommoConnected: kommoData.isConnected || false,
+      kommoAnalytics: {
+        currentStats: {
+          totalLeads: periodStats.day?.totalLeads || 0,
+          vendas: periodStats.day?.purchases || 0,
+          valorVendas: periodStats.day?.totalValue || 0,
+          ticketMedio: periodStats.day?.totalValue && periodStats.day?.purchases ? 
+            periodStats.day.totalValue / periodStats.day.purchases : 0,
+          taxaConversao: periodStats.day?.totalLeads ? 
+            (periodStats.day.purchases / periodStats.day.totalLeads) * 100 : 0
+        },
+        comparisonStats: {
+          totalLeads: periodStats.week?.totalLeads || 0,
+          vendas: periodStats.week?.purchases || 0,
+          valorVendas: periodStats.week?.totalValue || 0,
+          ticketMedio: periodStats.week?.totalValue && periodStats.week?.purchases ? 
+            periodStats.week.totalValue / periodStats.week.purchases : 0,
+          taxaConversao: periodStats.week?.totalLeads ? 
+            (periodStats.week.purchases / periodStats.week.totalLeads) * 100 : 0
+        },
+        leads: Object.entries(dailyStats).flatMap(([date, stats]: [string, any]) => 
+          (stats.leads || []).map((lead: any) => ({
+            id: lead.id,
+            name: lead.name,
+            status: lead.status,
+            statusColor: lead.statusColor || '#718096',
+            tipo: lead.tipo || 'novo',
+            vendedor: lead.vendedor || 'Não atribuído',
+            value: typeof lead.value === 'number' ? 
+              lead.value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : 
+              'R$ 0,00',
+            created_at: date
+          }))
+        )
+      }
+    };
+  }
+
   private getDateParams(dateRange: DateRange = getDefaultDateRange()) {
     return {
       startDate: dateRange.start.toISOString(),
@@ -121,8 +176,10 @@ class SocketService {
           return;
         }
 
-        if (this.hasDataChanged(data.data)) {
-          this.lastData = this.deepClone(data.data);
+        const transformedData = this.transformData(data.data);
+        
+        if (this.hasDataChanged(transformedData)) {
+          this.lastData = this.deepClone(transformedData);
           this.lastDataTimestamp = now;
           this.initialDataLoaded = true;
           this.dashboardCallbacks.forEach(callback => callback({
@@ -160,9 +217,8 @@ class SocketService {
     if (!this.lastData) return true;
 
     const fieldsToCompare = [
-      'teamPerformance.vendorStats',
-      'teamPerformance.goals',
-      'teamPerformance.history'
+      'kommoAnalytics.currentStats',
+      'kommoAnalytics.leads'
     ];
 
     return fieldsToCompare.some(field => {
