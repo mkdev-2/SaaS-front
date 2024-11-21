@@ -6,26 +6,23 @@ export interface DateRange {
   comparison: boolean;
 }
 
-export interface LeadStatus {
-  name: string;
-  color: string;
-  textColor: string;
-}
-
 export interface Lead {
   id: number;
-  name: string;
+  nome: string;
+  valor: string;
   status: string;
   status_id: number;
-  statusColor: string;
-  tipo: 'novo' | 'interacao';
+  statusCor: string;
   vendedor: string;
-  value: string;
+  origem: string;
   created_at: string;
-  tags?: Array<{ name: string }>;
-  events?: Array<{
-    type: string;
-    created_at: string;
+  updated_at?: string;
+  closed_at?: string | null;
+  contatos: Array<{
+    id: string;
+    nome: string;
+    telefone: string;
+    email: string;
   }>;
 }
 
@@ -53,21 +50,7 @@ export interface DashboardData {
     valorTotal: string;
     ticketMedio: string;
     taxaConversao: string;
-    leads: Array<{
-      id: number;
-      nome: string;
-      status: string;
-      status_id: number;
-      statusCor: string;
-      vendedor: string;
-      valor: string;
-      created_at: string;
-      tags?: Array<{ name: string }>;
-      events?: Array<{
-        type: string;
-        created_at: string;
-      }>;
-    }>;
+    leads: Lead[];
     vendedores: Record<string, VendorStats>;
   };
   comparisonStats?: {
@@ -77,6 +60,11 @@ export interface DashboardData {
     ticketMedio: string;
     taxaConversao: string;
   };
+}
+export interface LeadStatus {
+  name: string;
+  color: string;
+  textColor: string;
 }
 export interface TeamPerformanceData {
   vendorStats: Record<string, {
