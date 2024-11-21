@@ -38,6 +38,31 @@ export const LEAD_STATUSES: Record<string, LeadStatus> = {
     textColor: '#DC2626'
   }
 };
+export const LEAD_STATUS_ORDER = [
+    'Leads de Entrada',
+    'Primeiro Contato',
+    'Qualificação',
+    'Apresentação',
+    'Proposta',
+    'Fechamento',
+    'Venda Realizada',
+    'Pós-Venda',
+    'Perdido',
+    'Status Desconhecido'
+  ];
+  
+  export const STATUS_COLORS = {
+    'Leads de Entrada': '#E5F6FD',
+    'Primeiro Contato': '#F0F9FF',
+    'Qualificação': '#F0FDFB',
+    'Apresentação': '#ECFDF5',
+    'Proposta': '#FEF9C3',
+    'Fechamento': '#F0FDF4',
+    'Venda Realizada': '#DCF9E6',
+    'Pós-Venda': '#32CD32',
+    'Perdido': '#FEE2E2',
+    'Status Desconhecido': '#808080'
+  };
 
 export interface LeadDetails {
   status: LeadStatus;

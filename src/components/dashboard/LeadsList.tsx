@@ -1,6 +1,7 @@
 import React from 'react';
 import { Lead } from '../../types/dashboard';
 import { Calendar, Tag, User } from 'lucide-react';
+import { LEAD_STATUS_ORDER, STATUS_COLORS } from '../../utils/leadUtils';
 
 interface LeadsListProps {
   leads: Lead[];
@@ -8,15 +9,26 @@ interface LeadsListProps {
 
 export default function LeadsList({ leads }: LeadsListProps) {
   const groupedLeads = React.useMemo(() => {
+    // Initialize groups with all possible statuses
     const groups: Record<string, Lead[]> = {};
-    leads.forEach(lead => {
-      const status = lead.status || 'Não Classificado';
-      if (!groups[status]) {
-        groups[status] = [];
-      }
-      groups[status].push(lead);
+    LEAD_STATUS_ORDER.forEach(status => {
+      groups[status] = [];
     });
-    return groups;
+
+    // Group leads by status
+    leads.forEach(lead => {
+      const status = lead.status || 'Status Desconhecido';
+      if (groups[status]) {
+        groups[status].push(lead);
+      } else {
+        groups['Status Desconhecido'].push(lead);
+      }
+    });
+
+    // Remove empty status groups
+    return Object.fromEntries(
+      Object.entries(groups).filter(([_, statusLeads]) => statusLeads.length > 0)
+    );
   }, [leads]);
 
   if (!leads || leads.length === 0) {
@@ -40,9 +52,14 @@ export default function LeadsList({ leads }: LeadsListProps) {
     }
   };
 
+  // Sort status groups according to LEAD_STATUS_ORDER
+  const sortedStatuses = Object.keys(groupedLeads).sort((a, b) => {
+    return LEAD_STATUS_ORDER.indexOf(a) - LEAD_STATUS_ORDER.indexOf(b);
+  });
+
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 p-4">
-      {Object.entries(groupedLeads).map(([status, statusLeads]) => (
+      {sortedStatuses.map((status) => (
         <div 
           key={status}
           className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden"
@@ -51,20 +68,20 @@ export default function LeadsList({ leads }: LeadsListProps) {
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-medium text-gray-900">{status}</h3>
               <span className="text-xs font-medium text-gray-500">
-                {statusLeads.length}
+                {groupedLeads[status].length}
               </span>
             </div>
           </div>
 
           <div className="p-2 space-y-2 min-h-[200px]">
-            {statusLeads.map((lead) => (
+            {groupedLeads[status].map((lead) => (
               <div
                 key={lead.id}
                 className="p-3 rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow"
                 style={{
-                  backgroundColor: lead.statusCor || '#f9fafb',
-                  color: lead.statusCor === '#32CD32' ? '#065F46' : 
-                         lead.statusCor === '#808080' ? '#1F2937' : '#111827'
+                  backgroundColor: STATUS_COLORS[status as keyof typeof STATUS_COLORS] || '#f9fafb',
+                  color: STATUS_COLORS[status as keyof typeof STATUS_COLORS] === '#32CD32' ? '#065F46' : 
+                         STATUS_COLORS[status as keyof typeof STATUS_COLORS] === '#808080' ? '#1F2937' : '#111827'
                 }}
               >
                 <div className="space-y-2">

@@ -61,11 +61,6 @@ export interface DashboardData {
     taxaConversao: string;
   };
 }
-export interface LeadStatus {
-  name: string;
-  color: string;
-  textColor: string;
-}
 export interface TeamPerformanceData {
   vendorStats: Record<string, {
     totalLeads: number;
