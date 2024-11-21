@@ -1,7 +1,4 @@
-import { DateRange } from '../types/dashboard';
-
-export const getDefaultDateRange = (): DateRange => {
-  // Always use current date/time when called
+export const getDefaultDateRange = () => {
   const now = new Date();
   
   // Start of today
@@ -14,10 +11,11 @@ export const getDefaultDateRange = (): DateRange => {
 
   // Previous day for comparison
   const compareEnd = new Date(start);
-  const compareStart = new Date(start);
-  compareStart.setDate(compareStart.getDate() - 1);
-  compareStart.setHours(0, 0, 0, 0);
+  compareEnd.setDate(compareEnd.getDate() - 1);
   compareEnd.setHours(23, 59, 59, 999);
+  
+  const compareStart = new Date(compareEnd);
+  compareStart.setHours(0, 0, 0, 0);
 
   return {
     start,
@@ -34,4 +32,16 @@ export const formatDateForAPI = (date: Date): string => {
 
 export const isValidDate = (date: Date): boolean => {
   return date instanceof Date && !isNaN(date.getTime());
+};
+
+export const ensureDateObjects = (dateRange: any) => {
+  if (!dateRange) return getDefaultDateRange();
+  
+  return {
+    start: new Date(dateRange.start),
+    end: new Date(dateRange.end),
+    compareStart: new Date(dateRange.compareStart),
+    compareEnd: new Date(dateRange.compareEnd),
+    comparison: dateRange.comparison
+  };
 };

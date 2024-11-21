@@ -1,6 +1,6 @@
 import { io, Socket } from 'socket.io-client';
 import { DashboardData, DateRange } from '../types/dashboard';
-import { getDefaultDateRange } from '../utils/dateUtils';
+import { ensureDateObjects } from '../utils/dateUtils';
 
 type DashboardCallback = (data: any) => void;
 type ConnectionCallback = (status: boolean) => void;
@@ -25,7 +25,7 @@ class SocketService {
   private minUpdateInterval = 1000; // 1 second minimum between updates
   private subscriptionParams: SubscriptionParams = {
     detailed: true,
-    dateRange: getDefaultDateRange()
+    dateRange: ensureDateObjects(null)
   };
 
   private constructor() {}
@@ -79,13 +79,14 @@ class SocketService {
     }
   }
 
-  private getDateParams(dateRange: DateRange = getDefaultDateRange()) {
+  private getDateParams(dateRange: DateRange) {
+    const validDateRange = ensureDateObjects(dateRange);
     return {
-      startDate: dateRange.start.toISOString(),
-      endDate: dateRange.end.toISOString(),
-      compareStartDate: dateRange.comparison ? dateRange.compareStart.toISOString() : undefined,
-      compareEndDate: dateRange.comparison ? dateRange.compareEnd.toISOString() : undefined,
-      comparison: dateRange.comparison
+      startDate: validDateRange.start.toISOString(),
+      endDate: validDateRange.end.toISOString(),
+      compareStartDate: validDateRange.comparison ? validDateRange.compareStart.toISOString() : undefined,
+      compareEndDate: validDateRange.comparison ? validDateRange.compareEnd.toISOString() : undefined,
+      comparison: validDateRange.comparison
     };
   }
 
@@ -139,6 +140,10 @@ class SocketService {
   }
 
   updateSubscription(params: SubscriptionParams) {
+    if (params.dateRange) {
+      params.dateRange = ensureDateObjects(params.dateRange);
+    }
+    
     this.subscriptionParams = {
       ...this.subscriptionParams,
       ...params

@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { socketService } from '../lib/socket';
 import { DashboardData } from '../types/dashboard';
 import useDashboardStore from '../store/dashboardStore';
+import { ensureDateObjects } from '../utils/dateUtils';
 
 export function useDashboardData() {
   const { selectedDate } = useDashboardStore();
@@ -52,7 +53,8 @@ export function useDashboardData() {
 
   useEffect(() => {
     socketService.connect();
-    socketService.updateSubscription({ dateRange: selectedDate });
+    const validDateRange = ensureDateObjects(selectedDate);
+    socketService.updateSubscription({ dateRange: validDateRange });
 
     const unsubscribeConnection = socketService.onConnectionChange(handleConnectionChange);
     const unsubscribeDashboard = socketService.onDashboardUpdate(handleDashboardUpdate);
