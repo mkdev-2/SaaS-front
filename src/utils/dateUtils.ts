@@ -1,4 +1,6 @@
-export const getDefaultDateRange = () => {
+import { DateRange } from '../types/dashboard';
+
+export const getDefaultDateRange = (): DateRange => {
   const now = new Date();
   
   // Start of today
@@ -26,22 +28,27 @@ export const getDefaultDateRange = () => {
   };
 };
 
+export const ensureDateObjects = (dateRange: DateRange | null): DateRange => {
+  if (!dateRange) return getDefaultDateRange();
+
+  try {
+    return {
+      start: new Date(dateRange.start),
+      end: new Date(dateRange.end),
+      compareStart: new Date(dateRange.compareStart),
+      compareEnd: new Date(dateRange.compareEnd),
+      comparison: Boolean(dateRange.comparison)
+    };
+  } catch (error) {
+    console.error('Error parsing dates:', error);
+    return getDefaultDateRange();
+  }
+};
+
 export const formatDateForAPI = (date: Date): string => {
   return date.toISOString();
 };
 
 export const isValidDate = (date: Date): boolean => {
   return date instanceof Date && !isNaN(date.getTime());
-};
-
-export const ensureDateObjects = (dateRange: any) => {
-  if (!dateRange) return getDefaultDateRange();
-  
-  return {
-    start: new Date(dateRange.start),
-    end: new Date(dateRange.end),
-    compareStart: new Date(dateRange.compareStart),
-    compareEnd: new Date(dateRange.compareEnd),
-    comparison: dateRange.comparison
-  };
 };

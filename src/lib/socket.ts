@@ -22,7 +22,7 @@ class SocketService {
   private initialDataLoaded = false;
   private lastData: any = null;
   private lastDataTimestamp = 0;
-  private minUpdateInterval = 1000; // 1 second minimum between updates
+  private minUpdateInterval = 1000;
   private subscriptionParams: SubscriptionParams = {
     detailed: true,
     dateRange: ensureDateObjects(null)
@@ -55,7 +55,7 @@ class SocketService {
 
     try {
       const baseUrl = import.meta.env.VITE_API_URL.replace('/api', '');
-      const dateParams = this.getDateParams(this.subscriptionParams.dateRange);
+      const dateParams = this.getDateParams();
 
       this.socket = io(baseUrl, {
         auth: { token },
@@ -79,15 +79,21 @@ class SocketService {
     }
   }
 
-  private getDateParams(dateRange: DateRange) {
-    const validDateRange = ensureDateObjects(dateRange);
-    return {
-      startDate: validDateRange.start.toISOString(),
-      endDate: validDateRange.end.toISOString(),
-      compareStartDate: validDateRange.comparison ? validDateRange.compareStart.toISOString() : undefined,
-      compareEndDate: validDateRange.comparison ? validDateRange.compareEnd.toISOString() : undefined,
-      comparison: validDateRange.comparison
+  private getDateParams(): Record<string, string> {
+    const dateRange = ensureDateObjects(this.subscriptionParams.dateRange);
+    
+    const params: Record<string, string> = {
+      startDate: dateRange.start.toISOString(),
+      endDate: dateRange.end.toISOString()
     };
+
+    if (dateRange.comparison) {
+      params.compareStartDate = dateRange.compareStart.toISOString();
+      params.compareEndDate = dateRange.compareEnd.toISOString();
+      params.comparison = 'true';
+    }
+
+    return params;
   }
 
   private setupEventListeners() {
@@ -131,7 +137,7 @@ class SocketService {
 
   private emitSubscription() {
     if (this.socket?.connected) {
-      const dateParams = this.getDateParams(this.subscriptionParams.dateRange);
+      const dateParams = this.getDateParams();
       this.socket.emit('subscribe:dashboard', {
         detailed: this.subscriptionParams.detailed,
         ...dateParams
@@ -156,7 +162,7 @@ class SocketService {
 
   requestData() {
     if (this.socket?.connected) {
-      const dateParams = this.getDateParams(this.subscriptionParams.dateRange);
+      const dateParams = this.getDateParams();
       this.socket.emit('dashboard:request', dateParams);
     }
   }
