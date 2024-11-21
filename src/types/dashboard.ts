@@ -5,6 +5,7 @@ export interface DateRange {
   compareEnd: Date;
   comparison: boolean;
 }
+
 export interface LeadStatus {
   name: string;
   color: string;
@@ -21,74 +22,50 @@ export interface Lead {
   value: string;
   created_at: string;
 }
-export interface DashboardData {
-  projectCount: number;
-  recentProjects: Array<{
-    id: string;
-    name: string;
-    status: string;
-    updatedAt: string;
-  }>;
-  automationRules: Array<{
-    id: string;
-    name: string;
-    isActive: boolean;
-    updatedAt: string;
-  }>;
-  kommoConfig: {
-    accountDomain: string;
-    connectedAt: string;
-    isConnected: boolean;
-  } | null;
-  isKommoConnected: boolean;
-  teamPerformance?: TeamPerformanceData;
-  kommoAnalytics?: {
-    stats: {
-      totalLeads: number;
-      vendas: number;
-      valorVendas: number;
-      ticketMedio: number;
-      taxaConversao: number;
-    };
-    comparisonStats?: {
-      totalLeads: number;
-      vendas: number;
-      valorVendas: number;
-      ticketMedio: number;
-      taxaConversao: number;
-    };
-    leads: Array<{
-      id: number;
-      name: string;
-      status: string;
-      statusColor: string;
-      tipo: 'novo' | 'interacao';
-      vendedor: string;
-      value: string;
-      created_at: string;
-    }>;
-    vendorStats: Record<string, {
-      totalLeads: number;
-      activeLeads: number;
-      proposals: number;
-      sales: number;
-      revenue: string;
-      averageTicket: string;
-      conversionRate: string;
-      proposalRate: string;
-    }>;
-    personaStats: Record<string, {
-      quantity: number;
-      totalValue: string;
-      percentage: string;
-    }>;
-    sourceStats: Record<string, {
-      count: number;
-      percentage: string;
-    }>;
+
+export interface VendorStats {
+  name: string;
+  totalLeads: number;
+  activeLeads: number;
+  proposals: number;
+  sales: number;
+  valorVendas: string;
+  taxaConversao: string;
+  taxaPropostas: string;
+  valorMedioVenda: string;
+  valorTotal: string;
+  rawValues: {
+    revenue: number;
+    sales: number;
   };
 }
 
+export interface DashboardData {
+  currentStats: {
+    totalLeads: number;
+    totalVendas: number;
+    valorTotal: string;
+    ticketMedio: string;
+    taxaConversao: string;
+    leads: Array<{
+      id: number;
+      nome: string;
+      status: string;
+      statusCor: string;
+      vendedor: string;
+      valor: string;
+      created_at: string;
+    }>;
+    vendedores: Record<string, VendorStats>;
+  };
+  comparisonStats?: {
+    totalLeads: number;
+    totalVendas: number;
+    valorTotal: string;
+    ticketMedio: string;
+    taxaConversao: string;
+  };
+}
 export interface TeamPerformanceData {
   vendorStats: Record<string, {
     totalLeads: number;

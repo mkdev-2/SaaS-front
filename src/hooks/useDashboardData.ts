@@ -1,11 +1,11 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { socketService } from '../lib/socket';
-import { DateRange } from '../types/dashboard';
+import { DashboardData } from '../types/dashboard';
 import useDashboardStore from '../store/dashboardStore';
 
 export function useDashboardData() {
   const { selectedDate } = useDashboardStore();
-  const [data, setData] = useState<any>(null);
+  const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isConnected, setIsConnected] = useState(false);

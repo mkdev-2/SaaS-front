@@ -6,6 +6,7 @@ import DaySelector from '../DaySelector';
 import LoadingOverlay from '../../LoadingOverlay';
 import { useDashboardData } from '../../../hooks/useDashboardData';
 import useDashboardStore from '../../../store/dashboardStore';
+import { DateRange } from '../../../types/dashboard';
 
 export default function SalesOverview() {
   const { selectedDate, setSelectedDate } = useDashboardStore();
