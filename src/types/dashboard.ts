@@ -16,11 +16,17 @@ export interface Lead {
   id: number;
   name: string;
   status: string;
+  status_id: number;
   statusColor: string;
   tipo: 'novo' | 'interacao';
   vendedor: string;
   value: string;
   created_at: string;
+  tags?: Array<{ name: string }>;
+  events?: Array<{
+    type: string;
+    created_at: string;
+  }>;
 }
 
 export interface VendorStats {
@@ -51,10 +57,16 @@ export interface DashboardData {
       id: number;
       nome: string;
       status: string;
+      status_id: number;
       statusCor: string;
       vendedor: string;
       valor: string;
       created_at: string;
+      tags?: Array<{ name: string }>;
+      events?: Array<{
+        type: string;
+        created_at: string;
+      }>;
     }>;
     vendedores: Record<string, VendorStats>;
   };

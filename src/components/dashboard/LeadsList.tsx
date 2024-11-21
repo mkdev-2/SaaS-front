@@ -1,6 +1,7 @@
 import React from 'react';
 import { Lead } from '../../types/dashboard';
-import { getLeadStatus } from '../../utils/leadUtils';
+import { getLeadStatus, formatLeadSummary } from '../../utils/leadUtils';
+import { Calendar, MessageSquare } from 'lucide-react';
 
 interface LeadsListProps {
   leads: Lead[];
@@ -27,6 +28,15 @@ export default function LeadsList({ leads }: LeadsListProps) {
     );
   }
 
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleString('pt-BR', {
+      day: '2-digit',
+      month: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 p-4">
       {Object.entries(groupedLeads).map(([status, statusLeads]) => {
@@ -47,37 +57,53 @@ export default function LeadsList({ leads }: LeadsListProps) {
             </div>
 
             <div className="p-2 space-y-2 min-h-[200px]">
-              {statusLeads.map((lead) => (
-                <div
-                  key={lead.id}
-                  className="p-3 bg-white rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow"
-                  style={{
-                    backgroundColor: leadStatus.color
-                  }}
-                >
-                  <div className="space-y-2">
-                    <div className="flex justify-between items-start">
-                      <h4 className="text-sm font-medium" style={{
-                        color: leadStatus.textColor
-                      }}>
-                        {lead.name}
-                      </h4>
-                    </div>
-                    
-                    <div className="flex flex-col space-y-1">
-                      <p className="text-xs text-gray-600">
-                        Vendedor: {lead.vendedor}
-                      </p>
-                      <p className="text-xs text-gray-600">
-                        Valor: {lead.value}
-                      </p>
-                      <p className="text-xs text-gray-500">
-                        {new Date(lead.created_at).toLocaleString('pt-BR')}
-                      </p>
+              {statusLeads.map((lead) => {
+                const details = formatLeadSummary(lead);
+                
+                return (
+                  <div
+                    key={lead.id}
+                    className="p-3 bg-white rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow"
+                    style={{
+                      backgroundColor: details.status.color
+                    }}
+                  >
+                    <div className="space-y-2">
+                      <div className="flex justify-between items-start">
+                        <h4 className="text-sm font-medium" style={{
+                          color: details.status.textColor
+                        }}>
+                          {lead.name}
+                        </h4>
+                      </div>
+                      
+                      <div className="flex flex-col space-y-1">
+                        <p className="text-xs text-gray-600">
+                          Vendedor: {lead.vendedor || 'Não atribuído'}
+                        </p>
+                        {details.source && (
+                          <p className="text-xs text-gray-600">
+                            Origem: {details.source}
+                          </p>
+                        )}
+                        <p className="text-xs text-gray-600">
+                          Valor: {lead.value}
+                        </p>
+                        <div className="flex items-center space-x-2 text-xs text-gray-500">
+                          <Calendar className="h-3 w-3" />
+                          <span>{formatDate(lead.created_at)}</span>
+                        </div>
+                        {details.lastInteraction && (
+                          <div className="flex items-center space-x-2 text-xs text-gray-500">
+                            <MessageSquare className="h-3 w-3" />
+                            <span>Última interação: {formatDate(details.lastInteraction.toISOString())}</span>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         );

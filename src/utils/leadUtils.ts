@@ -1,12 +1,13 @@
 import { LeadStatus } from '../types/dashboard';
 
+// Updated status IDs based on your Kommo CRM configuration
 export const LEAD_STATUSES: Record<string, LeadStatus> = {
-  '143': {
+  '32392154': {
     name: 'Leads de Entrada',
     color: '#E5F6FD',
     textColor: '#0369A1'
   },
-  '142': {
+  '32392155': {
     name: 'Primeiro Contato',
     color: '#F0F9FF',
     textColor: '#0284C7'
@@ -26,22 +27,55 @@ export const LEAD_STATUSES: Record<string, LeadStatus> = {
     color: '#FEF9C3',
     textColor: '#CA8A04'
   },
-  '142': {
+  '32392166': {
     name: 'Fechamento',
     color: '#DCF9E6',
     textColor: '#16A34A'
   },
-  '143': {
+  '32392169': {
     name: 'Perdido',
     color: '#FEE2E2',
     textColor: '#DC2626'
   }
 };
 
+export interface LeadDetails {
+  status: LeadStatus;
+  source?: string;
+  lastInteraction?: Date;
+}
+
 export const getLeadStatus = (statusId: number): LeadStatus => {
   return LEAD_STATUSES[statusId.toString()] || {
     name: 'Status Desconhecido',
     color: '#F3F4F6',
     textColor: '#4B5563'
+  };
+};
+
+export const findSourceTag = (tags: any[]): string | undefined => {
+  if (!Array.isArray(tags)) return undefined;
+  const sourceTag = tags.find(tag => 
+    tag.name?.toLowerCase().includes('origem:') || 
+    tag.name?.toLowerCase().includes('canal:')
+  );
+  return sourceTag ? sourceTag.name.split(':')[1]?.trim() : undefined;
+};
+
+export const getLastInteraction = (events: any[]): Date | undefined => {
+  if (!Array.isArray(events) || events.length === 0) return undefined;
+  
+  const lastEvent = events
+    .filter(event => event.type === 'note' || event.type === 'message')
+    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0];
+    
+  return lastEvent ? new Date(lastEvent.created_at) : undefined;
+};
+
+export const formatLeadSummary = (lead: any): LeadDetails => {
+  return {
+    status: getLeadStatus(lead.status_id),
+    source: findSourceTag(lead.tags),
+    lastInteraction: getLastInteraction(lead.events)
   };
 };
