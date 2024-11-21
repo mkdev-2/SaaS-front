@@ -7,6 +7,18 @@ import LoadingOverlay from '../../LoadingOverlay';
 import { useDashboardData } from '../../../hooks/useDashboardData';
 import { useDashboardStore } from '../../../store/dashboardStore';
 import { DateRange } from '../../../types/dashboard';
+import { normalizeStatus } from '../../../utils/leadUtils';
+
+// List of all possible vendors
+const ALL_VENDORS = [
+  'Ana Paula Honorato',
+  'Breno Santana',
+  'Karla Bianca',
+  'Rodrigo Ferreira',
+  'Diuly',
+  'Amanda Arouche',
+  'Não atribuído'
+];
 
 export default function SalesOverview() {
   const { selectedDate, setSelectedDate } = useDashboardStore();
@@ -22,6 +34,27 @@ export default function SalesOverview() {
 
   const { currentStats, comparisonStats } = data;
 
+  // Ensure all vendors are represented in the stats
+  const vendedores = { ...currentStats.vendedores };
+  ALL_VENDORS.forEach(vendor => {
+    if (!vendedores[vendor]) {
+      vendedores[vendor] = {
+        name: vendor,
+        totalLeads: 0,
+        activeLeads: 0,
+        proposals: 0,
+        sales: 0,
+        valorVendas: 'R$ 0,00',
+        taxaConversao: '0.0%',
+        taxaPropostas: '0.0%',
+        valorMedioVenda: 'R$ 0,00',
+        valorTotal: 'R$ 0,00',
+        rawValues: { revenue: 0, sales: 0 },
+        leads: []
+      };
+    }
+  });
+
   // Include all leads in total count, including unassigned ones
   const totalLeads = currentStats.leads.length;
   const assignedLeads = currentStats.leads.filter(lead => lead.vendedor && lead.vendedor !== 'Não atribuído').length;
@@ -29,7 +62,8 @@ export default function SalesOverview() {
 
   // Calculate total sales value and count
   const salesData = currentStats.leads.reduce((acc, lead) => {
-    if (lead.status === 'Venda Realizada' || lead.status === 'Pós-Venda') {
+    const status = normalizeStatus(lead.status);
+    if (status === 'Venda Realizada' || status === 'Pós-Venda' || status === 'Fechamento') {
       const value = parseFloat(lead.valor.replace('R$ ', '').replace('.', '').replace(',', '.'));
       if (!isNaN(value)) {
         acc.totalValue += value;

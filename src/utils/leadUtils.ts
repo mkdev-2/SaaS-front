@@ -1,4 +1,3 @@
-import { LeadStatus } from '../types/dashboard';
 // Map of status names and their normalized versions
 export const STATUS_MAPPING: Record<string, string> = {
   'Leads de Entrada': 'Leads de Entrada',
@@ -10,6 +9,7 @@ export const STATUS_MAPPING: Record<string, string> = {
   'Proposta': 'Proposta',
   'Proposta Enviada': 'Proposta',
   'Fechamento': 'Fechamento',
+  'Fechamento ': 'Fechamento', // Note the extra space
   'Venda Realizada': 'Venda Realizada',
   'Venda realizada': 'Venda Realizada',
   'venda realizada': 'Venda Realizada',
@@ -41,7 +41,7 @@ export const STATUS_COLORS = {
   'Qualificação': '#F0FDFB',
   'Apresentação': '#ECFDF5',
   'Proposta': '#ffcccc',
-  'Fechamento': '#F0FDF4',
+  'Fechamento': '#fff000',
   'Venda Realizada': '#DCF9E6',
   'Pós-Venda': '#CCFF66',
   'Perdido': '#FEE2E2',
