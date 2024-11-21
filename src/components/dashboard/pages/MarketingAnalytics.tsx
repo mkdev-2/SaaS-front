@@ -5,9 +5,11 @@ import LeadSourceChart from '../LeadSourceChart';
 import PersonaStats from '../PersonaStats';
 import DaySelector from '../DaySelector';
 import { useDashboardData } from '../../../hooks/useDashboardData';
+import useDashboardStore from '../../../store/dashboardStore';
 
 export default function MarketingAnalytics() {
-  const { data, loading, error, isConnected, dateRange, setDateRange } = useDashboardData();
+  const { selectedDate, setSelectedDate } = useDashboardStore();
+  const { data, loading, error, isConnected } = useDashboardData();
 
   if (loading || !data?.kommoAnalytics) {
     return (
@@ -65,7 +67,7 @@ export default function MarketingAnalytics() {
             {!isConnected && ' (Reconectando...)'}
           </p>
         </div>
-        <DaySelector value={dateRange} onChange={setDateRange} />
+        <DaySelector value={selectedDate} onChange={setSelectedDate} />
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -75,7 +77,7 @@ export default function MarketingAnalytics() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <LeadSourceChart data={analytics} dateRange={dateRange} />
+        <LeadSourceChart data={analytics} dateRange={selectedDate} />
         <PersonaStats data={Object.entries(analytics.personaStats || {}).map(([name, stats]: [string, any]) => ({
           name,
           quantity: stats.quantity,

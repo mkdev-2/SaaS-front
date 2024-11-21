@@ -5,9 +5,15 @@ import LeadsList from '../LeadsList';
 import DaySelector from '../DaySelector';
 import LoadingOverlay from '../../LoadingOverlay';
 import { useDashboardData } from '../../../hooks/useDashboardData';
+import useDashboardStore from '../../../store/dashboardStore';
 
 export default function SalesOverview() {
-  const { data, loading, error, isConnected, dateRange, setDateRange } = useDashboardData();
+  const { selectedDate, setSelectedDate } = useDashboardStore();
+  const { data, loading, error, isConnected } = useDashboardData();
+
+  const handleDateChange = (newDate: DateRange) => {
+    setSelectedDate(newDate);
+  };
 
   if (loading || !data?.currentStats) {
     return <LoadingOverlay />;
@@ -15,8 +21,13 @@ export default function SalesOverview() {
 
   const { currentStats, comparisonStats } = data;
 
+  // Include all leads in total count
+  const totalLeads = currentStats.leads.length;
+  const assignedLeads = currentStats.leads.filter(lead => lead.vendedor && lead.vendedor !== 'Não atribuído').length;
+  const unassignedLeads = totalLeads - assignedLeads;
+
   const getComparisonValue = (current: number | string, comparison: number | string | undefined) => {
-    if (!comparison || !dateRange.comparison) return undefined;
+    if (!comparison || !selectedDate.comparison) return undefined;
     
     const currentValue = typeof current === 'string' ? 
       parseFloat(current.replace(/[^0-9.-]+/g, "")) : 
@@ -53,15 +64,15 @@ export default function SalesOverview() {
       change: getComparisonValue(currentStats.taxaConversao, comparisonStats?.taxaConversao),
       icon: TrendingUp,
       color: "indigo",
-      subtitle: `De ${currentStats.totalLeads} leads`
+      subtitle: `De ${totalLeads} leads totais`
     },
     {
       title: "Leads Ativos",
-      value: currentStats.totalLeads || 0,
-      change: getComparisonValue(currentStats.totalLeads, comparisonStats?.totalLeads),
+      value: totalLeads,
+      change: getComparisonValue(totalLeads, comparisonStats?.totalLeads),
       icon: Users,
       color: "purple",
-      subtitle: "No período selecionado"
+      subtitle: `${unassignedLeads} não atribuídos`
     }
   ];
 
@@ -75,7 +86,7 @@ export default function SalesOverview() {
             {!isConnected && ' (Reconectando...)'}
           </p>
         </div>
-        <DaySelector value={dateRange} onChange={setDateRange} />
+        <DaySelector value={selectedDate} onChange={handleDateChange} />
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
@@ -94,7 +105,7 @@ export default function SalesOverview() {
           status: lead.status,
           statusColor: lead.statusCor,
           tipo: 'novo',
-          vendedor: lead.vendedor,
+          vendedor: lead.vendedor || 'Não atribuído',
           value: lead.valor,
           created_at: lead.created_at
         }))} />

@@ -5,7 +5,22 @@ export interface DateRange {
   compareEnd: Date;
   comparison: boolean;
 }
+export interface LeadStatus {
+  name: string;
+  color: string;
+  textColor: string;
+}
 
+export interface Lead {
+  id: number;
+  name: string;
+  status: string;
+  statusColor: string;
+  tipo: 'novo' | 'interacao';
+  vendedor: string;
+  value: string;
+  created_at: string;
+}
 export interface DashboardData {
   projectCount: number;
   recentProjects: Array<{

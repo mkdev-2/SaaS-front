@@ -1,14 +1,14 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { socketService } from '../lib/socket';
 import { DateRange } from '../types/dashboard';
-import { getDefaultDateRange } from '../utils/dateUtils';
+import useDashboardStore from '../store/dashboardStore';
 
 export function useDashboardData() {
+  const { selectedDate } = useDashboardStore();
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isConnected, setIsConnected] = useState(false);
-  const [dateRange, setDateRange] = useState<DateRange>(getDefaultDateRange());
 
   const dataRef = useRef(data);
   const isMounted = useRef(true);
@@ -52,7 +52,7 @@ export function useDashboardData() {
 
   useEffect(() => {
     socketService.connect();
-    socketService.updateSubscription({ dateRange });
+    socketService.updateSubscription({ dateRange: selectedDate });
 
     const unsubscribeConnection = socketService.onConnectionChange(handleConnectionChange);
     const unsubscribeDashboard = socketService.onDashboardUpdate(handleDashboardUpdate);
@@ -63,7 +63,7 @@ export function useDashboardData() {
       unsubscribeConnection();
       unsubscribeDashboard();
     };
-  }, [dateRange, handleConnectionChange, handleDashboardUpdate]);
+  }, [selectedDate, handleConnectionChange, handleDashboardUpdate]);
 
   const refresh = useCallback(() => {
     if (Date.now() - lastUpdateRef.current >= 1000) {
@@ -72,20 +72,11 @@ export function useDashboardData() {
     }
   }, []);
 
-  const handleDateRangeChange = useCallback((newRange: DateRange) => {
-    setLoading(true);
-    setDateRange(newRange);
-    socketService.updateSubscription({ dateRange: newRange });
-    socketService.requestData();
-  }, []);
-
   return {
     data,
     loading,
     error,
     isConnected,
-    dateRange,
-    setDateRange: handleDateRangeChange,
     refresh
   };
 }

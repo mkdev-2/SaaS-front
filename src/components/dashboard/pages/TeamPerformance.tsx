@@ -5,9 +5,11 @@ import VendorStats from '../VendorStats';
 import PerformanceTable from '../PerformanceTable';
 import DaySelector from '../DaySelector';
 import { useDashboardData } from '../../../hooks/useDashboardData';
+import useDashboardStore from '../../../store/dashboardStore';
 
 export default function TeamPerformance() {
-  const { data, loading, error, isConnected, dateRange, setDateRange } = useDashboardData();
+  const { selectedDate, setSelectedDate } = useDashboardStore();
+  const { data, loading, error, isConnected } = useDashboardData();
 
   if (loading || !data?.currentStats) {
     return (
@@ -25,7 +27,22 @@ export default function TeamPerformance() {
   }
 
   const { currentStats } = data;
-  const vendedores = currentStats.vendedores || {};
+  const vendedores = {
+    ...currentStats.vendedores,
+    'Ana Paula Honorato': {
+      name: 'Ana Paula Honorato',
+      totalLeads: 0,
+      activeLeads: 0,
+      proposals: 0,
+      sales: 0,
+      valorVendas: 'R$ 0,00',
+      taxaConversao: '0.0%',
+      taxaPropostas: '0.0%',
+      valorMedioVenda: 'R$ 0,00',
+      valorTotal: 'R$ 0,00',
+      rawValues: { revenue: 0, sales: 0 }
+    }
+  };
 
   const totalLeads = Object.values(vendedores).reduce((sum: number, vendor: any) => 
     sum + (vendor.totalLeads || 0), 0);
@@ -79,7 +96,7 @@ export default function TeamPerformance() {
             {!isConnected && ' (Reconectando...)'}
           </p>
         </div>
-        <DaySelector value={dateRange} onChange={setDateRange} />
+        <DaySelector value={selectedDate} onChange={setSelectedDate} />
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
