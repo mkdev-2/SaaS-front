@@ -7,9 +7,10 @@ import LoadingOverlay from '../../LoadingOverlay';
 import { useDashboardData } from '../../../hooks/useDashboardData';
 import { useDashboardStore } from '../../../store/dashboardStore';
 import { DateRange } from '../../../types/dashboard';
-import { normalizeStatus } from '../../../utils/leadUtils';
+import { PIPELINE_STATUS, SALE_STATUSES } from '../../../lib/kommo/constants';
+import { formatCurrency } from '../../../utils/leadUtils';
 
-// List of all possible vendors
+// List of all vendors that should always be included
 const ALL_VENDORS = [
   'Ana Paula Honorato',
   'Breno Santana',
@@ -34,51 +35,19 @@ export default function SalesOverview() {
 
   const { currentStats, comparisonStats } = data;
 
-  // Ensure all vendors are represented in the stats
-  const vendedores = { ...currentStats.vendedores };
-  ALL_VENDORS.forEach(vendor => {
-    if (!vendedores[vendor]) {
-      vendedores[vendor] = {
-        name: vendor,
-        totalLeads: 0,
-        activeLeads: 0,
-        proposals: 0,
-        sales: 0,
-        valorVendas: 'R$ 0,00',
-        taxaConversao: '0.0%',
-        taxaPropostas: '0.0%',
-        valorMedioVenda: 'R$ 0,00',
-        valorTotal: 'R$ 0,00',
-        rawValues: { revenue: 0, sales: 0 },
-        leads: []
-      };
-    }
-  });
-
-  // Include all leads in total count, including unassigned ones
+  // Calculate total leads and sales
   const totalLeads = currentStats.leads.length;
-  const assignedLeads = currentStats.leads.filter(lead => lead.vendedor && lead.vendedor !== 'Não atribuído').length;
-  const unassignedLeads = totalLeads - assignedLeads;
+  const sales = currentStats.leads.filter(lead => 
+    SALE_STATUSES.includes(lead.status_id)
+  );
 
-  // Calculate total sales value and count
-  const salesData = currentStats.leads.reduce((acc, lead) => {
-    const status = normalizeStatus(lead.status);
-    if (status === 'Venda Realizada' || status === 'Pós-Venda' || status === 'Fechamento') {
-      const value = parseFloat(lead.valor.replace('R$ ', '').replace('.', '').replace(',', '.'));
-      if (!isNaN(value)) {
-        acc.totalValue += value;
-        acc.count += 1;
-      }
-    }
-    return acc;
-  }, { totalValue: 0, count: 0 });
-
-  const formatCurrency = (value: number) => {
-    return value.toLocaleString('pt-BR', {
-      style: 'currency',
-      currency: 'BRL'
-    });
-  };
+  // Calculate total sales value
+  const totalValue = sales.reduce((sum, lead) => {
+    const value = typeof lead.valor === 'string' ? 
+      parseFloat(lead.valor.replace('R$ ', '').replace(/\./g, '').replace(',', '.')) :
+      lead.valor || 0;
+    return sum + (isNaN(value) ? 0 : value);
+  }, 0);
 
   const getComparisonValue = (current: number | string, comparison: number | string | undefined) => {
     if (!comparison || !selectedDate.comparison) return undefined;
@@ -98,19 +67,17 @@ export default function SalesOverview() {
   const statsConfig = [
     {
       title: "Receita Total",
-      value: formatCurrency(salesData.totalValue),
-      change: getComparisonValue(salesData.totalValue, comparisonStats?.valorTotal),
+      value: formatCurrency(totalValue),
+      change: getComparisonValue(totalValue, comparisonStats?.valorTotal),
       icon: DollarSign,
       color: "green",
-      subtitle: `${salesData.count} vendas realizadas`
+      subtitle: `${sales.length} vendas realizadas`
     },
     {
       title: "Ticket Médio",
-      value: salesData.count > 0 ? 
-        formatCurrency(salesData.totalValue / salesData.count) : 
-        "R$ 0,00",
+      value: sales.length > 0 ? formatCurrency(totalValue / sales.length) : "R$ 0,00",
       change: getComparisonValue(
-        salesData.count > 0 ? salesData.totalValue / salesData.count : 0,
+        sales.length > 0 ? totalValue / sales.length : 0,
         comparisonStats?.ticketMedio
       ),
       icon: ShoppingBag,
@@ -119,11 +86,9 @@ export default function SalesOverview() {
     },
     {
       title: "Taxa de Conversão",
-      value: totalLeads > 0 ? 
-        `${((salesData.count / totalLeads) * 100).toFixed(1)}%` : 
-        "0%",
+      value: totalLeads > 0 ? `${((sales.length / totalLeads) * 100).toFixed(1)}%` : "0%",
       change: getComparisonValue(
-        salesData.count / totalLeads * 100,
+        totalLeads > 0 ? (sales.length / totalLeads) * 100 : 0,
         comparisonStats?.taxaConversao
       ),
       icon: TrendingUp,
@@ -136,7 +101,7 @@ export default function SalesOverview() {
       change: getComparisonValue(totalLeads, comparisonStats?.totalLeads),
       icon: Users,
       color: "purple",
-      subtitle: `${unassignedLeads} não atribuídos`
+      subtitle: `${currentStats.leads.filter(l => l.vendedor === 'Não atribuído').length} não atribuídos`
     }
   ];
 
@@ -163,7 +128,17 @@ export default function SalesOverview() {
         <div className="p-4 sm:p-6 border-b border-gray-200">
           <h2 className="text-lg font-semibold text-gray-900">Leads do Período</h2>
         </div>
-        <LeadsList leads={currentStats.leads} />
+        <LeadsList leads={currentStats.leads.map(lead => ({
+          id: lead.id,
+          nome: lead.nome,
+          status: lead.status,
+          status_id: lead.status_id,
+          statusCor: lead.statusCor,
+          tipo: 'novo',
+          vendedor: lead.vendedor || 'Não atribuído',
+          valor: lead.valor,
+          created_at: lead.created_at
+        }))} />
       </div>
     </div>
   );
