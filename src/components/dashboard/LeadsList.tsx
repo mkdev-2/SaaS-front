@@ -1,7 +1,7 @@
 import React from 'react';
 import { Lead } from '../../types/dashboard';
 import { Calendar, Tag, User } from 'lucide-react';
-import { LEAD_STATUS_ORDER, STATUS_COLORS } from '../../utils/leadUtils';
+import { LEAD_STATUS_ORDER, STATUS_COLORS, normalizeStatus } from '../../utils/leadUtils';
 
 interface LeadsListProps {
   leads: Lead[];
@@ -15,11 +15,14 @@ export default function LeadsList({ leads }: LeadsListProps) {
       groups[status] = [];
     });
 
-    // Group leads by status
+    // Group leads by normalized status
     leads.forEach(lead => {
-      const status = lead.status || 'Status Desconhecido';
-      if (groups[status]) {
-        groups[status].push(lead);
+      const normalizedStatus = normalizeStatus(lead.status);
+      if (groups[normalizedStatus]) {
+        groups[normalizedStatus].push({
+          ...lead,
+          status: normalizedStatus // Update the status to the normalized version
+        });
       } else {
         groups['Status Desconhecido'].push(lead);
       }
@@ -79,9 +82,9 @@ export default function LeadsList({ leads }: LeadsListProps) {
                 key={lead.id}
                 className="p-3 rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow"
                 style={{
-                  backgroundColor: STATUS_COLORS[status as keyof typeof STATUS_COLORS] || '#f9fafb',
-                  color: STATUS_COLORS[status as keyof typeof STATUS_COLORS] === '#32CD32' ? '#065F46' : 
-                         STATUS_COLORS[status as keyof typeof STATUS_COLORS] === '#808080' ? '#1F2937' : '#111827'
+                  backgroundColor: STATUS_COLORS[status] || '#f9fafb',
+                  color: STATUS_COLORS[status] === '#CCFF66' ? '#065F46' : 
+                         STATUS_COLORS[status] === '#808080' ? '#1F2937' : '#111827'
                 }}
               >
                 <div className="space-y-2">
