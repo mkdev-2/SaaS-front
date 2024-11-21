@@ -22,10 +22,18 @@ export default function SalesOverview() {
 
   const { currentStats, comparisonStats } = data;
 
-  // Include all leads in total count
+  // Include all leads in total count, including unassigned ones
   const totalLeads = currentStats.leads.length;
   const assignedLeads = currentStats.leads.filter(lead => lead.vendedor && lead.vendedor !== 'Não atribuído').length;
   const unassignedLeads = totalLeads - assignedLeads;
+
+  // Calculate total sales value
+  const totalSalesValue = currentStats.leads
+    .filter(lead => lead.status === 'Venda Realizada')
+    .reduce((sum, lead) => {
+      const value = parseFloat(lead.valor.replace('R$ ', '').replace('.', '').replace(',', '.'));
+      return sum + (isNaN(value) ? 0 : value);
+    }, 0);
 
   const getComparisonValue = (current: number | string, comparison: number | string | undefined) => {
     if (!comparison || !selectedDate.comparison) return undefined;
@@ -42,18 +50,27 @@ export default function SalesOverview() {
     return `${diff >= 0 ? '+' : ''}${diff.toFixed(1)}%`;
   };
 
+  const formatCurrency = (value: number) => {
+    return value.toLocaleString('pt-BR', {
+      style: 'currency',
+      currency: 'BRL'
+    });
+  };
+
   const statsConfig = [
     {
       title: "Receita Total",
-      value: currentStats.valorTotal || "R$ 0,00",
-      change: getComparisonValue(currentStats.valorTotal, comparisonStats?.valorTotal),
+      value: formatCurrency(totalSalesValue),
+      change: getComparisonValue(totalSalesValue, comparisonStats?.valorTotal),
       icon: DollarSign,
       color: "green",
       subtitle: `${currentStats.totalVendas} vendas realizadas`
     },
     {
       title: "Ticket Médio",
-      value: currentStats.ticketMedio || "R$ 0,00",
+      value: currentStats.totalVendas > 0 ? 
+        formatCurrency(totalSalesValue / currentStats.totalVendas) : 
+        "R$ 0,00",
       change: getComparisonValue(currentStats.ticketMedio, comparisonStats?.ticketMedio),
       icon: ShoppingBag,
       color: "blue",
@@ -100,17 +117,7 @@ export default function SalesOverview() {
         <div className="p-4 sm:p-6 border-b border-gray-200">
           <h2 className="text-lg font-semibold text-gray-900">Leads do Período</h2>
         </div>
-        <LeadsList leads={currentStats.leads.map(lead => ({
-          id: lead.id,
-          name: lead.nome,
-          status: lead.status,
-          status_id: lead.status_id,
-          statusColor: lead.statusCor,
-          tipo: 'novo',
-          vendedor: lead.vendedor || 'Não atribuído',
-          value: lead.valor,
-          created_at: lead.created_at
-        }))} />
+        <LeadsList leads={currentStats.leads} />
       </div>
     </div>
   );

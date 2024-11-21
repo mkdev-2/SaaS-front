@@ -10,10 +10,11 @@ export default function LeadsList({ leads }: LeadsListProps) {
   const groupedLeads = React.useMemo(() => {
     const groups: Record<string, Lead[]> = {};
     leads.forEach(lead => {
-      if (!groups[lead.status]) {
-        groups[lead.status] = [];
+      const status = lead.status || 'Não Classificado';
+      if (!groups[status]) {
+        groups[status] = [];
       }
-      groups[lead.status].push(lead);
+      groups[status].push(lead);
     });
     return groups;
   }, [leads]);
@@ -59,36 +60,40 @@ export default function LeadsList({ leads }: LeadsListProps) {
             {statusLeads.map((lead) => (
               <div
                 key={lead.id}
-                className="p-3 bg-white rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow"
+                className="p-3 rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow"
                 style={{
-                  backgroundColor: lead.statusCor || '#f9fafb'
+                  backgroundColor: lead.statusCor || '#f9fafb',
+                  color: lead.statusCor === '#32CD32' ? '#065F46' : 
+                         lead.statusCor === '#808080' ? '#1F2937' : '#111827'
                 }}
               >
                 <div className="space-y-2">
                   <div className="flex justify-between items-start">
-                    <h4 className="text-sm font-medium text-gray-900">
-                      {lead.nome}
+                    <h4 className="text-sm font-medium">
+                      {lead.nome || `Lead #${lead.id}`}
                     </h4>
                   </div>
                   
                   <div className="flex flex-col space-y-1">
-                    <div className="flex items-center space-x-2 text-xs text-gray-600">
+                    <div className="flex items-center space-x-2 text-xs opacity-80">
                       <User className="h-3 w-3" />
                       <span>{lead.vendedor || 'Não atribuído'}</span>
                     </div>
                     
                     {lead.origem && lead.origem !== 'Origem não informada' && (
-                      <div className="flex items-center space-x-2 text-xs text-gray-600">
+                      <div className="flex items-center space-x-2 text-xs opacity-80">
                         <Tag className="h-3 w-3" />
                         <span>{lead.origem}</span>
                       </div>
                     )}
 
-                    <p className="text-xs text-gray-600">
-                      Valor: {lead.valor}
-                    </p>
+                    {lead.valor && lead.valor !== 'R$ 0,00' && (
+                      <p className="text-xs opacity-80">
+                        Valor: {lead.valor}
+                      </p>
+                    )}
 
-                    <div className="flex items-center space-x-2 text-xs text-gray-500">
+                    <div className="flex items-center space-x-2 text-xs opacity-70">
                       <Calendar className="h-3 w-3" />
                       <span>{formatDate(lead.created_at)}</span>
                     </div>
