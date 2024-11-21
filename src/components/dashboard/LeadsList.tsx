@@ -1,6 +1,6 @@
 import React from 'react';
-import { Lead } from '../../types/dashboard';
 import { Calendar, Tag, User } from 'lucide-react';
+import { Lead } from '../../types/dashboard';
 import { LEAD_STATUS_ORDER, STATUS_COLORS, normalizeStatus } from '../../utils/leadUtils';
 
 interface LeadsListProps {
