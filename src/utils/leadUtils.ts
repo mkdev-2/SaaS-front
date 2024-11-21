@@ -1,69 +1,51 @@
 import { LeadStatus } from '../types/dashboard';
 
-// Updated status IDs based on your Kommo CRM configuration
-export const LEAD_STATUSES: Record<string, LeadStatus> = {
-  '32392154': {
-    name: 'Leads de Entrada',
-    color: '#E5F6FD',
-    textColor: '#0369A1'
-  },
-  '32392155': {
-    name: 'Primeiro Contato',
-    color: '#F0F9FF',
-    textColor: '#0284C7'
-  },
-  '32392157': {
-    name: 'Qualificação',
-    color: '#F0FDFB',
-    textColor: '#0D9488'
-  },
-  '32392160': {
-    name: 'Apresentação',
-    color: '#ECFDF5',
-    textColor: '#059669'
-  },
-  '32392163': {
-    name: 'Proposta',
-    color: '#FEF9C3',
-    textColor: '#CA8A04'
-  },
-  '32392166': {
-    name: 'Fechamento',
-    color: '#DCF9E6',
-    textColor: '#16A34A'
-  },
-  '32392169': {
-    name: 'Perdido',
-    color: '#FEE2E2',
-    textColor: '#DC2626'
-  }
+export const STATUS_MAPPING: Record<string, string> = {
+  'Leads de Entrada': 'Leads de Entrada',
+  'Primeiro Contato': 'Primeiro Contato',
+  'Conexão estabelecida': 'Primeiro Contato',
+  'Qualificação': 'Qualificação',
+  'Apresentação': 'Apresentação',
+  'Proposta': 'Proposta',
+  'Proposta Enviada': 'Proposta',
+  'Fechamento': 'Fechamento',
+  'Venda Realizada': 'Venda Realizada',
+  'Pós-Venda': 'Pós-Venda',
+  'Pós Vendas': 'Pós-Venda',
+  'pós venda': 'Pós-Venda',
+  'Perdido': 'Perdido',
+  'Status Desconhecido': 'Status Desconhecido'
 };
-export const LEAD_STATUS_ORDER = [
-    'Leads de Entrada',
-    'Primeiro Contato',
-    'Qualificação',
-    'Apresentação',
-    'Proposta',
-    'Fechamento',
-    'Venda Realizada',
-    'Pós-Venda',
-    'Perdido',
-    'Status Desconhecido'
-  ];
-  
-  export const STATUS_COLORS = {
-    'Leads de Entrada': '#E5F6FD',
-    'Primeiro Contato': '#F0F9FF',
-    'Qualificação': '#F0FDFB',
-    'Apresentação': '#ECFDF5',
-    'Proposta': '#FEF9C3',
-    'Fechamento': '#F0FDF4',
-    'Venda Realizada': '#DCF9E6',
-    'Pós-Venda': '#32CD32',
-    'Perdido': '#FEE2E2',
-    'Status Desconhecido': '#808080'
-  };
 
+export const LEAD_STATUS_ORDER = [
+  'Leads de Entrada',
+  'Primeiro Contato',
+  'Qualificação',
+  'Apresentação',
+  'Proposta',
+  'Fechamento',
+  'Venda Realizada',
+  'Pós-Venda',
+  'Perdido',
+  'Status Desconhecido'
+];
+
+export const STATUS_COLORS = {
+  'Leads de Entrada': '#E5F6FD',
+  'Primeiro Contato': '#99ccff',
+  'Qualificação': '#F0FDFB',
+  'Apresentação': '#ECFDF5',
+  'Proposta': '#ffcccc',
+  'Fechamento': '#F0FDF4',
+  'Venda Realizada': '#DCF9E6',
+  'Pós-Venda': '#CCFF66',
+  'Perdido': '#FEE2E2',
+  'Status Desconhecido': '#808080'
+};
+
+export const normalizeStatus = (status: string): string => {
+  return STATUS_MAPPING[status] || 'Status Desconhecido';
+};
 export interface LeadDetails {
   status: LeadStatus;
   source?: string;
