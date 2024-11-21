@@ -24,6 +24,7 @@ export default function LeadsList({ leads }: LeadsListProps) {
           status: normalizedStatus // Update the status to the normalized version
         });
       } else {
+        console.warn(`Unmapped status: "${lead.status}"`); // Help debug unmapped statuses
         groups['Status Desconhecido'].push(lead);
       }
     });

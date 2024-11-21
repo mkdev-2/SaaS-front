@@ -1,15 +1,18 @@
 import { LeadStatus } from '../types/dashboard';
-
+// Map of status names and their normalized versions
 export const STATUS_MAPPING: Record<string, string> = {
   'Leads de Entrada': 'Leads de Entrada',
   'Primeiro Contato': 'Primeiro Contato',
-  'Conexão estabelecida': 'Primeiro Contato',
+  'Conexão estabelecida': 'Conexão estabelecida',
+  'Conexão estabelecida ': 'Conexão estabelecida', // Note the extra space
   'Qualificação': 'Qualificação',
   'Apresentação': 'Apresentação',
   'Proposta': 'Proposta',
   'Proposta Enviada': 'Proposta',
   'Fechamento': 'Fechamento',
   'Venda Realizada': 'Venda Realizada',
+  'Venda realizada': 'Venda Realizada',
+  'venda realizada': 'Venda Realizada',
   'Pós-Venda': 'Pós-Venda',
   'Pós Vendas': 'Pós-Venda',
   'pós venda': 'Pós-Venda',
@@ -20,6 +23,7 @@ export const STATUS_MAPPING: Record<string, string> = {
 export const LEAD_STATUS_ORDER = [
   'Leads de Entrada',
   'Primeiro Contato',
+  'Conexão estabelecida',
   'Qualificação',
   'Apresentação',
   'Proposta',
@@ -33,6 +37,7 @@ export const LEAD_STATUS_ORDER = [
 export const STATUS_COLORS = {
   'Leads de Entrada': '#E5F6FD',
   'Primeiro Contato': '#99ccff',
+  'Conexão estabelecida': '#ffff99',
   'Qualificação': '#F0FDFB',
   'Apresentação': '#ECFDF5',
   'Proposta': '#ffcccc',
@@ -44,7 +49,19 @@ export const STATUS_COLORS = {
 };
 
 export const normalizeStatus = (status: string): string => {
-  return STATUS_MAPPING[status] || 'Status Desconhecido';
+  // Trim any extra spaces from the status
+  const trimmedStatus = status.trim();
+  return STATUS_MAPPING[trimmedStatus] || 'Status Desconhecido';
+};
+
+export const formatCurrency = (value: string | number): string => {
+  if (typeof value === 'string') {
+    value = parseFloat(value.replace('R$ ', '').replace('.', '').replace(',', '.'));
+  }
+  return value.toLocaleString('pt-BR', {
+    style: 'currency',
+    currency: 'BRL'
+  });
 };
 export interface LeadDetails {
   status: LeadStatus;

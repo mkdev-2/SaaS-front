@@ -27,13 +27,24 @@ export default function SalesOverview() {
   const assignedLeads = currentStats.leads.filter(lead => lead.vendedor && lead.vendedor !== 'Não atribuído').length;
   const unassignedLeads = totalLeads - assignedLeads;
 
-  // Calculate total sales value
-  const totalSalesValue = currentStats.leads
-    .filter(lead => lead.status === 'Venda Realizada')
-    .reduce((sum, lead) => {
+  // Calculate total sales value and count
+  const salesData = currentStats.leads.reduce((acc, lead) => {
+    if (lead.status === 'Venda Realizada' || lead.status === 'Pós-Venda') {
       const value = parseFloat(lead.valor.replace('R$ ', '').replace('.', '').replace(',', '.'));
-      return sum + (isNaN(value) ? 0 : value);
-    }, 0);
+      if (!isNaN(value)) {
+        acc.totalValue += value;
+        acc.count += 1;
+      }
+    }
+    return acc;
+  }, { totalValue: 0, count: 0 });
+
+  const formatCurrency = (value: number) => {
+    return value.toLocaleString('pt-BR', {
+      style: 'currency',
+      currency: 'BRL'
+    });
+  };
 
   const getComparisonValue = (current: number | string, comparison: number | string | undefined) => {
     if (!comparison || !selectedDate.comparison) return undefined;
@@ -50,36 +61,37 @@ export default function SalesOverview() {
     return `${diff >= 0 ? '+' : ''}${diff.toFixed(1)}%`;
   };
 
-  const formatCurrency = (value: number) => {
-    return value.toLocaleString('pt-BR', {
-      style: 'currency',
-      currency: 'BRL'
-    });
-  };
-
   const statsConfig = [
     {
       title: "Receita Total",
-      value: formatCurrency(totalSalesValue),
-      change: getComparisonValue(totalSalesValue, comparisonStats?.valorTotal),
+      value: formatCurrency(salesData.totalValue),
+      change: getComparisonValue(salesData.totalValue, comparisonStats?.valorTotal),
       icon: DollarSign,
       color: "green",
-      subtitle: `${currentStats.totalVendas} vendas realizadas`
+      subtitle: `${salesData.count} vendas realizadas`
     },
     {
       title: "Ticket Médio",
-      value: currentStats.totalVendas > 0 ? 
-        formatCurrency(totalSalesValue / currentStats.totalVendas) : 
+      value: salesData.count > 0 ? 
+        formatCurrency(salesData.totalValue / salesData.count) : 
         "R$ 0,00",
-      change: getComparisonValue(currentStats.ticketMedio, comparisonStats?.ticketMedio),
+      change: getComparisonValue(
+        salesData.count > 0 ? salesData.totalValue / salesData.count : 0,
+        comparisonStats?.ticketMedio
+      ),
       icon: ShoppingBag,
       color: "blue",
       subtitle: "Por venda"
     },
     {
       title: "Taxa de Conversão",
-      value: currentStats.taxaConversao || "0%",
-      change: getComparisonValue(currentStats.taxaConversao, comparisonStats?.taxaConversao),
+      value: totalLeads > 0 ? 
+        `${((salesData.count / totalLeads) * 100).toFixed(1)}%` : 
+        "0%",
+      change: getComparisonValue(
+        salesData.count / totalLeads * 100,
+        comparisonStats?.taxaConversao
+      ),
       icon: TrendingUp,
       color: "indigo",
       subtitle: `De ${totalLeads} leads totais`
