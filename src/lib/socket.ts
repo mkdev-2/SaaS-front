@@ -1,161 +1,238 @@
-import { io } from 'socket.io-client';
-import { getToken } from './auth';
+import { io, Socket } from 'socket.io-client';
+import { DashboardData, DateRange } from '../types/dashboard';
+import { ensureDateObjects } from '../utils/dateUtils';
+
+type DashboardCallback = (data: any) => void;
+type ConnectionCallback = (status: boolean) => void;
+
+interface SubscriptionParams {
+  detailed?: boolean;
+  dateRange?: DateRange | null;
+}
 
 class SocketService {
-  constructor() {
-    this.socket = null;
-    this.connectionListeners = new Set();
-    this.updateListeners = new Set();
+  private static instance: SocketService;
+  private socket: Socket | null = null;
+  private dashboardCallbacks: Set<DashboardCallback> = new Set();
+  private connectionCallbacks: Set<ConnectionCallback> = new Set();
+  private reconnectAttempts = 0;
+  private maxReconnectAttempts = 5;
+  private reconnectTimer: NodeJS.Timeout | null = null;
+  private isConnecting = false;
+  private initialDataLoaded = false;
+  private lastData: any = null;
+  private lastDataTimestamp = 0;
+  private minUpdateInterval = 1000;
+  private subscriptionParams: SubscriptionParams = {
+    detailed: true,
+    dateRange: null
+  };
+
+  private constructor() {}
+
+  static getInstance(): SocketService {
+    if (!SocketService.instance) {
+      SocketService.instance = new SocketService();
+    }
+    return SocketService.instance;
   }
 
   connect() {
-    if (this.socket?.connected) return;
+    if (this.isConnecting || this.socket?.connected) return;
 
-    const token = getToken();
+    const token = localStorage.getItem('auth_token');
     if (!token) {
-      console.error('No auth token available');
+      this.notifyConnectionStatus(false);
       return;
     }
 
-    this.socket = io(import.meta.env.VITE_API_URL || 'http://localhost:3000', {
-      auth: { token },
-      transports: ['websocket'],
-      reconnection: true,
-      reconnectionDelay: 1000,
-      reconnectionDelayMax: 5000,
-      reconnectionAttempts: 5
-    });
+    this.isConnecting = true;
 
-    this.setupListeners();
+    if (this.socket) {
+      this.socket.close();
+      this.socket = null;
+    }
+
+    try {
+      const baseUrl = import.meta.env.VITE_API_URL.replace('/api', '');
+      const dateParams = this.getDateParams();
+
+      this.socket = io(baseUrl, {
+        auth: { token },
+        transports: ['websocket'],
+        reconnection: true,
+        reconnectionAttempts: this.maxReconnectAttempts,
+        reconnectionDelay: 1000,
+        reconnectionDelayMax: 5000,
+        timeout: 10000,
+        query: {
+          ...dateParams,
+          detailed: String(this.subscriptionParams.detailed)
+        }
+      });
+
+      this.setupEventListeners();
+    } catch (error) {
+      console.error('Socket initialization error:', error);
+      this.isConnecting = false;
+      this.notifyConnectionStatus(false);
+    }
   }
 
-  setupListeners() {
+  private getDateParams(): Record<string, string> {
+    const dateRange = ensureDateObjects(this.subscriptionParams.dateRange);
+    
+    const params: Record<string, string> = {
+      startDate: dateRange.start.toISOString(),
+      endDate: dateRange.end.toISOString()
+    };
+
+    if (dateRange.comparison) {
+      params.compareStartDate = dateRange.compareStart.toISOString();
+      params.compareEndDate = dateRange.compareEnd.toISOString();
+      params.comparison = 'true';
+    }
+
+    return params;
+  }
+
+  private setupEventListeners() {
     if (!this.socket) return;
 
     this.socket.on('connect', () => {
       console.log('Socket connected');
-      this.notifyConnectionListeners(true);
+      this.isConnecting = false;
+      this.reconnectAttempts = 0;
+      this.notifyConnectionStatus(true);
+      this.emitSubscription();
     });
 
     this.socket.on('disconnect', () => {
       console.log('Socket disconnected');
-      this.notifyConnectionListeners(false);
+      this.isConnecting = false;
+      this.notifyConnectionStatus(false);
+      this.handleReconnect();
     });
 
-    this.socket.on('connect_error', (error) => {
-      console.error('Socket connection error:', error);
-      this.notifyConnectionListeners(false);
-    });
+    this.socket.on('dashboard:update', (data: any) => {
+      if (data?.status === 'success' && data?.data) {
+        const now = Date.now();
+        if (now - this.lastDataTimestamp < this.minUpdateInterval) {
+          return;
+        }
 
-    this.socket.on('dashboard:update', (data) => {
-      console.log('Received dashboard update:', data);
-      this.notifyUpdateListeners(data);
-    });
+        // Ensure all date fields are properly formatted
+        if (data.data.currentStats?.leads) {
+          data.data.currentStats.leads = data.data.currentStats.leads.map((lead: any) => ({
+            ...lead,
+            created_at: lead.created_at ? new Date(lead.created_at).toISOString() : null,
+            last_interaction: lead.last_interaction ? new Date(lead.last_interaction).toISOString() : null
+          }));
+        }
 
-    this.socket.on('dashboard:error', (error) => {
-      console.error('Dashboard error:', error);
-      this.notifyUpdateListeners({
-        status: 'error',
-        message: error.message
+        this.lastData = data;
+        this.lastDataTimestamp = now;
+        this.initialDataLoaded = true;
+        this.dashboardCallbacks.forEach(callback => callback(data));
+      } else {
+        console.error('Invalid dashboard update:', data);
+        this.dashboardCallbacks.forEach(callback => callback({
+          status: 'error',
+          message: data?.message || 'Failed to update dashboard data'
+        }));
+      }
+    });
+  }
+
+  private emitSubscription() {
+    if (this.socket?.connected) {
+      const dateParams = this.getDateParams();
+      this.socket.emit('subscribe:dashboard', {
+        detailed: this.subscriptionParams.detailed,
+        ...dateParams
       });
-    });
+    }
   }
 
-  updateSubscription(dateRange) {
-    if (!this.socket?.connected) {
-      console.warn('Socket not connected');
-      return;
+  updateSubscription(params: SubscriptionParams) {
+    if (params.dateRange) {
+      params.dateRange = ensureDateObjects(params.dateRange);
     }
+    
+    this.subscriptionParams = {
+      ...this.subscriptionParams,
+      ...params
+    };
 
-    // Ensure we have valid date objects
-    const params = this.getDateParams(dateRange);
-    if (!params) {
-      console.error('Invalid date range provided');
-      return;
-    }
-
-    console.log('Updating dashboard subscription:', params);
-    this.socket.emit('subscribe:dashboard', params);
-  }
-
-  getDateParams(dateRange) {
-    try {
-      // Ensure we have valid Date objects
-      const params = {
-        startDate: dateRange.start instanceof Date ? 
-          dateRange.start.toISOString() : 
-          new Date(dateRange.start).toISOString(),
-        endDate: dateRange.end instanceof Date ? 
-          dateRange.end.toISOString() : 
-          new Date(dateRange.end).toISOString()
-      };
-
-      // Add comparison dates if they exist
-      if (dateRange.compareStart) {
-        params.compareStartDate = dateRange.compareStart instanceof Date ?
-          dateRange.compareStart.toISOString() :
-          new Date(dateRange.compareStart).toISOString();
-      }
-
-      if (dateRange.compareEnd) {
-        params.compareEndDate = dateRange.compareEnd instanceof Date ?
-          dateRange.compareEnd.toISOString() :
-          new Date(dateRange.compareEnd).toISOString();
-      }
-
-      return params;
-    } catch (error) {
-      console.error('Error formatting date parameters:', error);
-      return null;
+    if (this.socket?.connected) {
+      this.emitSubscription();
     }
   }
 
   requestData() {
-    if (!this.socket?.connected) {
-      console.warn('Socket not connected');
-      return;
+    if (this.socket?.connected) {
+      const dateParams = this.getDateParams();
+      this.socket.emit('dashboard:request', dateParams);
+    }
+  }
+
+  private handleReconnect() {
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer);
     }
 
-    this.socket.emit('dashboard:request');
+    if (this.reconnectAttempts < this.maxReconnectAttempts) {
+      this.reconnectAttempts++;
+      const delay = Math.min(1000 * Math.pow(2, this.reconnectAttempts), 5000);
+
+      this.reconnectTimer = setTimeout(() => {
+        if (!this.socket?.connected && !this.isConnecting) {
+          this.connect();
+        }
+      }, delay);
+    }
   }
 
-  onConnectionChange(callback) {
-    this.connectionListeners.add(callback);
-    return () => this.connectionListeners.delete(callback);
+  onDashboardUpdate(callback: DashboardCallback) {
+    this.dashboardCallbacks.add(callback);
+    if (this.lastData && this.initialDataLoaded) {
+      callback(this.lastData);
+    }
+    return () => this.dashboardCallbacks.delete(callback);
   }
 
-  onDashboardUpdate(callback) {
-    this.updateListeners.add(callback);
-    return () => this.updateListeners.delete(callback);
+  onConnectionChange(callback: ConnectionCallback) {
+    this.connectionCallbacks.add(callback);
+    callback(!!this.socket?.connected);
+    return () => this.connectionCallbacks.delete(callback);
   }
 
-  notifyConnectionListeners(status) {
-    this.connectionListeners.forEach(listener => {
-      try {
-        listener(status);
-      } catch (error) {
-        console.error('Error in connection listener:', error);
-      }
-    });
-  }
-
-  notifyUpdateListeners(data) {
-    this.updateListeners.forEach(listener => {
-      try {
-        listener(data);
-      } catch (error) {
-        console.error('Error in update listener:', error);
-      }
-    });
+  private notifyConnectionStatus(status: boolean) {
+    this.connectionCallbacks.forEach(callback => callback(status));
   }
 
   disconnect() {
+    this.isConnecting = false;
+    this.initialDataLoaded = false;
+    this.lastData = null;
+    this.lastDataTimestamp = 0;
+    
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = null;
+    }
+
     if (this.socket) {
-      this.socket.emit('unsubscribe:dashboard');
-      this.socket.disconnect();
+      this.socket.removeAllListeners();
+      this.socket.close();
       this.socket = null;
     }
+
+    this.dashboardCallbacks.clear();
+    this.connectionCallbacks.clear();
+    this.reconnectAttempts = 0;
+    this.notifyConnectionStatus(false);
   }
 }
 
-export const socketService = new SocketService();
+export const socketService = SocketService.getInstance();
