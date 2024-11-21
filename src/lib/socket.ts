@@ -7,7 +7,7 @@ type ConnectionCallback = (status: boolean) => void;
 
 interface SubscriptionParams {
   detailed?: boolean;
-  dateRange?: DateRange;
+  dateRange?: DateRange | null;
 }
 
 class SocketService {
@@ -25,7 +25,7 @@ class SocketService {
   private minUpdateInterval = 1000;
   private subscriptionParams: SubscriptionParams = {
     detailed: true,
-    dateRange: ensureDateObjects(null)
+    dateRange: null
   };
 
   private constructor() {}
@@ -115,10 +115,19 @@ class SocketService {
     });
 
     this.socket.on('dashboard:update', (data: any) => {
-      if (data.status === 'success') {
+      if (data?.status === 'success' && data?.data) {
         const now = Date.now();
         if (now - this.lastDataTimestamp < this.minUpdateInterval) {
           return;
+        }
+
+        // Ensure all date fields are properly formatted
+        if (data.data.currentStats?.leads) {
+          data.data.currentStats.leads = data.data.currentStats.leads.map((lead: any) => ({
+            ...lead,
+            created_at: lead.created_at ? new Date(lead.created_at).toISOString() : null,
+            last_interaction: lead.last_interaction ? new Date(lead.last_interaction).toISOString() : null
+          }));
         }
 
         this.lastData = data;
@@ -129,7 +138,7 @@ class SocketService {
         console.error('Invalid dashboard update:', data);
         this.dashboardCallbacks.forEach(callback => callback({
           status: 'error',
-          message: data.message || 'Failed to update dashboard data'
+          message: data?.message || 'Failed to update dashboard data'
         }));
       }
     });

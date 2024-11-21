@@ -35,10 +35,10 @@ export const ensureDateObjects = (dateRange: DateRange | null | undefined): Date
     const compareEnd = dateRange.compareEnd instanceof Date ? dateRange.compareEnd : new Date(dateRange.compareEnd);
 
     if (
-      isNaN(start.getTime()) || 
-      isNaN(end.getTime()) || 
-      isNaN(compareStart.getTime()) || 
-      isNaN(compareEnd.getTime())
+      !isValidDate(start) || 
+      !isValidDate(end) || 
+      !isValidDate(compareStart) || 
+      !isValidDate(compareEnd)
     ) {
       console.warn('Invalid date detected, using default range');
       return getDefaultDateRange();
