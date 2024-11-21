@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { socketService } from '../lib/socket';
 import { DashboardData } from '../types/dashboard';
-import useDashboardStore from '../store/dashboardStore';
+import { useDashboardStore } from '../store/dashboardStore';
 import { ensureDateObjects } from '../utils/dateUtils';
 
 export function useDashboardData() {

@@ -9,7 +9,7 @@ interface DashboardState {
   resetDate: () => void;
 }
 
-const useDashboardStore = create<DashboardState>()(
+export const useDashboardStore = create<DashboardState>()(
   persist(
     (set) => ({
       selectedDate: getDefaultDateRange(),
@@ -38,3 +38,5 @@ const useDashboardStore = create<DashboardState>()(
     }
   )
 );
+
+export default useDashboardStore;

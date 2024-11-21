@@ -5,7 +5,7 @@ import LeadsList from '../LeadsList';
 import DaySelector from '../DaySelector';
 import LoadingOverlay from '../../LoadingOverlay';
 import { useDashboardData } from '../../../hooks/useDashboardData';
-import useDashboardStore from '../../../store/dashboardStore';
+import { useDashboardStore } from '../../../store/dashboardStore';
 import { DateRange } from '../../../types/dashboard';
 
 export default function SalesOverview() {
@@ -104,6 +104,7 @@ export default function SalesOverview() {
           id: lead.id,
           name: lead.nome,
           status: lead.status,
+          status_id: lead.status_id,
           statusColor: lead.statusCor,
           tipo: 'novo',
           vendedor: lead.vendedor || 'Não atribuído',
