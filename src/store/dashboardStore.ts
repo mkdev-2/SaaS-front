@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { persist, createJSONStorage } from 'zustand/middleware';
 import { DateRange } from '../types/dashboard';
 import { getDefaultDateRange, ensureDateObjects } from '../utils/dateUtils';
 
@@ -21,6 +21,7 @@ export const useDashboardStore = create<DashboardState>()(
     }),
     {
       name: 'dashboard-storage',
+      storage: createJSONStorage(() => localStorage),
       partialize: (state) => ({
         selectedDate: {
           start: state.selectedDate.start.toISOString(),
