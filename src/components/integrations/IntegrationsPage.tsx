@@ -20,35 +20,45 @@ const otherIntegrations = [
 ];
 
 export default function IntegrationsPage() {
-  // Função para chamar a API de sincronização
   const handleSync = async () => {
     try {
-      const response = await axios.get('/api/kommo/status', {
+      // Backend URL
+      const backendUrl = "https://saas-backend-production-8b94.up.railway.app";
+
+      // Verifica se o token está disponível
+      const accessToken = localStorage.getItem('accessToken');
+      if (!accessToken) {
+        alert('Token de autenticação não encontrado.');
+        return;
+      }
+
+      // Checa o status da integração Kommo
+      const statusResponse = await axios.get(`${backendUrl}/api/kommo/status`, {
         headers: {
-          Authorization: `Bearer ${localStorage.getItem('accessToken')}`,
+          Authorization: `Bearer ${accessToken}`,
         },
       });
-  
-      // Atualizar o token no armazenamento local se um novo for retornado
-      const newToken = response.headers['x-new-token'];
+
+      // Atualiza o token caso receba um novo
+      const newToken = statusResponse.headers['x-new-token'];
       if (newToken) {
         localStorage.setItem('accessToken', newToken);
       }
-  
-      // Fazer a requisição de sincronização
-      const syncResponse = await axios.get('/api/test-sync', {
+
+      // Realiza a sincronização
+      const syncResponse = await axios.get(`${backendUrl}/api/test-sync`, {
         headers: {
           Authorization: `Bearer ${localStorage.getItem('accessToken')}`,
         },
       });
-  
-      alert(syncResponse.data.message);
+
+      alert(syncResponse.data.message || 'Sincronização concluída com sucesso!');
     } catch (error) {
       console.error('Erro ao sincronizar:', error.response?.data || error.message);
       alert('Erro ao sincronizar produtos.');
     }
   };
-  
+
   return (
     <div className="p-6 space-y-6">
       <div className="flex justify-between items-center">
@@ -61,11 +71,9 @@ export default function IntegrationsPage() {
           className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
         >
           Sincronizar Produtos
-      </button>
-      
+        </button>
       </div>
-      
-     
+
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         <KommoIntegration />
         {otherIntegrations.map((integration, index) => (
