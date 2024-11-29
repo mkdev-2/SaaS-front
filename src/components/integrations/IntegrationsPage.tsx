@@ -2,6 +2,7 @@ import React from 'react';
 import KommoIntegration from './kommo/KommoIntegration';
 import IntegrationCard from './IntegrationCard';
 import SyncButton from '../components/SyncButton';
+import axios from 'axios';
 
 const otherIntegrations = [
   {
