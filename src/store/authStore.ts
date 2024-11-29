@@ -7,7 +7,7 @@ const useAuthStore = create((set) => ({
   login: async (email, password) => {
     try {
       const response = await axios.post(
-        `https://saas-backend-production-8b94.up.railway.app/auth/login`,
+        `https://saas-backend-production-8b94.up.railway.app/api/auth`,
         { email, password }
       );
 
