@@ -4,17 +4,14 @@ import axios from 'axios';
 const SyncButton: React.FC = () => {
     const handleSync = async () => {
         try {
-            const response = await axios.post('/api/sync-products');
-            console.log('Resposta:', response.data);
+            const response = await api.post('/sync-products');
+            console.log('Produtos sincronizados:', response.data);
+            return response.data;
           } catch (error) {
-            console.error('Erro completo:', error);
-            console.error('Resposta do erro:', error.response?.data);
+            console.error('Erro ao sincronizar produtos:', error);
+            throw error;
           }
-          
-          console.log(response.data);
-          
-      };
-            
+        };          
       // No frontend
 
   return (
