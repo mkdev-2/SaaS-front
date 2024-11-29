@@ -31,23 +31,18 @@ export default function LoginForm() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-  
+
     if (!validateForm()) {
       return;
     }
-  
+
     setIsLoading(true);
-  
+
     try {
-      // Chama o login e salva o token retornado
-      const token = await login(email.trim(), password);
-      if (token) {
-        localStorage.setItem('accessToken', token); // Salva o token no localStorage
-      }
-  
+      await login(email.trim(), password);
       const from = location.state?.from?.pathname || '/dashboard';
-  
-      // Redireciona após o login bem-sucedido
+      
+      // Ensure navigation happens after successful login
       setTimeout(() => {
         navigate(from, { replace: true });
       }, 0);
@@ -55,7 +50,8 @@ export default function LoginForm() {
       setIsLoading(false);
       setError(err.message || 'An error occurred. Please try again.');
     }
-  };  
+  };
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8">
