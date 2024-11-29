@@ -1,28 +1,26 @@
 import React, { useState } from 'react';
 import axios from 'axios';
+import { useSelector } from 'react-redux'; // Supondo que Redux seja usado para gerenciar o estado global
 
 const SyncButton: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
 
-  const getToken = () => {
-    // Substitua pelo método correto de obter o token
-    return localStorage.getItem('authToken');
-  };
+  // Obtenha o token do estado global (ajuste conforme necessário)
+  const token = useSelector((state: any) => state.token);
 
   const handleSync = async () => {
     setLoading(true);
     setMessage(null);
 
     try {
-      const token = getToken();
       if (!token) {
         throw new Error('Token de autenticação não encontrado.');
       }
 
       const response = await axios.post(
-        `https://saas-backend-production-8b94.up.railway.app/api/sync-products`,
-        {},
+        'https://saas-backend-production-8b94.up.railway.app/api/sync-products',
+        {}, // Corpo vazio para este exemplo
         {
           headers: {
             Authorization: `Bearer ${token}`,
