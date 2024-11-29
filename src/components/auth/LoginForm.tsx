@@ -31,27 +31,27 @@ export default function LoginForm() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-  
+
     if (!validateForm()) {
       return;
     }
-  
+
     setIsLoading(true);
-  
+
     try {
-      const token = await login(email.trim(), password);
-  
-      if (token) {
-        const from = location.state?.from?.pathname || '/dashboard';
+      await login(email.trim(), password);
+      const from = location.state?.from?.pathname || '/dashboard';
+      
+      // Ensure navigation happens after successful login
+      setTimeout(() => {
         navigate(from, { replace: true });
-      }
+      }, 0);
     } catch (err: any) {
-      setError(err.message || 'An error occurred. Please try again.');
-    } finally {
       setIsLoading(false);
+      setError(err.message || 'An error occurred. Please try again.');
     }
   };
-  
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8">
