@@ -1,32 +1,5 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
-import api from '../lib/api';
-import { ApiResponse, AuthData } from '../types/api';
-
-interface User {
-  id: string;
-  email: string;
-  name: string;
-  role: 'ROOT' | 'CLIENT';
-  company?: string;
-}
-
-interface AuthState {
-  user: User | null;
-  token: string | null;
-  isAuthenticated: boolean;
-  login: (email: string, password: string) => Promise<void>;
-  register: (data: RegisterData) => Promise<void>;
-  logout: (callApi?: boolean) => Promise<void>;
-  checkAuth: () => Promise<void>;
-}
-
-interface RegisterData {
-  email: string;
-  password: string;
-  name: string;
-  company?: string;
-}
+import axios from 'axios';
 
 const useAuthStore = create((set) => ({
   user: null,
@@ -34,15 +7,19 @@ const useAuthStore = create((set) => ({
   login: async (email, password) => {
     try {
       const response = await axios.post(
-        `${process.env.REACT_APP_BACKEND_URL}/auth/login`, // URL corrigida
+        `${process.env.REACT_APP_BACKEND_URL}/auth/login`,
         { email, password }
       );
 
       const { token, user } = response.data;
 
-      set({ user, token }); // Atualiza o estado global
+      // Atualizar o estado global
+      set({ user, token });
 
-      return token; // Retorna o token para ser salvo no localStorage
+      // Salvar o token no localStorage
+      localStorage.setItem('accessToken', token);
+
+      return token; // Retorna o token para uso adicional, se necessário
     } catch (error) {
       throw new Error(error.response?.data?.message || 'Failed to log in');
     }
