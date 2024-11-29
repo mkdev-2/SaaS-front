@@ -4,7 +4,7 @@ import axios from 'axios';
 const SyncButton: React.FC = () => {
     const handleSync = async () => {
         try {
-            const response = await axios.post('https://saas-backend-production-8b94.up.railway.app/api/sync-products');
+            const response = await axios.post('/api/sync-products');
             console.log('Resposta:', response.data);
           } catch (error) {
             console.error('Erro completo:', error);
