@@ -5,14 +5,31 @@ const SyncButton: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
 
+  const getToken = () => {
+    // Substitua pelo método correto de obter o token
+    return localStorage.getItem('authToken');
+  };
+
   const handleSync = async () => {
     setLoading(true);
     setMessage(null);
 
     try {
+      const token = getToken();
+      if (!token) {
+        throw new Error('Token de autenticação não encontrado.');
+      }
+
       const response = await axios.post(
-        'https://saas-backend-production-8b94.up.railway.app/api/sync-products'
+        `https://saas-backend-production-8b94.up.railway.app/api/sync-products`,
+        {},
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
       );
+
       setMessage(response.data.message || 'Sincronização concluída com sucesso!');
     } catch (error) {
       console.error('Erro completo:', error);
