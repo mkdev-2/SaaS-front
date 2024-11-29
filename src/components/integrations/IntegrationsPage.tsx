@@ -23,13 +23,32 @@ export default function IntegrationsPage() {
   // Função para chamar a API de sincronização
   const handleSync = async () => {
     try {
-      const response = await axios.post('/api/sync-products'); // Endpoint de sincronização
-      alert('Sincronização concluída com sucesso!');
+      const response = await axios.get('/api/kommo/status', {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem('accessToken')}`,
+        },
+      });
+  
+      // Atualizar o token no armazenamento local se um novo for retornado
+      const newToken = response.headers['x-new-token'];
+      if (newToken) {
+        localStorage.setItem('accessToken', newToken);
+      }
+  
+      // Fazer a requisição de sincronização
+      const syncResponse = await axios.get('/api/test-sync', {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem('accessToken')}`,
+        },
+      });
+  
+      alert(syncResponse.data.message);
     } catch (error) {
-      console.error('Erro ao sincronizar:', error);
-      alert('Erro ao sincronizar produtos. Verifique os logs.');
+      console.error('Erro ao sincronizar:', error.response?.data || error.message);
+      alert('Erro ao sincronizar produtos.');
     }
-  };  
+  };
+  
   return (
     <div className="p-6 space-y-6">
       <div className="flex justify-between items-center">
