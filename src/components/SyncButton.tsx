@@ -11,18 +11,15 @@ const SyncButton: React.FC = () => {
 
     try {
       const token = localStorage.getItem('accessToken'); // Recupera o token
-      console.log('Token encontrado:', token); // Log para verificar o token
-
       if (!token) {
         alert('Token de autenticação não encontrado.');
         setLoading(false);
         return;
       }
 
-      // Faz a chamada para sincronizar produtos
       const response = await axios.post(
-        `${process.env.REACT_APP_BACKEND_URL}/kommo/sync-products`, // Rota correta
-        {}, // Corpo vazio (ajuste conforme necessário)
+        `${process.env.REACT_APP_BACKEND_URL}/kommo/sync/full`,
+        {}, // Corpo vazio
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -30,7 +27,7 @@ const SyncButton: React.FC = () => {
         }
       );
 
-      setMessage(response.data.message || 'Sincronização concluída com sucesso!');
+      setMessage(response.data.message || 'Sincronização completa realizada com sucesso!');
     } catch (error: any) {
       console.error('Erro completo:', error);
       setMessage(
