@@ -51,12 +51,16 @@ const useAuthStore = create<AuthState>()(
       },
 
       login: async (email: string, password: string) => {
+        console.log('Iniciando login...', { email, password });
+      
         try {
           const { data: response } = await api.post<ApiResponse<AuthData>>('/auth/login', {
             email,
             password,
           });
-
+      
+          console.log('Resposta do servidor:', response);
+      
           if (response.status === 'success' && response.data) {
             const { token, user } = response.data;
             localStorage.setItem('auth_token', token);
@@ -65,13 +69,13 @@ const useAuthStore = create<AuthState>()(
             throw new Error(response.message || 'Login failed');
           }
         } catch (error: any) {
-          if (error.response?.data?.message) {
-            throw new Error(error.response.data.message);
-          }
-          throw new Error('Failed to connect to the server');
+          console.error('Erro no login:', error);
+          throw new Error(
+            error.message || 'Falha ao conectar ao servidor. Tente novamente.'
+          );
         }
       },
-
+      
       register: async (data: RegisterData) => {
         try {
           const { data: response } = await api.post<ApiResponse<AuthData>>('/auth/register', data);
