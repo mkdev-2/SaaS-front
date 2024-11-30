@@ -31,24 +31,21 @@ export default function LoginForm() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-
+  
     if (!validateForm()) {
       return;
     }
-
+  
     setIsLoading(true);
-
+  
     try {
-      const token = await login(email.trim(), password);
-
-      if (token) {
-        const from = location.state?.from?.pathname || '/dashboard';
-        navigate(from, { replace: true });
-      }
+      await login(email.trim(), password);
+      const from = location.state?.from?.pathname || '/dashboard';
+      navigate(from, { replace: true });
     } catch (err: any) {
       console.error('Login error:', err);
       setError(
-        err.message.includes('Failed to fetch')
+        err.message.includes('Failed to connect to the server')
           ? 'Unable to connect to the server. Please check your connection and try again.'
           : err.message || 'An error occurred. Please try again.'
       );
@@ -56,7 +53,7 @@ export default function LoginForm() {
       setIsLoading(false);
     }
   };
-
+  
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8">
