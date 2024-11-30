@@ -8,7 +8,7 @@ const api = axios.create({
     'Content-Type': 'application/json',
   },
   withCredentials: false,
-  timeout: 30000,
+  timeout: 30000, // Timeout de 30 segundos
 });
 
 api.interceptors.request.use(
@@ -20,13 +20,14 @@ api.interceptors.request.use(
     return config;
   },
   (error) => {
-    console.error('Request interceptor error:', error);
+    console.error('[Request Error]', error);
     return Promise.reject(error);
   }
 );
 
 api.interceptors.response.use(
   (response) => {
+    // Padronizar resposta, caso necessário
     if (!response.data.status) {
       response.data = {
         status: 'success',
@@ -36,6 +37,9 @@ api.interceptors.response.use(
     return response;
   },
   async (error) => {
+    console.error('[Response Error]', error);
+
+    // Erro de rede
     if (!error.response) {
       return Promise.reject({
         ...error,
@@ -49,16 +53,16 @@ api.interceptors.response.use(
       });
     }
 
-    if (error.response?.status === 401) {
+    // Sessão expirada (401)
+    if (error.response.status === 401) {
       if (!error.config?.url?.includes('/kommo/')) {
         localStorage.removeItem('auth_token');
         useAuthStore.getState().logout(false);
       }
-      
+
       return Promise.reject({
         ...error,
         response: {
-          ...error.response,
           data: {
             status: 'error',
             message: 'Sessão expirada. Por favor, faça login novamente.',
@@ -68,11 +72,11 @@ api.interceptors.response.use(
       });
     }
 
-    if (error.response?.status === 429) {
+    // Excesso de requisições (429)
+    if (error.response.status === 429) {
       return Promise.reject({
         ...error,
         response: {
-          ...error.response,
           data: {
             status: 'error',
             message: 'Muitas requisições. Tente novamente em alguns minutos.',
@@ -82,48 +86,34 @@ api.interceptors.response.use(
       });
     }
 
-    if (error.response?.status === 400 && error.response?.data?.errors) {
-      const errors = Array.isArray(error.response.data.errors) 
-        ? error.response.data.errors 
-        : [{ message: 'Validação falhou' }];
+    // Erro de validação (400)
+    if (error.response.status === 400 && error.response.data.errors) {
+      const errors = Array.isArray(error.response.data.errors)
+        ? error.response.data.errors
+        : [{ message: 'Erro de validação' }];
 
       return Promise.reject({
         ...error,
         response: {
-          ...error.response,
           data: {
             status: 'error',
             message: 'Erro de validação',
             code: 'VALIDATION_ERROR',
-            errors: errors,
+            errors,
           },
         },
       });
     }
 
-    if (error.response?.data) {
-      return Promise.reject({
-        ...error,
-        response: {
-          ...error.response,
-          data: {
-            status: 'error',
-            message: error.response.data.message || 'Ocorreu um erro inesperado',
-            code: error.response.data.code || 'UNKNOWN_ERROR',
-            errors: error.response.data.errors,
-          },
-        },
-      });
-    }
-
+    // Outros erros
     return Promise.reject({
       ...error,
       response: {
-        ...error.response,
         data: {
           status: 'error',
-          message: 'Ocorreu um erro inesperado',
-          code: 'UNKNOWN_ERROR',
+          message: error.response.data?.message || 'Ocorreu um erro inesperado',
+          code: error.response.data?.code || 'UNKNOWN_ERROR',
+          errors: error.response.data?.errors,
         },
       },
     });
