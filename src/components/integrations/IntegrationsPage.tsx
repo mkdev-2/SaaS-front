@@ -46,7 +46,7 @@ export default function IntegrationsPage() {
       }
 
       // Realiza a sincronização
-      const syncResponse = await axios.get(`${backendUrl}/api/kommo/sync-products`, {
+      const syncResponse = await axios.get(`${backendUrl}/api/kommo/sync/full`, {
         headers: {
           Authorization: `Bearer ${localStorage.getItem('accessToken')}`,
         },
