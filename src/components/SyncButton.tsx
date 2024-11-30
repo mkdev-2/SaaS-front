@@ -15,12 +15,14 @@ const SyncButton: React.FC = () => {
 
       if (!token) {
         alert('Token de autenticação não encontrado.');
+        setLoading(false);
         return;
       }
 
+      // Faz a chamada para sincronizar produtos
       const response = await axios.post(
-        `${process.env.REACT_APP_BACKEND_URL}/api/sync-products`,
-        {}, // Corpo vazio para este exemplo
+        `${process.env.REACT_APP_BACKEND_URL}/kommo/sync-products`, // Rota correta
+        {}, // Corpo vazio (ajuste conforme necessário)
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -29,7 +31,7 @@ const SyncButton: React.FC = () => {
       );
 
       setMessage(response.data.message || 'Sincronização concluída com sucesso!');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erro completo:', error);
       setMessage(
         error.response?.data?.error || 'Erro ao sincronizar produtos. Tente novamente mais tarde.'
@@ -50,7 +52,7 @@ const SyncButton: React.FC = () => {
       >
         {loading ? 'Sincronizando...' : 'Sincronizar Produtos'}
       </button>
-      {message && <p>{message}</p>}
+      {message && <p className="mt-2 text-gray-700">{message}</p>}
     </div>
   );
 };
