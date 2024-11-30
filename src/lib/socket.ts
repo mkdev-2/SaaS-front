@@ -40,7 +40,7 @@ class SocketService {
   connect() {
     if (this.isConnecting || this.socket?.connected) return;
 
-    const token = localStorage.getItem('auth_token');
+    const token = localStorage.getItem('accessToken');
     if (!token) {
       this.notifyConnectionStatus(false);
       return;

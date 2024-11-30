@@ -45,7 +45,7 @@ const useAuthStore = create<AuthState>()(
           }
         } catch (error) {
           set({ user: null, token: null, isAuthenticated: false });
-          localStorage.removeItem('auth_token');
+          localStorage.removeItem('accessToken');
           throw error;
         }
       },
@@ -63,7 +63,7 @@ const useAuthStore = create<AuthState>()(
       
           if (response.status === 'success' && response.data) {
             const { token, user } = response.data;
-            localStorage.setItem('auth_token', token);
+            localStorage.setItem('accessToken', token);
             set({ user, token, isAuthenticated: true });
           } else {
             throw new Error(response.message || 'Login failed');
@@ -82,7 +82,7 @@ const useAuthStore = create<AuthState>()(
           
           if (response.status === 'success' && response.data) {
             const { token, user } = response.data;
-            localStorage.setItem('auth_token', token);
+            localStorage.setItem('accessToken', token);
             set({ user, token, isAuthenticated: true });
           } else {
             throw new Error(response.message || 'Registration failed');
@@ -106,7 +106,7 @@ const useAuthStore = create<AuthState>()(
         } catch (error) {
           console.error('Logout error:', error);
         } finally {
-          localStorage.removeItem('auth_token');
+          localStorage.removeItem('accessToken');
           set({ user: null, token: null, isAuthenticated: false });
         }
       },
