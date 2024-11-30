@@ -46,7 +46,7 @@ export default function IntegrationsPage() {
       }
 
       // Realiza a sincronização
-      const syncResponse = await axios.get(`${backendUrl}/api/test-sync`, {
+      const syncResponse = await axios.get(`${backendUrl}/api/sync-products`, {
         headers: {
           Authorization: `Bearer ${localStorage.getItem('accessToken')}`,
         },
