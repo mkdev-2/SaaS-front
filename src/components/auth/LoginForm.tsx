@@ -40,14 +40,12 @@ export default function LoginForm() {
   
     try {
       await login(email.trim(), password);
-      const from = location.state?.from?.pathname || '/dashboard';
-      navigate(from, { replace: true });
+      const from = location.state?.from?.pathname || '/dashboard'; // Verifique o destino padrão
+      navigate(from, { replace: true }); // Redirecione para a dashboard
     } catch (err: any) {
       console.error('Login error:', err);
       setError(
-        err.message.includes('Failed to connect to the server')
-          ? 'Unable to connect to the server. Please check your connection and try again.'
-          : err.message || 'An error occurred. Please try again.'
+        err.message || 'An error occurred. Please try again.'
       );
     } finally {
       setIsLoading(false);
