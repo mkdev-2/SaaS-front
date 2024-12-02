@@ -7,8 +7,8 @@ type Workflow = {
   name: string;
   description: string;
   status: 'active' | 'paused';
-  lastRun: string; // Deve ser uma string no formato ISO 8601
-  nextRun: string; // Pode ser uma string no formato ISO 8601 ou "Paused"
+  lastRun: string; // ISO 8601 string
+  nextRun: string; // ISO 8601 string ou "Paused"
 };
 
 export default function WorkflowsPage() {
@@ -18,18 +18,19 @@ export default function WorkflowsPage() {
 
   // Função para formatar datas
   const formatDate = (dateString: string) => {
-    // Se for "Paused", retorne como está
     if (dateString === 'Paused') {
-      return 'Paused';
+      return 'Paused'; // Retorna como está
     }
 
-    // Tente criar uma data e formatá-la
-    const date = new Date(dateString);
-    if (isNaN(date.getTime())) {
-      return 'Invalid Date'; // Fallback para valores inesperados
+    try {
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) {
+        throw new Error('Invalid Date');
+      }
+      return date.toLocaleString(); // Formata para string legível
+    } catch {
+      return 'Invalid Date'; // Fallback em caso de erro
     }
-
-    return date.toLocaleString(); // Formatar para string legível
   };
 
   // Carregar os workflows ao montar o componente
