@@ -7,8 +7,8 @@ type Workflow = {
   name: string;
   description: string;
   status: 'active' | 'paused';
-  lastRun: string; // Deve ser uma string, de preferência no formato ISO 8601
-  nextRun: string; // Deve ser uma string, ou "Paused"
+  lastRun: string; // Deve ser uma string no formato ISO 8601
+  nextRun: string; // Pode ser uma string no formato ISO 8601 ou "Paused"
 };
 
 export default function WorkflowsPage() {
@@ -16,16 +16,20 @@ export default function WorkflowsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Validar os dados recebidos
-  const validateWorkflows = (data: any[]): data is Workflow[] => {
-    return data.every(
-      (item) =>
-        typeof item.name === 'string' &&
-        typeof item.description === 'string' &&
-        ['active', 'paused'].includes(item.status) &&
-        typeof item.lastRun === 'string' &&
-        typeof item.nextRun === 'string'
-    );
+  // Função para formatar datas
+  const formatDate = (dateString: string) => {
+    // Se for "Paused", retorne como está
+    if (dateString === 'Paused') {
+      return 'Paused';
+    }
+
+    // Tente criar uma data e formatá-la
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) {
+      return 'Invalid Date'; // Fallback para valores inesperados
+    }
+
+    return date.toLocaleString(); // Formatar para string legível
   };
 
   // Carregar os workflows ao montar o componente
@@ -33,11 +37,6 @@ export default function WorkflowsPage() {
     const loadWorkflows = async () => {
       try {
         const data = await fetchWorkflows(); // Busca os workflows da API
-
-        if (!validateWorkflows(data)) {
-          throw new Error('Os dados recebidos não estão no formato esperado.');
-        }
-
         setWorkflows(data);
       } catch (error: any) {
         console.error('Erro ao carregar workflows:', error.message);
@@ -90,8 +89,8 @@ export default function WorkflowsPage() {
             name={workflow.name}
             description={workflow.description}
             status={workflow.status}
-            lastRun={workflow.lastRun || 'N/A'}
-            nextRun={workflow.nextRun || 'N/A'}
+            lastRun={formatDate(workflow.lastRun)}
+            nextRun={formatDate(workflow.nextRun)}
           />
         ))}
       </div>
