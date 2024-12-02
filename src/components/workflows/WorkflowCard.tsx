@@ -10,6 +10,22 @@ interface WorkflowCardProps {
 }
 
 export default function WorkflowCard({ name, description, status, lastRun, nextRun }: WorkflowCardProps) {
+  // Função para exibir datas ou valores textuais corretamente
+  const renderRunValue = (value: string) => {
+    if (value === 'Paused') {
+      return 'Paused'; // Valor textual
+    }
+    try {
+      const date = new Date(value);
+      if (isNaN(date.getTime())) {
+        throw new Error('Invalid Date');
+      }
+      return date.toLocaleString(); // Formata para string legível
+    } catch {
+      return 'Invalid Date'; // Fallback para valores inválidos
+    }
+  };
+
   return (
     <div className="bg-white rounded-xl shadow-sm p-6">
       <div className="flex items-start justify-between">
@@ -17,11 +33,11 @@ export default function WorkflowCard({ name, description, status, lastRun, nextR
           <h3 className="text-lg font-semibold text-gray-900">{name}</h3>
           <p className="text-sm text-gray-500 mt-1">{description}</p>
         </div>
-        <button className={`p-2 rounded-full ${
-          status === 'active' 
-            ? 'bg-green-100 text-green-600' 
-            : 'bg-gray-100 text-gray-600'
-        }`}>
+        <button
+          className={`p-2 rounded-full ${
+            status === 'active' ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-600'
+          }`}
+        >
           {status === 'active' ? <Pause className="h-5 w-5" /> : <Play className="h-5 w-5" />}
         </button>
       </div>
@@ -29,11 +45,11 @@ export default function WorkflowCard({ name, description, status, lastRun, nextR
       <div className="mt-4 space-y-2">
         <div className="flex items-center text-sm text-gray-500">
           <Clock className="h-4 w-4 mr-2" />
-          Last run: {lastRun}
+          Last run: {renderRunValue(lastRun)}
         </div>
         <div className="flex items-center text-sm text-gray-500">
           <ArrowRight className="h-4 w-4 mr-2" />
-          Next run: {nextRun}
+          Next run: {renderRunValue(nextRun)}
         </div>
       </div>
 

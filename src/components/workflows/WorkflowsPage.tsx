@@ -38,6 +38,7 @@ export default function WorkflowsPage() {
     const loadWorkflows = async () => {
       try {
         const data = await fetchWorkflows(); // Busca os workflows da API
+        console.log('Workflows carregados:', data); // Adicione este log
         setWorkflows(data);
       } catch (error: any) {
         console.error('Erro ao carregar workflows:', error.message);
@@ -46,10 +47,10 @@ export default function WorkflowsPage() {
         setLoading(false); // Finaliza o carregamento
       }
     };
-
+  
     loadWorkflows();
   }, []);
-
+  
   // Exibir mensagem de erro, se houver
   if (error) {
     return (
