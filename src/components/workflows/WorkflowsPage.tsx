@@ -1,31 +1,37 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import WorkflowCard from './WorkflowCard';
-
-const workflows = [
-  {
-    name: 'CRM Data Sync',
-    description: 'Sync contacts and deals between Kommo CRM and local database',
-    status: 'active' as const,
-    lastRun: '2 hours ago',
-    nextRun: 'in 1 hour'
-  },
-  {
-    name: 'BI Report Generation',
-    description: 'Generate and export BI reports daily',
-    status: 'paused' as const,
-    lastRun: '1 day ago',
-    nextRun: 'Paused'
-  },
-  {
-    name: 'Lead Scoring',
-    description: 'Calculate and update lead scores based on activities',
-    status: 'active' as const,
-    lastRun: '30 minutes ago',
-    nextRun: 'in 30 minutes'
-  }
-];
+import { fetchWorkflows } from '../../services/workflowService';
 
 export default function WorkflowsPage() {
+  const [workflows, setWorkflows] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  // Carregar os workflows ao montar o componente
+  useEffect(() => {
+    const loadWorkflows = async () => {
+      try {
+        const data = await fetchWorkflows(); // Busca os workflows da API
+        setWorkflows(data);
+      } catch (error) {
+        console.error('Erro ao carregar workflows:', error.message);
+      } finally {
+        setLoading(false); // Finaliza o carregamento
+      }
+    };
+
+    loadWorkflows();
+  }, []);
+
+  // Exibir carregamento enquanto os workflows não estão disponíveis
+  if (loading) {
+    return (
+      <div className="p-6 space-y-6">
+        <h1 className="text-2xl font-bold text-gray-900">Workflows</h1>
+        <p className="text-gray-500">Loading workflows...</p>
+      </div>
+    );
+  }
+
   return (
     <div className="p-6 space-y-6">
       <div className="flex justify-between items-center">
