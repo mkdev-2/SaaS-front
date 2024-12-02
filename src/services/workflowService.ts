@@ -11,22 +11,25 @@ export async function startWorkflow() {
   }
 
 export async function fetchWorkflows() {
-  const response = await fetch('/api/sync/workflows', {
-    method: 'GET',
-    cache: 'no-cache', // Evita usar o cache do navegador
-  });
+  try {
+    const response = await fetch('https://saas-backend-production-8b94.up.railway.app/api/sync/workflows', {
+      method: 'GET',
+    });
 
-  if (response.status === 304) {
-    // Opcional: Retornar um cache local ou um estado vazio
-    console.warn('Nenhuma modificação detectada, usando cache local.');
-    return []; // Ou retorne um estado previamente armazenado
+    if (!response.ok) {
+      throw new Error(`API retornou status ${response.status}`);
+    }
+
+    const contentType = response.headers.get('content-type');
+    if (!contentType || !contentType.includes('application/json')) {
+      throw new Error('Resposta não é JSON');
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('Erro ao buscar workflows:', error.message);
+    throw error;
   }
-
-  if (!response.ok) {
-    throw new Error(`Failed to fetch workflows: ${response.status}`);
-  }
-
-  return await response.json();
 }
   
   
