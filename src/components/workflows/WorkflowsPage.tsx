@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import WorkflowCard from './WorkflowCard';
 import { fetchWorkflows } from '../../services/workflowService';
+import { io } from 'socket.io-client';
 
 // Definição do tipo para os dados de workflows
 type Workflow = {
@@ -15,6 +16,7 @@ export default function WorkflowsPage() {
   const [workflows, setWorkflows] = useState<Workflow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [realTimeUpdates, setRealTimeUpdates] = useState<string | null>(null);
 
   // Função para formatar datas
   const formatDate = (dateString: string) => {
@@ -38,7 +40,7 @@ export default function WorkflowsPage() {
     const loadWorkflows = async () => {
       try {
         const data = await fetchWorkflows(); // Busca os workflows da API
-        console.log('Workflows carregados:', data); // Adicione este log
+        console.log('Workflows carregados:', data);
         setWorkflows(data);
       } catch (error: any) {
         console.error('Erro ao carregar workflows:', error.message);
@@ -47,10 +49,22 @@ export default function WorkflowsPage() {
         setLoading(false); // Finaliza o carregamento
       }
     };
-  
+
     loadWorkflows();
+
+    // Configurar o WebSocket para monitorar atualizações em tempo real
+    const socket = io(import.meta.env.VITE_WS_URL || 'http://localhost:3000'); // URL do WebSocket
+
+    socket.on('workflowUpdate', (update) => {
+      console.log('Atualização do workflow:', update);
+      setRealTimeUpdates(update.message); // Atualizar mensagem de status
+    });
+
+    return () => {
+      socket.off('workflowUpdate'); // Limpa o evento ao desmontar o componente
+    };
   }, []);
-  
+
   // Exibir mensagem de erro, se houver
   if (error) {
     return (
@@ -83,6 +97,12 @@ export default function WorkflowsPage() {
           Create Workflow
         </button>
       </div>
+
+      {realTimeUpdates && (
+        <div className="mt-4 p-4 bg-blue-100 text-blue-700 rounded-md">
+          {realTimeUpdates}
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {workflows.map((workflow, index) => (
