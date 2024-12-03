@@ -20,7 +20,7 @@ export default function KommoConnectionStatus() {
 
   useEffect(() => {
     // Busca inicial da configuração do Kommo no back-end
-    axios.get('/api/kommo/config')
+    axios.get('/api/kommo/status')
       .then(response => {
         const { accountDomain, connectedAt, isConnected } = response.data;
         setKommoStatus({
