@@ -1,6 +1,5 @@
-
 import React, { useEffect, useState } from 'react';
-import api from '../../../utils/api'; // Importing centralized Axios instance
+import api from '../../../utils/api';
 
 export default function KommoConnectionStatus() {
   const [kommoStatus, setKommoStatus] = useState({
@@ -10,7 +9,6 @@ export default function KommoConnectionStatus() {
   });
 
   useEffect(() => {
-    // Fetch initial Kommo connection status from the correct API
     api.get('/api/kommo/status')
       .then(response => {
         const { accountDomain, connectedAt, isConnected } = response.data;
@@ -30,17 +28,10 @@ export default function KommoConnectionStatus() {
       });
   }, []);
 
-  const getStatusText = () => {
-    if (kommoStatus.error) return 'Connection Error';
-    if (kommoStatus.isConnected) return 'Connected';
-    if (kommoStatus.config) return 'Reconnection Required';
-    return 'Not Connected';
-  };
-
   return (
     <div>
       <h1>Kommo Integration</h1>
-      <p>Status: {getStatusText()}</p>
+      <p>Status: {kommoStatus.isConnected ? 'Connected' : 'Reconnection Required'}</p>
       <p>Account: {kommoStatus.config?.accountDomain || 'No Account'}</p>
       <p>Last Connected: {kommoStatus.config?.connectedAt || 'Never'}</p>
     </div>
