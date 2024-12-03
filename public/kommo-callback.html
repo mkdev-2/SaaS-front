@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html>
 <head>
@@ -9,49 +10,16 @@
       const error = urlParams.get('error');
       
       if (code) {
-        window.opener.postMessage({ type: 'KOMMO_AUTH_CODE', code }, window.location.origin);
+        window.opener.postMessage({ type: 'KOMMO_AUTH_CODE', code }, '*');
         window.close();
       } else if (error) {
-        window.opener.postMessage({ type: 'KOMMO_AUTH_ERROR', error }, window.location.origin);
+        window.opener.postMessage({ type: 'KOMMO_AUTH_ERROR', error }, '*');
         window.close();
       }
     };
   </script>
-  <style>
-    body {
-      font-family: system-ui, -apple-system, sans-serif;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      height: 100vh;
-      margin: 0;
-      background-color: #f9fafb;
-    }
-    .container {
-      text-align: center;
-      padding: 2rem;
-      background-color: white;
-      border-radius: 0.5rem;
-      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-    }
-    .spinner {
-      width: 2rem;
-      height: 2rem;
-      border: 3px solid #e5e7eb;
-      border-top-color: #4f46e5;
-      border-radius: 50%;
-      animation: spin 1s linear infinite;
-      margin: 0 auto 1rem;
-    }
-    @keyframes spin {
-      to { transform: rotate(360deg); }
-    }
-  </style>
 </head>
 <body>
-  <div class="container">
-    <div class="spinner"></div>
-    <p>Processando autenticação...</p>
-  </div>
+  <p>Processing authentication...</p>
 </body>
 </html>
