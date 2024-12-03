@@ -7,9 +7,21 @@ interface WorkflowCardProps {
   status: 'active' | 'paused';
   lastRun: string;
   nextRun: string;
+  onToggleStatus?: () => void; // Handler para Play/Pause
+  onEdit?: () => void; // Handler para botão Edit
+  onViewLogs?: () => void; // Handler para botão View Logs
 }
 
-export default function WorkflowCard({ name, description, status, lastRun, nextRun }: WorkflowCardProps) {
+export default function WorkflowCard({
+  name,
+  description,
+  status,
+  lastRun,
+  nextRun,
+  onToggleStatus,
+  onEdit,
+  onViewLogs,
+}: WorkflowCardProps) {
   // Função para exibir datas ou valores textuais corretamente
   const renderRunValue = (value: string) => {
     if (value === 'Paused') {
@@ -37,6 +49,7 @@ export default function WorkflowCard({ name, description, status, lastRun, nextR
           className={`p-2 rounded-full ${
             status === 'active' ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-600'
           }`}
+          onClick={onToggleStatus} // Handler para Play/Pause
         >
           {status === 'active' ? <Pause className="h-5 w-5" /> : <Play className="h-5 w-5" />}
         </button>
@@ -54,10 +67,16 @@ export default function WorkflowCard({ name, description, status, lastRun, nextR
       </div>
 
       <div className="mt-4 flex space-x-3">
-        <button className="flex-1 py-2 px-4 bg-white border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50">
+        <button
+          className="flex-1 py-2 px-4 bg-white border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50"
+          onClick={onEdit} // Handler para botão Edit
+        >
           Edit
         </button>
-        <button className="flex-1 py-2 px-4 bg-indigo-600 text-white rounded-md text-sm font-medium hover:bg-indigo-700">
+        <button
+          className="flex-1 py-2 px-4 bg-indigo-600 text-white rounded-md text-sm font-medium hover:bg-indigo-700"
+          onClick={onViewLogs} // Handler para botão View Logs
+        >
           View Logs
         </button>
       </div>

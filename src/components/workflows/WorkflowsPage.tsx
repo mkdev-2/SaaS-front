@@ -62,18 +62,26 @@ export default function WorkflowsPage() {
           {workflowUpdates}
         </div>
       )}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {workflows.map((workflow, index) => (
-          <WorkflowCard
-            key={index}
-            name={workflow.name}
-            description={workflow.description}
-            status={workflow.status}
-            lastRun={workflow.lastRun}
-            nextRun={workflow.nextRun}
-          />
-        ))}
-      </div>
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      {workflows.map((workflow, index) => (
+        <WorkflowCard
+          key={index}
+          name={workflow.name}
+          description={workflow.description}
+          status={workflow.status}
+          lastRun={workflow.lastRun}
+          nextRun={workflow.nextRun}
+          onToggleStatus={() =>
+            alert(
+              `${workflow.status === 'active' ? 'Pausing' : 'Starting'} workflow: ${workflow.name}`
+            )
+          }
+          onEdit={() => alert(`Editing workflow: ${workflow.name}`)}
+          onViewLogs={() => alert(`Viewing logs for workflow: ${workflow.name}`)}
+        />
+      ))}
+    </div>
+
     </div>
   );
 }
