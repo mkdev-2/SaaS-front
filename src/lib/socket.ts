@@ -57,7 +57,10 @@ class SocketService {
       const baseUrl = import.meta.env.VITE_API_URL.replace('/api', '');
       const dateParams = this.getDateParams();
 
-      this.socket = io(baseUrl, {
+      
+    console.log('Initializing WebSocket connection to:', baseUrl);
+    this.socket = io(baseUrl, {
+    
         auth: { token },
         transports: ['websocket'],
         reconnection: true,
@@ -74,7 +77,15 @@ class SocketService {
       this.setupEventListeners();
     } catch (error) {
       console.error('Socket initialization error:', error);
-      this.isConnecting = false;
+      
+    this.isConnecting = false;
+    this.socket.on('connect_error', (error) => {
+        console.error('WebSocket connection error:', error);
+    });
+    this.socket.on('error', (error) => {
+        console.error('WebSocket encountered an error:', error);
+    });
+    
       this.notifyConnectionStatus(false);
     }
   }
@@ -99,22 +110,47 @@ class SocketService {
   private setupEventListeners() {
     if (!this.socket) return;
 
+    
     this.socket.on('connect', () => {
+        console.log('WebSocket connected with ID:', this.socket.id);
+    
       console.log('Socket connected');
-      this.isConnecting = false;
+      
+    this.isConnecting = false;
+    this.socket.on('connect_error', (error) => {
+        console.error('WebSocket connection error:', error);
+    });
+    this.socket.on('error', (error) => {
+        console.error('WebSocket encountered an error:', error);
+    });
+    
       this.reconnectAttempts = 0;
       this.notifyConnectionStatus(true);
       this.emitSubscription();
     });
 
+    
     this.socket.on('disconnect', () => {
+        console.warn('WebSocket disconnected. Attempting to reconnect...');
+    
       console.log('Socket disconnected');
-      this.isConnecting = false;
+      
+    this.isConnecting = false;
+    this.socket.on('connect_error', (error) => {
+        console.error('WebSocket connection error:', error);
+    });
+    this.socket.on('error', (error) => {
+        console.error('WebSocket encountered an error:', error);
+    });
+    
       this.notifyConnectionStatus(false);
       this.handleReconnect();
     });
 
+    
     this.socket.on('dashboard:update', (data: any) => {
+        console.log('Received dashboard update:', data);
+    
       if (data?.status === 'success' && data?.data) {
         const now = Date.now();
         if (now - this.lastDataTimestamp < this.minUpdateInterval) {
@@ -212,7 +248,15 @@ class SocketService {
   }
 
   disconnect() {
+    
     this.isConnecting = false;
+    this.socket.on('connect_error', (error) => {
+        console.error('WebSocket connection error:', error);
+    });
+    this.socket.on('error', (error) => {
+        console.error('WebSocket encountered an error:', error);
+    });
+    
     this.initialDataLoaded = false;
     this.lastData = null;
     this.lastDataTimestamp = 0;
