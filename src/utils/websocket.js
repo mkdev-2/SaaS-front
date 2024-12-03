@@ -1,7 +1,7 @@
 
 import { io } from 'socket.io-client';
 
-const socket = io(process.env.VITE_API_URL, {
+const socket = io(process.env.VITE_WS_URL, {
   withCredentials: true,
   transports: ['websocket'],
 });
