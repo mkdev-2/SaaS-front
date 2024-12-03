@@ -9,7 +9,7 @@ export default function KommoConnectionStatus() {
   });
 
   useEffect(() => {
-    api.get('/api/kommo/status')
+    api.get('/api/kommo/config')
       .then(response => {
         const { accountDomain, connectedAt, isConnected } = response.data;
         setKommoStatus({
