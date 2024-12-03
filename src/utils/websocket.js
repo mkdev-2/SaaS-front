@@ -1,7 +1,7 @@
 
 import { io } from 'socket.io-client';
 
-const socket = io(process.env.VITE_WS_URL, {
+const socket = io(process.env.VITE_WS_URL || 'https://saas-backend-production-8b94.up.railway.app', {
   withCredentials: true,
   transports: ['websocket'],
 });
