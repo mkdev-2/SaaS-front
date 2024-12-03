@@ -32,7 +32,7 @@ export default function WorkflowsPage() {
 
     loadWorkflows();
 
-    const socket = io(import.meta.env.VITE_WS_URL || 'http://localhost:3000');
+    const socket = io(import.meta.env.VITE_WS_URL || 'https://saas-backend-production-8b94.up.railway.app:8080');
 
     socket.on('workflowUpdate', (update) => {
       console.log('Atualização do workflow:', update);
