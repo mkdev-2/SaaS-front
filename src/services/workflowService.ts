@@ -12,7 +12,7 @@ export async function startWorkflow() {
 
 export async function fetchWorkflows() {
   try {
-    const response = await fetch('https://saas-backend-production-8b94.up.railway.app/api/sync/workflows', {
+    const response = await fetch('https://saas-backend-production-8b94.up.railway.app/api/sync/workflows/start', {
       method: 'GET',
     });
 

@@ -47,7 +47,7 @@ export default function WorkflowsPage() {
   const startWorkflow = async (workflowName: string) => {
     try {
       const response = await fetch(
-        `${import.meta.env.VITE_API_BASE_URL}/api/sync/workflow/start`,
+        `${import.meta.env.VITE_API_BASE_URL}/api/sync/workflows/start`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
