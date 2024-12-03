@@ -3,15 +3,13 @@ import WorkflowCard from './WorkflowCard';
 import { fetchWorkflows } from '../../services/workflowService';
 import { io } from 'socket.io-client';
 
-// Definição do tipo para os dados de workflows
 type Workflow = {
   name: string;
   description: string;
   status: 'active' | 'paused';
-  lastRun: string; // ISO 8601 string
-  nextRun: string; // ISO 8601 string ou "Paused"
+  lastRun: string;
+  nextRun: string;
 };
-
 
 export default function WorkflowsPage() {
   const [workflows, setWorkflows] = useState<Workflow[]>([]);
@@ -46,6 +44,30 @@ export default function WorkflowsPage() {
     };
   }, []);
 
+  const startWorkflow = async (workflowName: string) => {
+    try {
+      const response = await fetch(
+        `${import.meta.env.VITE_API_BASE_URL}/api/sync/workflow/start`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ workflowName }),
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error('Erro ao iniciar workflow.');
+      }
+
+      const data = await response.json();
+      console.log(`Workflow ${workflowName} iniciado com sucesso:`, data);
+      alert(`Workflow ${workflowName} iniciado com sucesso!`);
+    } catch (error) {
+      console.error(`Erro ao iniciar workflow ${workflowName}:`, error);
+      alert(`Erro ao iniciar workflow ${workflowName}.`);
+    }
+  };
+
   if (error) {
     return <p className="text-red-500">Erro: {error}</p>;
   }
@@ -58,30 +80,23 @@ export default function WorkflowsPage() {
     <div className="p-6 space-y-6">
       <h1 className="text-2xl font-bold">Workflows</h1>
       {workflowUpdates && (
-        <div className="bg-blue-100 text-blue-700 p-4 rounded-md">
-          {workflowUpdates}
-        </div>
+        <div className="bg-blue-100 text-blue-700 p-4 rounded-md">{workflowUpdates}</div>
       )}
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      {workflows.map((workflow, index) => (
-        <WorkflowCard
-          key={index}
-          name={workflow.name}
-          description={workflow.description}
-          status={workflow.status}
-          lastRun={workflow.lastRun}
-          nextRun={workflow.nextRun}
-          onToggleStatus={() =>
-            alert(
-              `${workflow.status === 'active' ? 'Pausing' : 'Starting'} workflow: ${workflow.name}`
-            )
-          }
-          onEdit={() => alert(`Editing workflow: ${workflow.name}`)}
-          onViewLogs={() => alert(`Viewing logs for workflow: ${workflow.name}`)}
-        />
-      ))}
-    </div>
-
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {workflows.map((workflow, index) => (
+          <WorkflowCard
+            key={index}
+            name={workflow.name}
+            description={workflow.description}
+            status={workflow.status}
+            lastRun={workflow.lastRun}
+            nextRun={workflow.nextRun}
+            onToggleStatus={() => startWorkflow(workflow.name)} // Conecta ao handler
+            onEdit={() => alert(`Editando workflow: ${workflow.name}`)}
+            onViewLogs={() => alert(`Visualizando logs de: ${workflow.name}`)}
+          />
+        ))}
+      </div>
     </div>
   );
 }
