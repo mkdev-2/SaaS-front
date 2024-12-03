@@ -40,7 +40,13 @@ class SocketService {
   connect() {
     if (this.isConnecting || this.socket?.connected) return;
 
+    
     const token = localStorage.getItem('accessToken');
+    if (!token) {
+        console.error('Missing authentication token. Cannot connect to WebSocket.');
+        return;
+    }
+    
     if (!token) {
       this.notifyConnectionStatus(false);
       return;
@@ -79,7 +85,12 @@ class SocketService {
       console.error('Socket initialization error:', error);
       
     this.isConnecting = false;
+    
     this.socket.on('connect_error', (error) => {
+        console.error('WebSocket connection error:', error);
+        console.log('Retrying connection after error...');
+        this.handleReconnect();
+    
         console.error('WebSocket connection error:', error);
     });
     this.socket.on('error', (error) => {
@@ -117,7 +128,12 @@ class SocketService {
       console.log('Socket connected');
       
     this.isConnecting = false;
+    
     this.socket.on('connect_error', (error) => {
+        console.error('WebSocket connection error:', error);
+        console.log('Retrying connection after error...');
+        this.handleReconnect();
+    
         console.error('WebSocket connection error:', error);
     });
     this.socket.on('error', (error) => {
@@ -130,13 +146,26 @@ class SocketService {
     });
 
     
+    
     this.socket.on('disconnect', () => {
+        console.warn('WebSocket disconnected. Attempting to reconnect...');
+        console.log('Clearing existing connection data and forcing reconnection...');
+        this.socket?.removeAllListeners();
+        this.socket?.close();
+        this.socket = null;
+        this.connect(); // Force reconnect
+    
         console.warn('WebSocket disconnected. Attempting to reconnect...');
     
       console.log('Socket disconnected');
       
     this.isConnecting = false;
+    
     this.socket.on('connect_error', (error) => {
+        console.error('WebSocket connection error:', error);
+        console.log('Retrying connection after error...');
+        this.handleReconnect();
+    
         console.error('WebSocket connection error:', error);
     });
     this.socket.on('error', (error) => {
@@ -250,7 +279,12 @@ class SocketService {
   disconnect() {
     
     this.isConnecting = false;
+    
     this.socket.on('connect_error', (error) => {
+        console.error('WebSocket connection error:', error);
+        console.log('Retrying connection after error...');
+        this.handleReconnect();
+    
         console.error('WebSocket connection error:', error);
     });
     this.socket.on('error', (error) => {
