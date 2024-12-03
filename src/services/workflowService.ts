@@ -9,7 +9,20 @@ export async function startWorkflow() {
   
     return await response.json();
   }
-
+  export const fetchLogs = async () => {
+    try {
+      const response = await fetch('/api/sync/logs'); // Certifique-se que esta rota está disponível
+      if (!response.ok) {
+        throw new Error('Erro ao carregar logs');
+      }
+      const data = await response.json();
+      return data.logs;
+    } catch (error) {
+      console.error('Erro ao buscar logs:', error.message);
+      throw error;
+    }
+  };
+  
 export async function fetchWorkflows() {
   try {
     const response = await fetch('https://saas-backend-production-8b94.up.railway.app/api/sync/workflows', {

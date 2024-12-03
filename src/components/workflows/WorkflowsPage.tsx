@@ -32,8 +32,12 @@ export default function WorkflowsPage() {
 
     loadWorkflows();
 
-    const socket = io(import.meta.env.VITE_WS_URL || 'wss://saas-backend-production-8b94.up.railway.app');
-
+    const socket = io('wss://saas-backend-production-8b94.up.railway.app', {
+      transports: ['websocket'], // Força o uso do protocolo WebSocket
+      reconnectionAttempts: 3, // Tenta reconectar 3 vezes em caso de falha
+      timeout: 20000, // Tempo limite para conexão
+    });
+    
     socket.on('workflowUpdate', (update) => {
       console.log('Atualização do workflow:', update);
       setWorkflowUpdates(update.message);
