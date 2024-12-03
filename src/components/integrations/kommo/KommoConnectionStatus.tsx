@@ -3,6 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { CheckCircle2, AlertTriangle, XCircle } from 'lucide-react';
 import socket from '../../../utils/websocket';
 import { KommoConfig } from '../../../lib/kommo/types';
+import axios from 'axios';
 
 interface KommoConnectionStatusProps {
   isConnected: boolean;
