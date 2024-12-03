@@ -1,4 +1,3 @@
-
 import { io, Socket } from 'socket.io-client';
 import { DashboardData, DateRange } from '../types/dashboard';
 import { ensureDateObjects } from '../utils/dateUtils';
@@ -43,7 +42,6 @@ class SocketService {
 
     const token = localStorage.getItem('accessToken');
     if (!token) {
-      console.error('No valid token found in localStorage. WebSocket connection aborted.');
       this.notifyConnectionStatus(false);
       return;
     }
@@ -57,7 +55,7 @@ class SocketService {
 
     try {
       const baseUrl = import.meta.env.VITE_API_URL.replace('/api', '');
-      console.log('Initializing WebSocket connection to:', baseUrl);
+      const dateParams = this.getDateParams();
 
       this.socket = io(baseUrl, {
         auth: { token },
@@ -68,7 +66,7 @@ class SocketService {
         reconnectionDelayMax: 5000,
         timeout: 10000,
         query: {
-          ...this.getDateParams(),
+          ...dateParams,
           detailed: String(this.subscriptionParams.detailed)
         }
       });
@@ -83,7 +81,7 @@ class SocketService {
 
   private getDateParams(): Record<string, string> {
     const dateRange = ensureDateObjects(this.subscriptionParams.dateRange);
-
+    
     const params: Record<string, string> = {
       startDate: dateRange.start.toISOString(),
       endDate: dateRange.end.toISOString()
@@ -102,7 +100,7 @@ class SocketService {
     if (!this.socket) return;
 
     this.socket.on('connect', () => {
-      console.log('WebSocket connected with ID:', this.socket.id);
+      console.log('Socket connected');
       this.isConnecting = false;
       this.reconnectAttempts = 0;
       this.notifyConnectionStatus(true);
@@ -110,28 +108,26 @@ class SocketService {
     });
 
     this.socket.on('disconnect', () => {
-      console.warn('WebSocket disconnected. Attempting to reconnect...');
+      console.log('Socket disconnected');
       this.isConnecting = false;
       this.notifyConnectionStatus(false);
       this.handleReconnect();
     });
 
-    this.socket.on('connect_error', (error) => {
-      console.error('WebSocket connection error:', error);
-      this.handleReconnect();
-    });
-
-    this.socket.on('error', (error) => {
-      console.error('WebSocket encountered an error:', error);
-    });
-
     this.socket.on('dashboard:update', (data: any) => {
-      console.log('Received dashboard update:', data);
-
       if (data?.status === 'success' && data?.data) {
         const now = Date.now();
         if (now - this.lastDataTimestamp < this.minUpdateInterval) {
           return;
+        }
+
+        // Ensure all date fields are properly formatted
+        if (data.data.currentStats?.leads) {
+          data.data.currentStats.leads = data.data.currentStats.leads.map((lead: any) => ({
+            ...lead,
+            created_at: lead.created_at ? new Date(lead.created_at).toISOString() : null,
+            last_interaction: lead.last_interaction ? new Date(lead.last_interaction).toISOString() : null
+          }));
         }
 
         this.lastData = data;
@@ -162,7 +158,7 @@ class SocketService {
     if (params.dateRange) {
       params.dateRange = ensureDateObjects(params.dateRange);
     }
-
+    
     this.subscriptionParams = {
       ...this.subscriptionParams,
       ...params
@@ -220,7 +216,7 @@ class SocketService {
     this.initialDataLoaded = false;
     this.lastData = null;
     this.lastDataTimestamp = 0;
-
+    
     if (this.reconnectTimer) {
       clearTimeout(this.reconnectTimer);
       this.reconnectTimer = null;
